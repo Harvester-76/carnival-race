@@ -26,8 +26,8 @@ UninstallDisplayName={#AppName}
 OutputDir=..\..\build
 OutputBaseFilename=KarnavalskayaGonka_Setup_0.1
 InfoBeforeFile=info_before.txt
+DisableWelcomePage=no
 WizardImageFile=img\porthole_tall.bmp
-WizardSmallImageFile=img\about_small.bmp
 VersionInfoVersion=0.1.0.0
 VersionInfoCompany=Harvester
 VersionInfoDescription=Установщик: {#AppName}
@@ -52,6 +52,8 @@ WizardReady=Ставки приняты
 ReadyLabel1=Взносы внесены, ставки сделаны, корабли заправлены. Нажмите «Установить», и пути назад не будет (то есть будет, через деинсталлятор, но это уже позор).
 WizardInstalling=Идёт заправка
 InstallingLabel=Раскладываем каньон по полочкам
+ButtonFinish=&Готово
+ClickFinish=
 FinishedHeadingLabel=Стартуем!
 FinishedLabel=Установка закончена. Нажмите «Готово», чтобы выйти из мастера (из каньона так просто не выйти). Желаем лёгкого полёта и ни одной оторванной детали.
 FinishedLabelNoIcons=Установка закончена. Нажмите «Готово», чтобы выйти из мастера (из каньона так просто не выйти). Желаем лёгкого полёта и ни одной оторванной детали.
@@ -70,15 +72,15 @@ Name: "startmenuicon"; Description: "Ярлык в меню «Пуск»"; Group
 [Files]
 Source: "..\..\build\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\build\KarnavalskayaGonka.pck"; DestDir: "{app}"; Flags: ignoreversion
-Source: "img\exit_small.bmp"; DestDir: "{app}"; DestName: "unins_exit.bmp"; Flags: ignoreversion
+Source: "img\exit_side.bmp"; DestDir: "{app}"; DestName: "unins_exit.bmp"; Flags: ignoreversion
 ; картинки мастера: распаковываются во время работы из [Code]
 Source: "img\porthole_tall.bmp"; Flags: dontcopy
 Source: "img\space_tall.bmp"; Flags: dontcopy
-Source: "img\about_small.bmp"; Flags: dontcopy
-Source: "img\hangar_small.bmp"; Flags: dontcopy
-Source: "img\bar_small.bmp"; Flags: dontcopy
-Source: "img\cabin_small.bmp"; Flags: dontcopy
-Source: "img\engine_small.bmp"; Flags: dontcopy
+Source: "img\about_side.bmp"; Flags: dontcopy
+Source: "img\hangar_side.bmp"; Flags: dontcopy
+Source: "img\bar_side.bmp"; Flags: dontcopy
+Source: "img\cabin_side.bmp"; Flags: dontcopy
+Source: "img\engine_side.bmp"; Flags: dontcopy
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: startmenuicon
@@ -107,31 +109,67 @@ begin
       Result := Pos('{#AppExe}', String(S)) > 0;
 end;
 
-procedure ShowImage(const TallName, SmallName: String);
+var
+  SidePic: TBitmapImage;
+  SideW: Integer;
+
+{ Большая картинка слева на внутренних страницах: окно расширяется, страницы сдвигаются вправо.
+  На приветствии и завершении страницы растягиваются на всю ширину, там своя боковая картинка. }
+procedure InitializeWizard();
 begin
-  if TallName <> '' then
-  begin
-    ExtractTemporaryFile(TallName);
-    WizardForm.WizardBitmapImage.Bitmap.LoadFromFile(ExpandConstant('{tmp}\' + TallName));
-    WizardForm.WizardBitmapImage2.Bitmap.LoadFromFile(ExpandConstant('{tmp}\' + TallName));
-  end;
-  if SmallName <> '' then
-  begin
-    ExtractTemporaryFile(SmallName);
-    WizardForm.WizardSmallBitmapImage.Bitmap.LoadFromFile(ExpandConstant('{tmp}\' + SmallName));
-  end;
+  SideW := ScaleX(190);
+  WizardForm.ClientWidth := WizardForm.ClientWidth + SideW;
+  SidePic := TBitmapImage.Create(WizardForm);
+  SidePic.Parent := WizardForm;
+  SidePic.Stretch := True;
+  SidePic.Anchors := [akLeft, akTop, akBottom];
+  SidePic.SetBounds(0, 0, SideW, WizardForm.OuterNotebook.Height);
+  WizardForm.WizardSmallBitmapImage.Visible := False;
+end;
+
+procedure LoadPic(Img: TBitmapImage; const Name: String);
+begin
+  ExtractTemporaryFile(Name);
+  Img.Bitmap.LoadFromFile(ExpandConstant('{tmp}\' + Name));
+end;
+
+procedure Layout(Wide: Boolean);
+var
+  H, T: Integer;
+begin
+  H := WizardForm.OuterNotebook.Height;
+  T := WizardForm.OuterNotebook.Top;
+  SidePic.Visible := not Wide;
+  if Wide then
+    WizardForm.OuterNotebook.SetBounds(0, T, WizardForm.ClientWidth, H)
+  else
+    WizardForm.OuterNotebook.SetBounds(SideW, T, WizardForm.ClientWidth - SideW, H);
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
   case CurPageID of
-    wpWelcome:     ShowImage('porthole_tall.bmp', '');
-    wpInfoBefore:  ShowImage('', 'about_small.bmp');
-    wpSelectDir:   ShowImage('', 'hangar_small.bmp');
-    wpSelectTasks: ShowImage('', 'bar_small.bmp');
-    wpReady:       ShowImage('', 'cabin_small.bmp');
-    wpInstalling:  ShowImage('', 'engine_small.bmp');
-    wpFinished:    ShowImage('space_tall.bmp', '');
+    wpWelcome:
+      begin
+        Layout(True);
+        LoadPic(WizardForm.WizardBitmapImage, 'porthole_tall.bmp');
+      end;
+    wpFinished:
+      begin
+        Layout(True);
+        LoadPic(WizardForm.WizardBitmapImage2, 'space_tall.bmp');
+      end;
+  else
+    begin
+      Layout(False);
+      case CurPageID of
+        wpInfoBefore:  LoadPic(SidePic, 'about_side.bmp');
+        wpSelectDir:   LoadPic(SidePic, 'hangar_side.bmp');
+        wpSelectTasks: LoadPic(SidePic, 'bar_side.bmp');
+        wpReady:       LoadPic(SidePic, 'cabin_side.bmp');
+        wpInstalling:  LoadPic(SidePic, 'engine_side.bmp');
+      end;
+    end;
   end;
 end;
 
@@ -171,11 +209,25 @@ end;
 
 procedure InitializeUninstallProgressForm();
 var
-  Pic: String;
+  Pic: TBitmapImage;
+  W, H, OldW: Integer;
+  F: String;
 begin
-  Pic := ExpandConstant('{app}\unins_exit.bmp');
-  if FileExists(Pic) then
-    UninstallProgressForm.WizardSmallBitmapImage.Bitmap.LoadFromFile(Pic);
+  W := ScaleX(190);
+  OldW := UninstallProgressForm.OuterNotebook.Width;
+  H := UninstallProgressForm.OuterNotebook.Height;
+  UninstallProgressForm.ClientWidth := UninstallProgressForm.ClientWidth + W;
+  UninstallProgressForm.OuterNotebook.SetBounds(W, UninstallProgressForm.OuterNotebook.Top, OldW, H);
+  UninstallProgressForm.WizardSmallBitmapImage.Visible := False;
+  F := ExpandConstant('{app}\unins_exit.bmp');
+  if FileExists(F) then
+  begin
+    Pic := TBitmapImage.Create(UninstallProgressForm);
+    Pic.Parent := UninstallProgressForm;
+    Pic.Stretch := True;
+    Pic.SetBounds(0, 0, W, H);
+    Pic.Bitmap.LoadFromFile(F);
+  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
