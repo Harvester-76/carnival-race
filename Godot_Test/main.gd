@@ -1312,7 +1312,7 @@ func _spawn_bots() -> void:                                                  # �
 		rb.contact_monitor = true; rb.max_contacts_reported = 4
 		var btex := bot_tex.duplicate()                                     # своя ливрея: краска, полосы, номер, имя и эмблема (tools/make_liveries.py)
 		var swapped: bool = int(SHIP_LIVERY.get(ship_id, -1)) == i                    # игрок выбрал корабль этого бота: на его месте летит «Третий шанс», чтобы не было двойников
-		if not evo_mode and not swapped and FileAccess.file_exists("res://ship/tex/livery_%d_albedo.png" % i):
+		if not evo_mode and not swapped and ResourceLoader.exists("res://ship/tex/livery_%d_albedo.png" % i):
 			btex["alb"] = load("res://ship/tex/livery_%d_albedo.png" % i); btex["dec"] = load("res://ship/tex/livery_%d_decal.png" % i); btex["two_sided"] = true
 		await _lt(0.30 + 0.62 * float(i) / float(N_BOTS), "Соперники: %d из %d" % [i + 1, N_BOTS])
 		var vspec: Dictionary = BOT_VARIANTS.get(i, {}) if not (evo_mode or swapped or "novariants" in OS.get_cmdline_user_args()) else {}
@@ -1775,7 +1775,7 @@ func _build_ship() -> void:
 			"bite": {"part": "SM_Wing_Top_R", "c": Vector3(21.0, 8.5, 27.0), "r": 7.5}}
 	if SHIP_LIVERY.has(ship_id):                                                # «Долгоносик» и «Аргамак» летят в своих ливреях
 		var li: int = SHIP_LIVERY[ship_id]
-		if FileAccess.file_exists("res://ship/tex/livery_%d_albedo.png" % li):
+		if ResourceLoader.exists("res://ship/tex/livery_%d_albedo.png" % li):
 			hull_tex["alb"] = load("res://ship/tex/livery_%d_albedo.png" % li); hull_tex["dec"] = load("res://ship/tex/livery_%d_decal.png" % li); hull_tex["two_sided"] = true
 	for n in ship.get_children():
 		if n is not MeshInstance3D or n.is_queued_for_deletion(): continue       # вырезанные при подрезке корпуса окна ещё числятся детьми до конца кадра: в части разрушения их брать нельзя
