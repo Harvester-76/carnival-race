@@ -378,6 +378,13 @@ var seg_sa := PackedFloat32Array()
 var seg_sb := PackedFloat32Array()
 var seg_path := PackedInt32Array()
 var branches: Array = []                   # рукава-объезды: {"pts","s","in","out"}; путь 1..N; s у точек = s главного пути в том же месте
+const SPUR_BASE := 1000                    # номера путей ≥ SPUR_BASE — тупиковые ответвления срезок (spurs), не входящие в разметку трассы, карту и прогресс
+const SPURS_PER_CUT := 2                    # тупиков на срезку (0 — выключить)
+const PILLAR_CELL := 420.0                  # шаг сетки столбов, м
+const PILLAR_DENS := 0.62                   # доля заполненных ячеек в центре чаши
+const PILLAR_ZONE_DD := 620.0               # столбы растут только на дне и первой террасе ущелья
+var spurs: Array = []                      # тупики: {"pts","cum","sj","parent","w","ph","len"}; в seg_sa/seg_sb хранится путь вдоль тупика, а s в _tq3 = s развилки (прогресс не растёт)
+var spur_grid := {}                         # сетка отрезков тупиков (отдельно от seg_grid, чтобы рельеф вне тупиков остался прежним)
 var forks: Array = []                      # развилки по порядку: {"in","out","ids":[номера путей]}
 var track_open := false                    # true = открытая трасса (старт и финиш в разных местах), false = замкнутая петля
 var gen_len_km := 0.0
@@ -432,7 +439,7 @@ func _build_track() -> void:
 			if okn and narrow_s.size() < n_narrow: narrow_s.append(cs)
 		wv = [nr.randf_range(0.15, 0.4), nr.randf_range(0.00006, 0.00018), nr.randf_range(0.0, TAU), nr.randf_range(0.08, 0.25), nr.randf_range(0.0003, 0.0009), nr.randf_range(0.0, TAU)]   # ширина каньона плавает по участкам
 	race_len = trk_len - (24000.0 if track_open else 6000.0)                 # у открытой трассы финиш за 24 км до конца: там прямая для торможения
-	if track_open: _make_cuts(gen_cuts, sub)
+	if track_open: _make_cuts(gen_cuts, sub); _make_spurs()
 	else: _make_branches(track_seed if track_seed > 0 else 7)
 	for i in (m - 1 if track_open else m):
 		seg_a.append(trk_pts[i]); seg_b.append(trk_pts[(i + 1) % m]); seg_sa.append(trk_s[i]); seg_sb.append(trk_s[i + 1] if i + 1 < m else trk_len); seg_path.append(0)
@@ -440,14 +447,20 @@ func _build_track() -> void:
 		var br: Dictionary = branches[bi]; var bp: PackedVector2Array = br["pts"]; var bs: PackedFloat32Array = br["s"]
 		for j in range(bp.size() - 1):
 			seg_a.append(bp[j]); seg_b.append(bp[j + 1]); seg_sa.append(bs[j]); seg_sb.append(bs[j + 1]); seg_path.append(bi + 1)
+	var n_main_segs := seg_a.size()
+	for si in spurs.size():
+		var sp: Dictionary = spurs[si]; var spp: PackedVector2Array = sp["pts"]; var spc: PackedFloat32Array = sp["cum"]
+		for j in range(spp.size() - 1):
+			seg_a.append(spp[j]); seg_b.append(spp[j + 1]); seg_sa.append(spc[j]); seg_sb.append(spc[j + 1]); seg_path.append(SPUR_BASE + si)
 	for i in seg_a.size():
 		var a := seg_a[i]; var b := seg_b[i]
 		var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - Vector2(INFL, INFL); var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + Vector2(INFL, INFL)
 		for cx in range(int(floor(lo.x / GCELL)), int(floor(hi.x / GCELL)) + 1):
 			for cz in range(int(floor(lo.y / GCELL)), int(floor(hi.y / GCELL)) + 1):
 				var key := Vector2i(cx, cz)
-				var lst: PackedInt32Array = seg_grid.get(key, PackedInt32Array())
-				lst.append(i); seg_grid[key] = lst
+				var gr: Dictionary = seg_grid if i < n_main_segs else spur_grid
+				var lst: PackedInt32Array = gr.get(key, PackedInt32Array())
+				lst.append(i); gr[key] = lst
 		var tx0 := int(floor((a.x - INFL - 3500.0) / TILE)); var tx1 := int(floor((a.x + INFL + 3500.0) / TILE))
 		var tz0 := int(floor((a.y - INFL - 3500.0) / TILE)); var tz1 := int(floor((a.y + INFL + 3500.0) / TILE))
 		if i % 4 == 0:
@@ -486,6 +499,80 @@ func _make_cuts(cuts: Array, sub: int) -> void:
 				if cum2 >= half: br["needle_s"] = ss[i]; break
 		branches.append(br)
 		forks.append({"in": s_in, "out": s_out, "ids": [branches.size()], "gain": 1.0 - acc / maxf(s_out - s_in, 1.0), "type": ctype})
+
+# Тупиковые ответвления срезок (открытая трасса): такое же узкое ущелье с изломанными краями, уходит под углом от срезки и кончается каменной чашей
+# со «лесом» столбов. Сами срезки и основная трасса не меняются: тупики строятся отдельным генератором с запасом расстояния до них (кроме устья).
+const SPUR_MAIN_GAP := 8000.0               # до основной трассы, м
+const SPUR_CUT_GAP := 7500.0                # до других срезок, тупиков и до своей срезки (дальше 3,5 км от устья)
+func _min_dist_to(p: Vector2, arr: PackedVector2Array, step: int = 1) -> float:
+	var dm := 1e18
+	for i in range(0, arr.size(), step): dm = minf(dm, p.distance_squared_to(arr[i]))
+	return sqrt(dm)
+
+func _make_spurs() -> void:
+	spurs.clear()
+	if not track_open or branches.is_empty() or SPURS_PER_CUT <= 0: return
+	var rng := RandomNumberGenerator.new(); rng.seed = maxi(track_seed, 1) * 131 + 17
+	var mainp := PackedVector2Array(trk_pts)
+	for bi in branches.size():
+		var br: Dictionary = branches[bi]; var bp: PackedVector2Array = br["pts"]; var bs: PackedFloat32Array = br["s"]
+		var made := 0
+		for attempt in 260:
+			if made >= SPURS_PER_CUT: break
+			var i := rng.randi_range(int(bp.size() * 0.12), int(bp.size() * 0.88))
+			var P := bp[i]; var T := (bp[mini(i + 3, bp.size() - 1)] - bp[maxi(i - 3, 0)]).normalized()
+			var side := 1.0 if rng.randf() < 0.5 else -1.0
+			var hd := T.rotated(side * deg_to_rad(rng.randf_range(38.0, 68.0)))
+			var want_len := rng.randf_range(11000.0, 19000.0)
+			var pts := PackedVector2Array([P]); var cum := PackedFloat32Array([0.0])
+			var cur := P; var dd := 0.0
+			while dd < want_len:
+				if dd > 2200.0:
+					hd = hd.rotated(rng.randf_range(-0.2, 0.2) + (rng.randf_range(-0.7, 0.7) if rng.randf() < 0.14 else 0.0))   # изломы
+				cur += hd * 500.0; dd += 500.0; pts.append(cur); cum.append(dd)
+			var ok := true
+			for k in range(1, pts.size()):
+				var pk := pts[k]; var dk := cum[k]
+				if _min_dist_to(pk, mainp, 2) < (SPUR_MAIN_GAP if dk > 2500.0 else 6500.0): ok = false; break
+				for oj in branches.size():
+					var op: PackedVector2Array = (branches[oj] as Dictionary)["pts"]
+					var gap := SPUR_CUT_GAP
+					if oj == bi: gap = minf(0.5 * maxf(dk - 1000.0, 0.0), 3000.0) if dk < want_len * 0.45 else 5000.0     # от своей срезки уходим постепенно, чаша — подальше
+					if gap > 0.0 and _min_dist_to(pk, op, 2) < gap: ok = false; break
+				if not ok: break
+				for os in spurs:
+					if _min_dist_to(pk, (os as Dictionary)["pts"], 1) < SPUR_CUT_GAP: ok = false; break
+				if not ok: break
+				for j in range(0, k):                                             # не сворачивать к самому себе
+					if dk - cum[j] > 3500.0 and pk.distance_to(pts[j]) < 0.5 * (dk - cum[j]): ok = false; break
+				if not ok: break
+			if not ok: continue
+			spurs.append({"pts": pts, "cum": cum, "sj": bs[i], "parent": bi + 1, "ssc": maxf(float(br["sc"]), 0.3), "w": 0.4, "ph": rng.randf_range(0.0, TAU), "len": dd})
+			made += 1
+
+func _hash2(i: int, j: int, k: int) -> float:                             # детерминированный шум 0..1 по целочисленной ячейке
+	return fposmod(sin(float(i) * 127.1 + float(j) * 311.7 + float(k) * 74.7) * 43758.5453, 1.0)
+
+# «Лес» столбов в конце тупика (как в Чжанцзяцзе): вертикальные колонны с плоскими вершинами растут со дна; к стенам ущелья сливаются с ними
+func _spur_pillars(x: float, z: float, h: float, dd: float, d: float, sl: float) -> float:
+	var cf := smoothstep(sl * 0.30, sl * 0.62, d)
+	if cf <= 0.0 or dd >= PILLAR_ZONE_DD: return h
+	var zf := 1.0 - smoothstep(PILLAR_ZONE_DD * 0.62, PILLAR_ZONE_DD, dd)
+	var cs := PILLAR_CELL
+	var ix0 := int(floor(x / cs)); var iz0 := int(floor(z / cs))
+	var best := 0.0
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var ci := ix0 + dx; var cj := iz0 + dz
+			if _hash2(ci, cj, 11) > PILLAR_DENS * cf: continue
+			var cx := (float(ci) + 0.15 + 0.7 * _hash2(ci, cj, 23)) * cs; var cz := (float(cj) + 0.15 + 0.7 * _hash2(ci, cj, 29)) * cs
+			var rad := lerpf(55.0, 150.0, _hash2(ci, cj, 37))
+			var dist := Vector2(x - cx, z - cz).length()
+			if dist >= rad: continue
+			var prof := 1.0 - smoothstep(rad * 0.72, rad, dist)
+			var top := lerpf(800.0, 4400.0, pow(_hash2(ci, cj, 51), 0.8)) * (1.0 + 0.05 * sin(x * 0.11 + z * 0.09))
+			best = maxf(best, prof * top)
+	return maxf(h, best * zf - 8.0)
 
 func _make_branches(sd: int) -> void:
 	var rng := RandomNumberGenerator.new(); rng.seed = sd * 97 + 11
@@ -537,11 +624,16 @@ func _track_query(x: float, z: float) -> Vector2:
 	return Vector2(r.x, r.y)
 
 func _tq3(x: float, z: float) -> Vector3:                                   # (расстояние до ближайшего пути, s в системе главного пути, номер пути)
+	var r := _tq3_raw(x, z)
+	if r.z >= float(SPUR_BASE) - 0.5: r.y = float((spurs[int(r.z) - SPUR_BASE] as Dictionary)["sj"])    # в тупике прогресс стоит на месте: s развилки
+	return r
+
+func _tq3_cls(x: float, z: float, grid: Dictionary) -> Vector3:              # ближайший отрезок из сетки grid: (расстояние, s или путь вдоль тупика, номер пути)
 	var key := Vector2i(int(floor(x / GCELL)), int(floor(z / GCELL)))
-	if not seg_grid.has(key): return Vector3(1e9, 0.0, 0.0)
+	if not grid.has(key): return Vector3(1e9, 0.0, 0.0)
 	var best := 1e18; var bs := 0.0; var bp := 0
 	var pt := Vector2(x, z)
-	for i in (seg_grid[key] as PackedInt32Array):
+	for i in (grid[key] as PackedInt32Array):
 		var a := seg_a[i]; var ab := seg_b[i] - a
 		var l2 := ab.length_squared()
 		var t := clampf((pt - a).dot(ab) / l2, 0.0, 1.0) if l2 > 0.0 else 0.0
@@ -549,7 +641,14 @@ func _tq3(x: float, z: float) -> Vector3:                                   # (�
 		if d2 < best: best = d2; bs = lerpf(seg_sa[i], seg_sb[i], t); bp = seg_path[i]
 	return Vector3(sqrt(best), bs, float(bp))
 
+func _tq3_raw(x: float, z: float) -> Vector3:                               # ближайший путь с учётом тупиков (в них s = путь вдоль тупика)
+	var r := _tq3_cls(x, z, seg_grid)
+	if spur_grid.is_empty(): return r
+	var r2 := _tq3_cls(x, z, spur_grid)
+	return r2 if r2.x < r.x else r
+
 func _track_at_p(sv: float, path: int) -> Array:                          # точка и направление пути; рукав задан только между его in и out
+	if path >= SPUR_BASE: path = int((spurs[path - SPUR_BASE] as Dictionary)["parent"])      # из тупика возвращаются на его срезку
 	if path >= 1 and path <= branches.size():
 		var br: Dictionary = branches[path - 1]; var bs: PackedFloat32Array = br["s"]; var bp: PackedVector2Array = br["pts"]
 		if sv >= float(br["in"]) and sv <= float(br["out"]):
@@ -589,13 +688,24 @@ func _shelf_extra(sv: float) -> float:
 	return SHELF_EXTRA * (1.0 - 0.85 * k)
 
 func height(x: float, z: float) -> float:
+	var h := _h_at(x, z, _tq3_cls(x, z, seg_grid))                       # основная трасса и срезки: как раньше
+	if not spur_grid.is_empty():
+		var qs := _tq3_cls(x, z, spur_grid)
+		if qs.x < INFL: h = minf(h, _h_at(x, z, qs))                       # тупики врезаются в рельеф как объединение ущелий (швов нет)
+	return h
+
+func _h_at(x: float, z: float, q3: Vector3) -> float:
 	# профиль в духе Гранд-каньона: сухое русло, ступенчатые склоны-террасы, плато
-	var q3 := _tq3(x, z)
 	var q := Vector2(q3.x, q3.y)
 	if q.x >= INFL: return PLATEAU_Y
-	var pw := 1.0 if q3.z < 0.5 else float((branches[int(q3.z) - 1] as Dictionary).get("w", 1.0))
+	var spk := int(q3.z) - SPUR_BASE if q3.z >= float(SPUR_BASE) - 0.5 else -1
+	var spd := 0.0                                                       # путь вдоль тупика
+	var pw := 1.0 if q3.z < 0.5 else (float((spurs[spk] as Dictionary)["w"]) if spk >= 0 else float((branches[int(q3.z) - 1] as Dictionary).get("w", 1.0)))
 	var sv := q.y
-	if q3.z >= 0.5: pw *= 1.0 + 0.2 * sin(sv * 0.0021 + float((branches[int(q3.z) - 1] as Dictionary).get("ph", 0.0))) + 0.1 * sin(sv * 0.0057 + 2.0 * float((branches[int(q3.z) - 1] as Dictionary).get("ph", 0.0)))     # ширина расщелины плавает по длине среза
+	if spk >= 0:
+		var spr: Dictionary = spurs[spk]; spd = q.y; sv = float(spr["sj"]) + spd / float(spr["ssc"]); var sl := float(spr["len"])
+		pw *= (1.0 + 0.2 * sin(sv * 0.0021 + float(spr["ph"])) + 0.1 * sin(sv * 0.0057 + 2.0 * float(spr["ph"]))) * (1.0 + 0.6 * smoothstep(sl * 0.55, sl * 0.9, spd))     # к концу тупик расширяется в чашу
+	elif q3.z >= 0.5: pw *= 1.0 + 0.2 * sin(sv * 0.0021 + float((branches[int(q3.z) - 1] as Dictionary).get("ph", 0.0))) + 0.1 * sin(sv * 0.0057 + 2.0 * float((branches[int(q3.z) - 1] as Dictionary).get("ph", 0.0)))     # ширина расщелины плавает по длине среза
 	var ds := minf(sv, trk_len - sv)                                     # расстояние до линии старта вдоль трассы
 	var startw := 1.0 + 0.9 * exp(-(ds / 2200.0) * (ds / 2200.0))        # на старте каньон шире
 	var dd: float = q.x / (WIDTH_SCALE * startw * _wk(sv) * pw) * (1.0 + 0.22 * sin(sv * 0.00045 + 0.5) + 0.12 * sin(sv * 0.0013))
@@ -606,6 +716,7 @@ func height(x: float, z: float) -> float:
 	var fade := 1.0 - smoothstep(940.0 + ex, 1000.0 + ex, dd)
 	var nz := sin(x * 0.071 + z * 0.053) * sin(z * 0.067 - x * 0.031) + 0.5 * sin(x * 0.19 + z * 0.13) + 0.6 * sin((x + z) * 0.013)
 	h += nz * 6.0 * fade
+	if spk >= 0: h = _spur_pillars(x, z, h, dd, spd, float((spurs[spk] as Dictionary)["len"]))
 	return PLATEAU_Y + (h - PLATEAU_Y) * (1.0 - smoothstep(INFL * 0.8, INFL, q.x))
 
 func _loading_node() -> LoadingScreen:
@@ -943,7 +1054,17 @@ func _ahead_points(sp: Vector2) -> Array:                                   # т
 	var pts: Array = []
 	var spd := ship.linear_velocity.length()
 	var q := _tq3(sp.x, sp.y)
-	if q.x < 1e8 and spd > 30.0:
+	if q.x < 1e8 and spd > 30.0 and q.z >= float(SPUR_BASE) - 0.5:             # в тупике плитки грузятся вдоль самого тупика
+		var qr := _tq3_raw(sp.x, sp.y); var spr: Dictionary = spurs[int(qr.z) - SPUR_BASE]; var spp: PackedVector2Array = spr["pts"]; var spc: PackedFloat32Array = spr["cum"]
+		var k0 := clampi(int(qr.y / 500.0), 0, spp.size() - 2)
+		var tg2 := (spp[k0 + 1] - spp[k0]).normalized()
+		var fw2 := Vector2(-ship.global_transform.basis.z.x, -ship.global_transform.basis.z.z)
+		var sg2 := 1.0 if tg2.dot(fw2) >= 0.0 else -1.0
+		for tt in AHEAD_T:
+			var dk := clampf(qr.y + sg2 * maxf(spd, 250.0) * tt, 0.0, float(spr["len"]))
+			var kk := clampi(int(dk / 500.0), 0, spp.size() - 2)
+			pts.append(spp[kk].lerp(spp[kk + 1], clampf((dk - spc[kk]) / 500.0, 0.0, 1.0)))
+	elif q.x < 1e8 and spd > 30.0:
 		var path := int(q.z); var sc := 1.0
 		if path >= 1 and path <= branches.size(): sc = float(branches[path - 1]["sc"])
 		var fw := Vector2(-ship.global_transform.basis.z.x, -ship.global_transform.basis.z.z)
@@ -1282,15 +1403,17 @@ func _step_bots(dt: float) -> void:
 	var pos_all: Array = [ship.global_position]
 	var vel_all: Array = [ship.linear_velocity]
 	for b in bots: pos_all.append((b["rb"] as RigidBody3D).global_position); vel_all.append((b["rb"] as RigidBody3D).linear_velocity)
+	if start_t <= 0.0 and racing: bot_run_t += dt
 	for bi in bots.size():
 		var b: Dictionary = bots[bi]
 		var rb: RigidBody3D = b["rb"]
 		if start_t > 0.0 or b.get("dnf", false) or b.get("done", false) or (ui_shot == "tour" and (tour_phase == "settle" or tour_phase == "fixed_wait") and bi == tour_bot): continue
-		if rb.freeze: rb.freeze = false
+		var virt := bool(b.get("virt", false))                                  # вне зоны видимости: упрощённый режим без физики (см. _bot_virtual)
+		if rb.freeze and not virt: rb.freeze = false
 		var pos := rb.global_position; var vel := rb.linear_velocity
 		if pos.y > RIM_Y and not bool(b.get("fin", false)): b["above"] = float(b.get("above", 0.0)) + dt                  # время выше потолка гонки (обучение штрафует улёт вверх)
 		if vel.length() > P("max_speed"): vel = vel.limit_length(P("max_speed")); rb.linear_velocity = vel
-		if not evo_mode and Vector2(pos.x - ship.global_position.x, pos.z - ship.global_position.z).length() > LOD0_R - 400.0:
+		if not evo_mode and not virt and Vector2(pos.x - ship.global_position.x, pos.z - ship.global_position.z).length() > LOD0_R - 400.0:
 			var hg := height(pos.x, pos.z)                                     # далеко от игрока физического рельефа нет: считаем землю по формуле высоты
 			if pos.y < hg + 25.0:
 				var e := 30.0
@@ -1302,7 +1425,7 @@ func _step_bots(dt: float) -> void:
 						b["icd"] = 0.25; b["hits"] = int(b["hits"]) + 1; _bot_impact(b, pos - nrm * 20.0, -vn * 2.4)
 				rb.global_position.y = maxf(pos.y, hg + 25.0); pos = rb.global_position
 		var gn: Dictionary = b["g"]; var gn_pre := gn
-		var q := _track_query(pos.x, pos.z)
+		var q := Vector2(0.0, float(b["vs"])) if virt else _track_query(pos.x, pos.z)
 		var sv := q.y
 		var relb := _rel_s(sv)
 		if not b["rel_init"]: b["rel"] = relb; b["prog"] = relb; b["rel_init"] = true
@@ -1310,6 +1433,8 @@ func _step_bots(dt: float) -> void:
 		b["lap"] = int(floor(float(b["prog"]) / trk_len))
 		b["last_s"] = sv
 		if not b["fin"] and float(b["prog"]) >= race_len: b["fin"] = true; b["fin_t"] = evo_t if evo_mode else race_t
+		if b["fin"] and virt:                                                   # финиш в упрощённом режиме: просто встаёт на линии финиша
+			rb.linear_velocity = Vector3.ZERO; rb.freeze = true; rb.visible = true; b["done"] = true; continue
 		if b["fin"]:                                                           # финишировавший бот тормозит, зависает и стоит
 			if vel.length() > 8.0:
 				_finish_brake(rb, MASS); rb.gravity_scale = 0.0; rb.angular_velocity *= 0.95
@@ -1336,6 +1461,17 @@ func _step_bots(dt: float) -> void:
 					if pick != 0: b["det"] = int(b.get("det", 0)) + 1
 				if pth > 0 and sv > float(fk["out"]) + 200.0: b["path"] = 0; pth = 0
 			b["fk"] = fi
+		if _bots_adapt_ok():                                                    # зона видимости игрока: далеко — без физики, близко — честный полёт
+			var dpl := Vector2(pos.x - ship.global_position.x, pos.z - ship.global_position.z).length()
+			if not virt and dpl > P("virt_on") and P("bot_virtual") > 0.5 and not b["fin"]:
+				virt = true; b["virt"] = true; b["vs"] = sv; b["v_ema"] = maxf(float(b.get("v_ema", 0.0)), 0.55 * float(gn["v_max"]))
+				rb.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC; rb.freeze = true; rb.visible = false
+			elif virt and dpl < P("virt_off"):
+				virt = false; b["virt"] = false; rb.freeze = false; rb.visible = true
+				var vtg := (_track_at_p(sv, pth))[1] as Vector2
+				vel = Vector3(vtg.x, 0.0, vtg.y) * float(b.get("v_virt", 600.0)); rb.linear_velocity = vel; rb.angular_velocity = Vector3.ZERO
+				b["pv"] = vel.length(); b["still"] = 0.0; b["icd"] = 0.5; b["thr"] = clampf(vel.length() / maxf(float(gn["v_max"]), 1.0), 0.0, 1.0)
+			if virt: _bot_virtual(b, dt, pth); continue
 		var la := 500.0 + vel.length() * 0.9
 		var cl := maxf(float(gn["look_min"]), vel.length() * float(gn["look_k"]))   # на скорости смотрим дальше вперёд
 		var tg0: Vector2 = (_track_at_p(sv, pth))[1]; var tg1: Vector2 = (_track_at_p(sv + cl, pth))[1]
@@ -1350,6 +1486,9 @@ func _step_bots(dt: float) -> void:
 		var dirv := Vector3(tp.x - pos.x, 0.0, tp.z - pos.z).normalized()
 		var vcurve := sqrt(float(gn["lat_acc"]) * cl / maxf(ang, 0.02))
 		var vdes := minf(float(gn["v_max"]), vcurve)
+		var lk := _bot_launch(b, bi)                                           # «втопить на старте»: первые секунды часть ботов жмёт на полную
+		if lk > 0.0: vdes = lerpf(vdes, maxf(vdes, P("max_speed") * 0.9), lk)
+		vdes = minf(vdes * _rubber(b), P("max_speed") * 0.97)                  # подстройка: игрок оторвался — боты быстрее, игрок отстал — медленнее
 		var cutb: Dictionary = branches[pth - 1] if (pth > 0 and pth <= branches.size()) else {}
 		var needle_d := 1e9
 		if not cutb.is_empty() and float(cutb["needle_s"]) > 0.0:
@@ -1383,6 +1522,7 @@ func _step_bots(dt: float) -> void:
 		b["hold"] = move_toward(float(b["hold"]), tgt_alt, (400.0 if tgt_alt > float(b["hold"]) else ((220.0 if absf(float(b["hold"]) - tgt_alt) > 150.0 else 50.0) if needle_d < 14000.0 else 80.0)) * dt)
 		# --- желаемое горизонтальное ускорение ---
 		var vh := Vector3(vel.x, 0.0, vel.z)
+		b["v_ema"] = lerpf(float(b.get("v_ema", vh.length())), vh.length(), 1.0 - exp(-dt / 8.0))      # средняя скорость: с ней бот едет по рельсам вне зоны видимости
 		var a_des := (dirv * vdes - vh) * float(gn["a_gain"])
 		for j in pos_all.size():                                           # расхождение с соседями
 			var d: Vector3 = pos - pos_all[j]
@@ -1404,7 +1544,7 @@ func _step_bots(dt: float) -> void:
 					var away := Vector3(-cp.x, 0.0, -cp.z)
 					if away.length() < 5.0: away = Vector3(-dirv.z, 0.0, dirv.x)
 					a_des += away.normalized() * (1.0 - dm / 260.0) * (1.0 - tc / 6.0) * 180.0 * float(gn["avoid"])
-		var acap := float(gn["a_cap"])
+		var acap := lerpf(float(gn["a_cap"]), maxf(float(gn["a_cap"]), P("main_acc") * 0.9), lk)
 		if a_des.length() > acap: a_des = a_des.normalized() * acap
 		# --- часть ускорения отдаём взлётным: крен даёт боковой сдвиг без рыскания, наклон носом вверх — торможение ---
 		var a_lift := Vector3.ZERO
@@ -1523,6 +1663,40 @@ func _step_bots(dt: float) -> void:
 			if not evo_mode and P("bot_max_resp") > 0.5 and int(b["resp"]) >= int(P("bot_max_resp")):   # слишком много вылетов: бот сходит с дистанции и стоит на месте
 				b["dnf"] = true; rb.linear_velocity = Vector3.ZERO; rb.freeze = true
 				_log_event("BOT_DNF %s" % b["name"])
+
+# --- Подстройка ботов под игрока (только в настоящей гонке; в обучении и тестах боты честные) ---
+var bot_run_t := 0.0                                                       # секунд с момента старта (для «втопить на старте»)
+func _bots_adapt_ok() -> bool:
+	return not (evo_mode or soak or test_mode or shot_mode) and (ui_shot == "" or ui_shot == "intro")
+
+func _rubber(b: Dictionary) -> float:                                      # множитель скорости: >1 бот отстаёт от игрока, <1 бот впереди игрока
+	if not _bots_adapt_ok() or not racing or p_fin or p_dsq or P("bot_virtual") < 0.5: return 1.0
+	var g := clampf((p_prog - float(b["prog"])) / maxf(P("rubber_r"), 1.0), -1.0, 1.0)
+	return 1.0 + (P("rubber_up") * g if g > 0.0 else P("rubber_dn") * g)
+
+func _bot_launch(b: Dictionary, bi: int) -> float:                         # ген старта 0..1 у каждого бота (сильные бонус) × затухание за bot_launch_t секунд
+	var tl := P("bot_launch_t")
+	if tl <= 0.0 or not _bots_adapt_ok() or bot_run_t >= tl: return 0.0
+	if not b.has("launch"): b["launch"] = lerpf(P("bot_launch_min"), 1.0, clampf(0.35 * (1.0 - float(bi) / float(maxi(1, N_BOTS - 1))) + 0.65 * _hash2(bi, 7, 3), 0.0, 1.0))
+	return float(b["launch"]) * (1.0 - smoothstep(0.6 * tl, tl, bot_run_t))
+
+# Упрощённый режим бота вне зоны видимости: едет по рельсам трассы со средней скоростью × подстройка, без физики и столкновений
+func _bot_virtual(b: Dictionary, dt: float, pth: int) -> void:
+	var rb: RigidBody3D = b["rb"]; var gn: Dictionary = b["g"]
+	var cut := pth > 0 and pth <= branches.size()
+	var sc := float((branches[pth - 1] as Dictionary)["sc"]) if cut else 1.0
+	var v := maxf(float(b["v_ema"]), 300.0) * _rubber(b) * (0.8 if cut else 1.0)
+	b["v_virt"] = v
+	var vs := float(b["vs"]) + v * dt / maxf(sc, 0.3)
+	b["vs"] = vs
+	var at: Array = _track_at_p(vs, pth)
+	var p2: Vector2 = at[0]; var tg: Vector2 = at[1]
+	var lane := 0.0 if cut else clampf(float(b["lane_x"]), -600.0, 600.0)
+	var px := p2.x - tg.y * lane; var pz := p2.y + tg.x * lane
+	var alt := minf(maxf(float(b["hold"]), height(px, pz) + float(gn["clear_m"])), RIM_Y - 300.0)
+	b["hold"] = alt
+	rb.global_transform = Transform3D(Basis.looking_at(Vector3(tg.x, 0.0, tg.y), Vector3.UP), Vector3(px, alt, pz))
+	rb.linear_velocity = Vector3(tg.x, 0.0, tg.y) * v; rb.angular_velocity = Vector3.ZERO
 
 func _bot_impact(b: Dictionary, pos: Vector3, power: float) -> void:
 	var rb: RigidBody3D = b["rb"]
@@ -2556,6 +2730,7 @@ func _process(dt: float) -> void:
 			if pf == 800: get_tree().quit()
 		if ui_shot == "tour": _tour_step(pf)
 		if ui_shot == "cutcam": _cutcam_step(pf)
+		if ui_shot == "spurcam": _spurcam_step(pf)
 		if ui_shot == "cutship": _cutship_step(pf)
 		if ui_shot == "gridcam": _gridcam_step(pf)
 		if ui_shot == "liverycam": _liverycam_step(pf)
@@ -2566,6 +2741,7 @@ func _process(dt: float) -> void:
 			if pf == 3 and Engine.has_meta("swapped"): ui.open_menu(); ui.sel = int(Engine.get_meta("menu_sel")) if Engine.has_meta("menu_sel") else 0
 			if pf == 90 and Engine.has_meta("swapped"): print("SWAP ship_id=", ship_id, " cfg=", cfg["ship"], " sel=", ui.sel); get_viewport().get_texture().get_image().save_png("/private/tmp/shipswap.png"); cfg["ship"] = 0; _save_cfg(); get_tree().quit()
 		if ui_shot == "cutwidth" and pf == 5: _cutwidth(); get_tree().quit()
+		if ui_shot == "tmap" and pf == 5: _tmap_dump(); get_tree().quit()
 		if ui_shot == "fin":
 			if pf == 20: ui._show_state("hud"); start_t = 0.0; racing = true; Engine.time_scale = 1.0
 			if pf == 40:
@@ -2599,7 +2775,7 @@ func _process(dt: float) -> void:
 			if pf == 40: ui.sel = 0; ui._activate()
 			if pf % 60 == 0 and pf >= 40: print("FLOW pf=", pf, " state=", ui.state, " start_t=", snappedf(start_t, 0.1), " race_t=", snappedf(race_t, 0.1), " v=", int(ship.linear_velocity.length()), " ts=", Engine.time_scale)
 			if pf == 400: get_tree().quit()
-		if pf == 70 and ui_shot != "flow" and ui_shot != "flowpad" and ui_shot != "fin" and ui_shot != "tour" and ui_shot != "dump" and ui_shot != "intro" and not ui_shot.begins_with("padtest") and ui_shot != "padlog" and ui_shot != "tilebench" and ui_shot != "cutcam" and ui_shot != "cutwidth" and ui_shot != "cutship" and ui_shot != "gridcam" and ui_shot != "liverycam" and ui_shot != "shipswap" and ui_shot != "unstick":
+		if pf == 70 and ui_shot != "spurcam" and ui_shot != "flow" and ui_shot != "flowpad" and ui_shot != "fin" and ui_shot != "tour" and ui_shot != "dump" and ui_shot != "intro" and not ui_shot.begins_with("padtest") and ui_shot != "padlog" and ui_shot != "tilebench" and ui_shot != "cutcam" and ui_shot != "cutwidth" and ui_shot != "cutship" and ui_shot != "gridcam" and ui_shot != "liverycam" and ui_shot != "shipswap" and ui_shot != "unstick":
 			get_viewport().get_texture().get_image().save_png("/private/tmp/ui_" + ui_shot + ".png"); get_tree().quit()
 	if "tech" in OS.get_cmdline_user_args() and frame >= 40 and tech_shot_n == 0 and not tech_open: _set_tech(true)
 	var esc := Input.is_key_pressed(KEY_ESCAPE)
@@ -2801,7 +2977,7 @@ func _cam_tail(dt: float) -> void:                                          # у
 			cam.rotate_object_local(Vector3.FORWARD, sin(tt * 53.0) * 0.004 * amp)
 
 func _camera(dt: float) -> void:
-	if (ui_shot == "cutcam" or ui_shot == "cutship" or ui_shot == "gridcam" or ui_shot == "liverycam" or ui_shot == "shippic") and cc_on: cam.global_transform = cc_tf; cam.fov = cc_fov; return
+	if (ui_shot == "cutcam" or ui_shot == "spurcam" or ui_shot == "cutship" or ui_shot == "gridcam" or ui_shot == "liverycam" or ui_shot == "shippic") and cc_on: cam.global_transform = cc_tf; cam.fov = cc_fov; return
 	var t := ship.global_transform
 	if ui_shot == "tour" and tour_ready:                                      # режим съёмки: камера за ботом
 		if tour_phase == "fixed_wait": cam.global_transform = fixed_cam; return
@@ -3042,6 +3218,76 @@ func _cutcam_step(pf: int) -> void:
 		ship.global_position = Vector3(pp.x, y, pp.y)
 		cc_tf = Transform3D(Basis.looking_at(Vector3(tg.x, -0.05, tg.y), Vector3.UP), Vector3(pp.x, y, pp.y))
 		cc_on = true
+
+# --- кадр из тупика: -- uishot=spurcam spur=K f=0..1 y=высота над дном back=м назад по оси (камера смотрит вдоль тупика к чаше); out=путь ---
+func _spurcam_step(pf: int) -> void:
+	if pf == 20:
+		ui._show_state("hud"); start_t = 0.0; racing = true; ui.visible = false
+		ship.freeze = true; ship.collision_layer = 0; ship.collision_mask = 0; ship.visible = false
+		for b in bots: (b["rb"] as RigidBody3D).freeze = true; (b["rb"] as RigidBody3D).visible = false
+		var k := 0; var f := 0.8; var yy := 900.0; var back := 1500.0; var pitch := -0.05
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with("spur="): k = int(a.substr(5))
+			if a.begins_with("f="): f = float(a.substr(2))
+			if a.begins_with("y="): yy = float(a.substr(2))
+			if a.begins_with("back="): back = float(a.substr(5))
+			if a.begins_with("pitch="): pitch = float(a.substr(6))
+		var sp: Dictionary = spurs[k]; var spp: PackedVector2Array = sp["pts"]; var spc: PackedFloat32Array = sp["cum"]
+		var dk := clampf(float(sp["len"]) * f, 0.0, float(sp["len"]) - 1.0)
+		var kk := clampi(int(dk / 500.0), 0, spp.size() - 2)
+		var pp := spp[kk].lerp(spp[kk + 1], clampf((dk - spc[kk]) / 500.0, 0.0, 1.0)); var tg := (spp[kk + 1] - spp[kk]).normalized()
+		pp -= tg * back
+		var y := height(pp.x, pp.y) + yy
+		ship.global_position = Vector3(pp.x, y, pp.y)
+		cc_tf = Transform3D(Basis.looking_at(Vector3(tg.x, pitch, tg.y), Vector3.UP), Vector3(pp.x, y, pp.y)); cc_on = true
+	if pf == 240:
+		var outp := "/private/tmp/spurcam.png"
+		for a in OS.get_cmdline_user_args(): if a.begins_with("out="): outp = a.substr(4)
+		get_viewport().get_texture().get_image().save_png(outp); get_tree().quit()
+
+# --- карта рельефа сверху (тестовая): -- uishot=tmap cut=K [half=м] [res=N] [out=путь]; центр — середина срезки K (1..3) ---
+func _tmap_dump() -> void:
+	var ua := OS.get_cmdline_user_args(); var k := 1; var half := 14000.0; var rs := 900; var outp := "/private/tmp/tmap.png"; var cxz := Vector2.INF
+	for a in ua:
+		if a.begins_with("cut="): k = int(a.substr(4))
+		if a.begins_with("half="): half = float(a.substr(5))
+		if a.begins_with("res="): rs = int(a.substr(4))
+		if a.begins_with("out="): outp = a.substr(4)
+		if a.begins_with("cx="): cxz.x = float(a.substr(3))
+		if a.begins_with("cz="): cxz.y = float(a.substr(3))
+	var c := cxz
+	if c == Vector2.INF:
+		if k <= 0: c = _track_at(trk_len * 0.5)[0]
+		else:
+			var bp: PackedVector2Array = branches[k - 1]["pts"]; c = bp[bp.size() / 2]
+	var img := Image.create(rs, rs, false, Image.FORMAT_RGB8)
+	var hm := PackedFloat32Array(); hm.resize(rs * rs)
+	var st := half * 2.0 / float(rs)
+	for j in rs:
+		for i in rs: hm[j * rs + i] = height(c.x - half + i * st, c.y - half + j * st)
+	for j in rs:
+		for i in rs:
+			var h := hm[j * rs + i]
+			var hx := hm[j * rs + mini(i + 1, rs - 1)] - hm[j * rs + maxi(i - 1, 0)]
+			var hz := hm[mini(j + 1, rs - 1) * rs + i] - hm[maxi(j - 1, 0) * rs + i]
+			var sh := clampf(0.62 + (-hx * 0.7 - hz * 0.7) / (2.0 * st) * 0.5, 0.15, 1.0)
+			var t := clampf(h / PLATEAU_Y, 0.0, 1.0)
+			var col := Color(0.25, 0.3, 0.45).lerp(Color(0.95, 0.7, 0.4), t) * sh
+			img.set_pixel(i, j, Color(col.r, col.g, col.b))
+	for bi in branches.size():
+		var bp2: PackedVector2Array = branches[bi]["pts"]
+		for p in bp2:
+			var px := int((p.x - c.x + half) / st); var py := int((p.y - c.y + half) / st)
+			if px >= 0 and px < rs and py >= 0 and py < rs: img.set_pixel(px, py, Color(1, 0, 0))
+	for sp in spurs:
+		for p in (sp["pts"] as PackedVector2Array):
+			var px3 := int((p.x - c.x + half) / st); var py3 := int((p.y - c.y + half) / st)
+			if px3 >= 1 and px3 < rs - 1 and py3 >= 1 and py3 < rs - 1:
+				for ox in range(-1, 2): img.set_pixel(px3 + ox, py3, Color(1, 1, 0))
+	for p in trk_pts:
+		var px2 := int((p.x - c.x + half) / st); var py2 := int((p.y - c.y + half) / st)
+		if px2 >= 0 and px2 < rs and py2 >= 0 and py2 < rs: img.set_pixel(px2, py2, Color(0, 1, 0))
+	img.save_png(outp)
 
 # --- ширина срезок: -- uishot=cutwidth. Расстояние между стенами на высоте дна + ofs, по центру пути, каждые 60 м ---
 func _wallw(p: Vector2, n: Vector2, side: float, y: float) -> float:
