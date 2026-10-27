@@ -1096,7 +1096,22 @@ func _update_results() -> void:
 	skin.res["ach"] = fin_info.get("ach", [])
 
 # ---------- Маркеры соперников: подписи одного размера независимо от расстояния ----------
-const MARKER_MAX_DIST := 10000.0                                               # дальше этого расстояния (м) подпись скрыта; последняя четверть — плавное затухание
+const MARKER_MAX_DIST := 40000.0                                               # дальше этого расстояния (м) корабль уже меньше пикселя: подпись скрыта; последняя четверть — плавное затухание
+const MARKER_LOS_MIN := 1500.0                                                 # ближе этого подпись всегда показывается, видимость по рельефу проверяется только дальше
+var marker_los: Dictionary = {}                                                # номер бота -> [время проверки, виден]
+
+# Виден ли бот из камеры: луч камера -> бот не должен уходить под рельеф (стены каньона, повороты). Результат кешируется на 0.15 с
+func _marker_visible(i: int, from: Vector3, to: Vector3) -> bool:
+	var now := Time.get_ticks_msec() / 1000.0
+	var c = marker_los.get(i)
+	if c != null and now - float(c[0]) < 0.15: return bool(c[1])
+	var vis := true
+	var n := clampi(int(from.distance_to(to) / 500.0), 4, 80)
+	for k in range(1, n):                                                       # концы луча не берём: рельеф под самой камерой и под ботом не считается
+		var q := from.lerp(to, float(k) / float(n))
+		if main.height(q.x, q.z) > q.y - 4.0: vis = false; break
+	marker_los[i] = [now, vis]
+	return vis
 
 func _update_markers() -> void:
 	var cam: Camera3D = main.cam
@@ -1114,6 +1129,7 @@ func _update_markers() -> void:
 		if cam.is_position_behind(p): l.visible = false; continue
 		var d := me.distance_to(p)
 		if d > MARKER_MAX_DIST: l.visible = false; continue                      # улетел далеко (например, со старта): подпись только мешает
+		if d > MARKER_LOS_MIN and not _marker_visible(i, cam.global_position, p): l.visible = false; continue     # закрыт стеной каньона: корабля не видно, подписи тоже
 		l.modulate.a = clampf((MARKER_MAX_DIST - d) / (MARKER_MAX_DIST * 0.25), 0.0, 1.0)
 		var sp := cam.unproject_position(p) * sc
 		if sp.x < 0.0 or sp.y < 0.0 or sp.x > vs.x or sp.y > vs.y: l.visible = false; continue          # подпись только у кораблей в поле зрения
