@@ -1,0 +1,2848 @@
+{
+ "MAT_Airlock": {
+  "users": [
+   "SM_Hatch_A",
+   "SM_Hatch_B"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "airlock_atlas_2048.png",
+    "colorspace": "sRGB",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UV_Airlock"
+  ],
+  "note": "Использует ТРЕТИЙ UV-канал UV_Airlock (в UE индекс 2, TexCoord[2]).",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.5,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_AirlockDoor": {
+  "users": [
+   "SM_Cabin_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "airlock_inner_door_placeholder_1536x1152.png",
+    "colorspace": "sRGB",
+    "size": [
+     1536,
+     1152
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.4,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_AirlockLeaf": {
+  "users": [
+   "SM_Cabin_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "door_engine_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1088,
+     1664
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.4,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Appliance": {
+  "users": [
+   "SM_Cabin_Kitchen"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.62,
+    0.64,
+    0.67,
+    1.0
+   ],
+   "Metallic": 0.8,
+   "Roughness": 0.35,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Black": {
+  "users": [
+   "SM_Cabin_Kitchen",
+   "SM_Cabin_Screens",
+   "SM_Cabin_Seats"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.015,
+    0.017,
+    0.02,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.15,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Buttons": {
+  "users": [
+   "SM_Cabin_Dash"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.02,
+    0.02,
+    0.02,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.55,
+    0.1,
+    1.0
+   ],
+   "Emission Strength": 3.0
+  }
+ },
+ "MAT_Cabin_Cabinet": {
+  "users": [
+   "SM_Cabin_Kitchen"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.82,
+    0.84,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.45,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Ceiling": {
+  "users": [
+   "SM_Cabin_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "ceiling_bridge_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "ceiling_bridge_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "ceiling_bridge_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.1,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Counter": {
+  "users": [
+   "SM_Cabin_Kitchen"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.06,
+    0.07,
+    0.09,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.25,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Dash": {
+  "users": [
+   "SM_Cabin_Dash",
+   "SM_Cabin_Doors",
+   "SM_Cabin_Seats"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.03,
+    0.032,
+    0.04,
+    1.0
+   ],
+   "Metallic": 0.5,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Edge": {
+  "users": [
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.62,
+    0.05,
+    1.0
+   ],
+   "Metallic": 0.2,
+   "Roughness": 0.6,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Fabric": {
+  "users": [
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.16,
+    0.22,
+    0.28,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.9,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Floor": {
+  "users": [
+   "SM_Cabin_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "floor_bridge_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_bridge_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_bridge_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.3,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Handle": {
+  "users": [
+   "SM_Cabin_Kitchen",
+   "SM_Cabin_Lounge",
+   "SM_Cabin_Seats"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.75,
+    0.77,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.9,
+   "Roughness": 0.3,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Keys": {
+  "users": [
+   "SM_Cabin_Keyboards"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "kb_albedo_2560x1024.png",
+    "colorspace": "sRGB",
+    "size": [
+     2560,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "kb_emission_2560x1024.png",
+    "colorspace": "sRGB",
+    "size": [
+     2560,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.45,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 2.0
+  }
+ },
+ "MAT_Cabin_Leather": {
+  "users": [
+   "SM_Cabin_Lounge",
+   "SM_Cabin_Seats"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.11,
+    0.055,
+    0.035,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.45,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Light": {
+  "users": [
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "Эмиссия светильников (в UE MI с параметром яркости + Rect Light).",
+  "principled": {
+   "Base Color": [
+    0.9,
+    0.8,
+    0.6,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.85,
+    0.55,
+    1.0
+   ],
+   "Emission Strength": 6.0
+  }
+ },
+ "MAT_Cabin_Panel": {
+  "users": [
+   "SM_Cabin_Doors",
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.4,
+    0.42,
+    0.45,
+    1.0
+   ],
+   "Metallic": 0.4,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Plant": {
+  "users": [
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.08,
+    0.25,
+    0.07,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.7,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Pot": {
+  "users": [
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.55,
+    0.5,
+    0.45,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.8,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Rug": {
+  "users": [
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "rug_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1457,
+     1080
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.45,
+    0.12,
+    0.1,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.95,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Screen": {
+  "users": [
+   "SM_Cabin_Dash",
+   "SM_Cabin_Seats"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.02,
+    0.05,
+    0.09,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.2,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.1,
+    0.45,
+    0.9,
+    1.0
+   ],
+   "Emission Strength": 1.2
+  }
+ },
+ "MAT_Cabin_Steel": {
+  "users": [
+   "SM_Cabin_AirlockCollar",
+   "SM_Cabin_Doors",
+   "SM_Cabin_Lounge",
+   "SM_Cabin_Screens",
+   "SM_Cabin_Seats",
+   "SM_Cargo_Hatch",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.55,
+    0.56,
+    0.58,
+    1.0
+   ],
+   "Metallic": 1.0,
+   "Roughness": 0.3,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Wall": {
+  "users": [
+   "SM_Cabin_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "wall_bridge_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_bridge_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_bridge_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.1,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cabin_Wood": {
+  "users": [
+   "SM_Cabin_Lounge"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.3,
+    0.17,
+    0.09,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cargo_Floor": {
+  "users": [
+   "SM_Cargo_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "floor_cargo_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_cargo_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_cargo_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.6,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cargo_Hatch": {
+  "users": [
+   "SM_Cargo_Hatch"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "airlock_disc_cargo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1536,
+     1536
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "Диск внутренней двери люка A (airlock_disc_cargo.png).",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.5,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Cargo_Light": {
+  "users": [
+   "SM_Cargo_Lights"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "Эмиссия светильников грузового отсека.",
+  "principled": {
+   "Base Color": [
+    0.9,
+    0.8,
+    0.6,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.85,
+    0.55,
+    1.0
+   ],
+   "Emission Strength": 6.0
+  }
+ },
+ "MAT_Cargo_Wall": {
+  "users": [
+   "SM_Cargo_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "wall_cargo_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_cargo_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_cargo_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.7,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Console_Body": {
+  "users": [
+   "SM_Cabin_HoloColumn"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.035,
+    0.07,
+    0.16,
+    1.0
+   ],
+   "Metallic": 0.85,
+   "Roughness": 0.3,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Console_Dark": {
+  "users": [
+   "SM_Cabin_HoloColumn"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.01,
+    0.02,
+    0.05,
+    1.0
+   ],
+   "Metallic": 0.5,
+   "Roughness": 0.35,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Console_Glow": {
+  "users": [
+   "SM_Cabin_HoloColumn"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.2,
+    0.8,
+    1.0,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.25,
+    0.85,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 6.0
+  }
+ },
+ "MAT_Console_Orange": {
+  "users": [
+   "SM_Cabin_HoloColumn"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    1.0,
+    0.4,
+    0.1,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.42,
+    0.1,
+    1.0
+   ],
+   "Emission Strength": 10.0
+  }
+ },
+ "MAT_Corr_Ceiling": {
+  "users": [
+   "SM_Corridor_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "ceiling_corr_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "ceiling_corr_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "ceiling_corr_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.2,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_Dark": {
+  "users": [
+   "SM_Corridor_Details",
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.02,
+    0.025,
+    0.03,
+    1.0
+   ],
+   "Metallic": 0.5,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_Door": {
+  "users": [
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.34,
+    0.4,
+    0.47,
+    1.0
+   ],
+   "Metallic": 0.7,
+   "Roughness": 0.45,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_DoorFront": {
+  "users": [
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "door_cabin_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1040,
+     1920
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.3,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_DoorFrontEngine": {
+  "users": [
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "door_engine_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1088,
+     1664
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.3,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_DoorGlass": {
+  "users": [
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.1,
+    0.25,
+    0.5,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.1,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.2,
+    0.5,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 1.2
+  }
+ },
+ "MAT_Corr_Floor": {
+  "users": [
+   "SM_Corridor_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "floor_corr_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_corr_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_corr_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.4,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_Hazard": {
+  "users": [
+   "SM_Corridor_Details",
+   "SM_Corridor_Doors",
+   "SM_Corridor_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.75,
+    0.58,
+    0.04,
+    1.0
+   ],
+   "Metallic": 0.2,
+   "Roughness": 0.6,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_Light": {
+  "users": [
+   "SM_Corridor_Details",
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.9,
+    1.0,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.3,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.75,
+    0.9,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 8.0
+  }
+ },
+ "MAT_Corr_Panel": {
+  "users": [
+   "SM_Corridor_Details",
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.16,
+    0.21,
+    0.27,
+    1.0
+   ],
+   "Metallic": 0.6,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Corr_Red": {
+  "users": [
+   "SM_Corridor_Doors"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.5,
+    0.02,
+    0.02,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.05,
+    0.05,
+    1.0
+   ],
+   "Emission Strength": 4.0
+  }
+ },
+ "MAT_Corr_Wall": {
+  "users": [
+   "SM_Corridor_Details",
+   "SM_Corridor_Shell"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "wall_corr_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_corr_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_corr_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.2,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Engine_Core": {
+  "users": [
+   "SM_Engine_Shunt_Bot_L",
+   "SM_Engine_Shunt_Bot_R",
+   "SM_Engine_Shunt_Top_L",
+   "SM_Engine_Shunt_Top_R",
+   "SM_Engine_TakeOff_Back_L1",
+   "SM_Engine_TakeOff_Back_L2",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "Свечение по взгляду: Layer Weight(Facing, Blend 0.5) -> Color Ramp (0.0: 0.45,0.75,1.0 ; 0.6: 0.06,0.32,1.0) -> Base Color и Emission Color; Emission Strength 3.0. В UE: Fresnel/ dot(normal,camera) -> Lerp двух цветов -> Emissive.",
+  "principled": {
+   "Base Color": [
+    0.25,
+    0.55,
+    1.0,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.2,
+    0.5,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 3.0
+  }
+ },
+ "MAT_Engine_Glow": {
+  "users": [
+   "SM_Engine_Shunt_Bot_L",
+   "SM_Engine_Shunt_Bot_R",
+   "SM_Engine_Shunt_Top_L",
+   "SM_Engine_Shunt_Top_R",
+   "SM_Engine_TakeOff_Back_L1",
+   "SM_Engine_TakeOff_Back_L2",
+   "..."
+  ],
+  "blend": "BLENDED",
+  "textures": [],
+  "uv": [
+   "UV_Glow"
+  ],
+  "note": "Диск свечения у сопла (эмиссия)."
+ },
+ "MAT_Engines": {
+  "users": [
+   "SM_Engine_Shunt_Bot_L",
+   "SM_Engine_Shunt_Bot_R",
+   "SM_Engine_Shunt_Top_L",
+   "SM_Engine_Shunt_Top_R",
+   "SM_Engine_TakeOff_Back_L1",
+   "SM_Engine_TakeOff_Back_L2",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "engine_albedo_4096.png",
+    "colorspace": "sRGB",
+    "size": [
+     4096,
+     4096
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "engine_roughness_4096.png",
+    "colorspace": "Non-Color",
+    "size": [
+     4096,
+     4096
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "engine_metallic_4096.png",
+    "colorspace": "Non-Color",
+    "size": [
+     4096,
+     4096
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.12,
+    0.12,
+    0.14,
+    1.0
+   ],
+   "Metallic": 1.0,
+   "Roughness": 0.35,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Glass": {
+  "users": [
+   "SM_Glass_01",
+   "SM_Glass_02",
+   "SM_Glass_03",
+   "SM_Glass_04",
+   "SM_Glass_05",
+   "SM_Glass_06",
+   "..."
+  ],
+  "blend": "BLENDED",
+  "textures": [],
+  "uv": [],
+  "note": "ОДНОСТОРОННЕЕ стекло: Translucent + Two Sided. Opacity = saturate(TwoSidedSign)*0.47+0.03 (снаружи 0.5, изнутри 0.03). Base Color (0.06,0.15,0.25), Roughness 0.04, Specular 0.6. Если эффект вывернут, поменять знак.",
+  "principled": {
+   "Base Color": [
+    0.06,
+    0.15,
+    0.25,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.04,
+   "IOR": 1.5,
+   "Alpha": 0.25,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Holo": {
+  "users": [
+   "SM_Cabin_Holo"
+  ],
+  "blend": "BLENDED",
+  "textures": [
+   {
+    "file": "holo_atlas_2048x1280.png",
+    "colorspace": "sRGB",
+    "size": [
+     2048,
+     1280
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [],
+  "note": "Голо-окна: прозрачность по яркости, Additive/Translucent, атлас holo_atlas_2048x1280.png."
+ },
+ "MAT_Holo_Column": {
+  "users": [
+   "SM_Cabin_HoloTube"
+  ],
+  "blend": "BLENDED",
+  "textures": [
+   {
+    "file": "holo_column.png",
+    "colorspace": "sRGB",
+    "size": [
+     2560,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [],
+  "note": "Цилиндр голограммы: прозрачность по яркости, 4 панели по окружности."
+ },
+ "MAT_Holo_Emitter": {
+  "users": [
+   "SM_Cabin_Holo"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": ""
+ },
+ "MAT_Hull_Inside": {
+  "users": [
+   "SM_Hull_Solid",
+   "SM_Hull_Solid",
+   "SM_Hull_Solid",
+   "SM_Hull_Solid",
+   "SM_Wing_L",
+   "SM_Wing_R"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "Тёмный потёртый металл для граней изломов и торцов (скелет разлома).",
+  "principled": {
+   "Base Color": [
+    0.07,
+    0.06,
+    0.055,
+    1.0
+   ],
+   "Metallic": 0.6,
+   "Roughness": 0.7,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_LED_Strip": {
+  "users": [
+   "SM_Hull_Body",
+   "SM_Hull_Body_LOD1",
+   "SM_Hull_Solid"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.85,
+    0.95,
+    1.0,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.85,
+    0.95,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 28.0
+  }
+ },
+ "MAT_Lamp_Lens": {
+  "users": [
+   "SM_Spotlight_Belly_FL",
+   "SM_Spotlight_Belly_FR",
+   "SM_Spotlight_Belly_RL",
+   "SM_Spotlight_Belly_RR",
+   "SM_Spotlight_Top_L",
+   "SM_Spotlight_Top_R"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    1.0,
+    0.93,
+    0.78,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.93,
+    0.78,
+    1.0
+   ],
+   "Emission Strength": 40.0
+  }
+ },
+ "MAT_Marker_Glow": {
+  "users": [
+   "SM_Wing_L",
+   "SM_Wing_R"
+  ],
+  "blend": "BLENDED",
+  "textures": [],
+  "uv": [],
+  "note": ""
+ },
+ "MAT_Marker_Red": {
+  "users": [
+   "SM_Wing_L",
+   "SM_Wing_R"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    1.0,
+    0.03,
+    0.02,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "Emission Strength": 250.0
+  }
+ },
+ "MAT_Pipes": {
+  "users": [
+   "SM_Hull_Body",
+   "SM_Hull_Body_LOD1",
+   "SM_Hull_Solid"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.55,
+    0.38,
+    0.2,
+    1.0
+   ],
+   "Metallic": 1.0,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Ceiling": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_06",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "ceiling_room_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "ceiling_room_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "ceiling_room_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Crate": {
+  "users": [
+   "SM_Room_06"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.3,
+    0.36,
+    0.22,
+    1.0
+   ],
+   "Metallic": 0.3,
+   "Roughness": 0.65,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Crate2": {
+  "users": [
+   "SM_Room_06"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.45,
+    0.3,
+    0.12,
+    1.0
+   ],
+   "Metallic": 0.3,
+   "Roughness": 0.65,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Cross": {
+  "users": [
+   "SM_Room_01"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.6,
+    0.02,
+    0.02,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    0.1,
+    0.1,
+    1.0
+   ],
+   "Emission Strength": 3.0
+  }
+ },
+ "MAT_Room_Dark": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_06",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.03,
+    0.035,
+    0.04,
+    1.0
+   ],
+   "Metallic": 0.5,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Fabric": {
+  "users": [
+   "SM_Room_02",
+   "SM_Room_04",
+   "SM_Room_08",
+   "SM_Room_10"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.12,
+    0.22,
+    0.4,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.9,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Fabric2": {
+  "users": [
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_08",
+   "SM_Room_09",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.35,
+    0.2,
+    0.12,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.9,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Floor": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_06",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "floor_room_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_room_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "floor_room_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Glass": {
+  "users": [
+   "SM_Room_07"
+  ],
+  "blend": "BLENDED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.35,
+    0.55,
+    0.7,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.05,
+   "IOR": 1.5,
+   "Alpha": 0.3,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Hazard": {
+  "users": [
+   "SM_Room_06"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.75,
+    0.58,
+    0.04,
+    1.0
+   ],
+   "Metallic": 0.2,
+   "Roughness": 0.6,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Light": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_06",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.9,
+    1.0,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.3,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.8,
+    0.92,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 7.0
+  }
+ },
+ "MAT_Room_Metal": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_06",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.38,
+    0.41,
+    0.45,
+    1.0
+   ],
+   "Metallic": 0.9,
+   "Roughness": 0.35,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Mirror": {
+  "users": [
+   "SM_Room_07"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.7,
+    0.78,
+    0.85,
+    1.0
+   ],
+   "Metallic": 1.0,
+   "Roughness": 0.05,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Panel": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_06",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.22,
+    0.27,
+    0.33,
+    1.0
+   ],
+   "Metallic": 0.5,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Pillow": {
+  "users": [
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_08",
+   "SM_Room_09",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.75,
+    0.78,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.9,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Rug": {
+  "users": [
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_08",
+   "SM_Room_09",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.28,
+    0.07,
+    0.07,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 1.0,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Screen": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_08",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.05,
+    0.2,
+    0.3,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.2,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    0.1,
+    0.6,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 3.0
+  }
+ },
+ "MAT_Room_Wall": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_06",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "wall_room_albedo.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_room_rough.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "wall_room_normal.png",
+    "colorspace": "Non-Color",
+    "size": [
+     1024,
+     1024
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_White": {
+  "users": [
+   "SM_Room_01",
+   "SM_Room_07"
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.82,
+    0.84,
+    1.0
+   ],
+   "Metallic": 0.1,
+   "Roughness": 0.4,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Room_Wood": {
+  "users": [
+   "SM_Room_02",
+   "SM_Room_03",
+   "SM_Room_04",
+   "SM_Room_05",
+   "SM_Room_08",
+   "SM_Room_09",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [],
+  "uv": [],
+  "note": "",
+  "principled": {
+   "Base Color": [
+    0.45,
+    0.33,
+    0.22,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.6,
+   "IOR": 1.5,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ },
+ "MAT_Screen_Big": {
+  "users": [
+   "SM_Cabin_Screens"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "screen_big.png",
+    "colorspace": "sRGB",
+    "size": [
+     1920,
+     1080
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [],
+  "note": ""
+ },
+ "MAT_Screen_Climate": {
+  "users": [
+   "SM_Cabin_Screens"
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "screen_climate.png",
+    "colorspace": "sRGB",
+    "size": [
+     1024,
+     640
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [],
+  "note": ""
+ },
+ "Material": {
+  "users": [
+   "SM_HexPlate_A",
+   "SM_HexPlate_B",
+   "SM_HexPlate_C",
+   "SM_Hull_Body",
+   "SM_Hull_Body_LOD1",
+   "SM_Hull_Solid",
+   "..."
+  ],
+  "blend": "DITHERED",
+  "textures": [
+   {
+    "file": "hull_albedo_4096.png",
+    "colorspace": "sRGB",
+    "size": [
+     4096,
+     4096
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "hull_roughness_4096.png",
+    "colorspace": "Non-Color",
+    "size": [
+     4096,
+     4096
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "hull_metallic_4096.png",
+    "colorspace": "Non-Color",
+    "size": [
+     4096,
+     4096
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "hex_tile_height_2k_8bit.png",
+    "colorspace": "Non-Color",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "BOX"
+   },
+   {
+    "file": "hex_tile_cellid_2k.png",
+    "colorspace": "Non-Color",
+    "size": [
+     2048,
+     2048
+    ],
+    "projection": "BOX"
+   },
+   {
+    "file": "decal_third_chance.png",
+    "colorspace": "sRGB",
+    "size": [
+     1424,
+     1104
+    ],
+    "projection": "FLAT"
+   },
+   {
+    "file": "hull_fallen_mask_4096.png",
+    "colorspace": "Non-Color",
+    "size": [
+     4096,
+     4096
+    ],
+    "projection": "FLAT"
+   }
+  ],
+  "uv": [
+   "UVMap"
+  ],
+  "note": "Обшивка. Базовые текстуры по UV (UVMap): hull_albedo_4096/roughness/metallic; поверх шестигранники, наклейка decal_third_chance.png и маска выбитых ячеек hull_fallen_mask_4096.png (UV). В UE шестигранники рисовать ПО ФОРМУЛЕ из Data/hex_lattice.json (WorldAligned по доминирующей оси нормали), а не из hex_tile_*.",
+  "principled": {
+   "Base Color": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "Metallic": 0.0,
+   "Roughness": 0.5,
+   "IOR": 1.45,
+   "Alpha": 1.0,
+   "Emission Color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "Emission Strength": 0.0
+  }
+ }
+}

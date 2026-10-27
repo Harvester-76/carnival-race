@@ -1,0 +1,36 @@
+gen 0 tracks [23, 12, 9] best 159.2 mean 138.3 (170 с)
+gen 1 tracks [36, 37, 11] best 151.4 mean 130.6 (170 с)
+gen 2 tracks [33, 24, 30] best 153.5 mean 135.7 (170 с)
+gen 3 tracks [27, 40, 20] best 157.2 mean 144.6 (171 с)
+gen 4 tracks [31, 11, 5] best 153.1 mean 146.8 (171 с)
+   проверка на новой трассе: 162.21464770177602
+gen 5 tracks [11, 40, 19] best 154.7 mean 138.8 (171 с)
+gen 6 tracks [21, 32, 8] best 154.2 mean 150.0 (171 с)
+gen 7 tracks [16, 11, 8] best 160.6 mean 145.4 (172 с)
+gen 8 tracks [32, 2, 39] best 147.8 mean 137.6 (170 с)
+gen 9 tracks [31, 4, 21] best 150.8 mean 134.7 (171 с)
+   проверка на новой трассе: 162.21464770177602
+gen 10 tracks [23, 3, 22] best 154.3 mean 147.6 (171 с)
+gen 11 tracks [9, 1, 27] best 158.6 mean 142.2 (171 с)
+gen 12 tracks [4, 12, 31] best 155.2 mean 152.5 (170 с)
+gen 13 tracks [13, 3, 1] best 157.7 mean 140.6 (171 с)
+gen 14 tracks [9, 7, 17] best 153.9 mean 151.5 (171 с)
+   проверка на новой трассе: 161.112578721207
+gen 15 tracks [4, 11, 13] best 160.0 mean 149.9 (170 с)
+gen 16 tracks [1, 38, 13] best 157.1 mean 145.9 (170 с)
+gen 17 tracks [16, 37, 3] best 153.3 mean 141.2 (169 с)
+gen 18 tracks [13, 32, 39] best 153.6 mean 141.8 (169 с)
+gen 19 tracks [38, 12, 4] best 156.2 mean 136.5 (169 с)
+   проверка на новой трассе: 161.843163775742
+gen 20 tracks [17, 34, 11] best 154.3 mean 135.6 (169 с)
+gen 21 tracks [40, 8, 20] best 160.4 mean 151.4 (171 с)
+gen 22 tracks [31, 5, 16] best 153.2 mean 145.9 (171 с)
+gen 23 tracks [22, 7, 16] best 153.5 mean 148.5 (171 с)
+gen 24 tracks [9, 12, 24] best 159.7 mean 148.9 (170 с)
+   проверка на новой трассе: 159.502815041724
+gen 25 tracks [17, 4, 24] best 156.5 mean 143.5 (171 с)
+gen 26 tracks [6, 34, 38] best 151.7 mean 142.2 (171 с)
+gen 27 tracks [12, 40, 27] best 156.9 mean 140.7 (170 с)
+gen 28 tracks [12, 24, 2] best 152.5 mean 149.7 (171 с)
+gen 29 tracks [10, 25, 36] best 151.0 mean 142.2 (171 с)
+   проверка на новой трассе: 160.175430328604

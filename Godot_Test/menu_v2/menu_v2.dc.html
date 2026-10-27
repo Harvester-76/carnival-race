@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Golos+Text:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#05070F}
+a{color:#FF8A1E}
+a:hover{color:#E8F0FF}
+@keyframes blink{50%{opacity:.35}}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-18px) rotate(1deg)}}
+@keyframes shadowPulse{0%,100%{transform:scaleX(1);opacity:.55}50%{transform:scaleX(.86);opacity:.35}}
+</style>
+</helmet>
+<section style="display:grid;grid-template-columns:repeat(2,1600px);gap:72px 80px;padding:96px;background:#05070F;font-family:'Golos Text',sans-serif;width:max-content">
+  <div style="grid-column:1/-1;display:flex;align-items:baseline;gap:24px;color:#E8F0FF">
+    <span style="font-family:'Dela Gothic One';font-size:56px">Карнавальская Гонка · меню v2 · станция</span>
+    <span style="font-size:26px;color:#93A9D9">1600×900 · геймпад Xbox. Экран 01 живой: ↑↓ и ◀▶ с клавиатуры или геймпада.</span>
+  </div>
+
+  <div id="s00" data-screen-label="00 Система" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">00</span>Система</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#0A1024;color:#E8F0FF">
+      <div style="position:absolute;left:80px;top:64px;width:360px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-family:'Dela Gothic One';font-size:22px;letter-spacing:0.1em;color:#93A9D9;margin-bottom:8px">ЦВЕТА</div>
+        <sc-for list="{{ swatches }}" as="c" hint-placeholder-count="8">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="width:56px;height:56px;flex:none;border-radius:6px;background:{{ c.hex }};box-shadow:inset 0 0 0 2px rgba(232,240,255,0.25)"></div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:22px;font-weight:700">{{ c.name }}  <span style="font-family:'JetBrains Mono';font-size:18px;color:#93A9D9">{{ c.hex }}</span></span>
+              <span style="font-size:18px;color:#93A9D9">{{ c.role }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:480px;top:64px;width:420px;display:flex;flex-direction:column;gap:14px">
+        <div style="font-family:'Dela Gothic One';font-size:22px;letter-spacing:0.1em;color:#93A9D9;margin-bottom:8px">ШРИФТЫ</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <span style="font-family:'Dela Gothic One';font-size:56px;line-height:1;color:#FF8A1E;text-shadow:4px 4px 0 #02040C">ГОНКА</span>
+          <span style="font-size:18px;color:#93A9D9">Dela Gothic One — заголовки, афиша</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <span style="font-size:40px;font-weight:800;line-height:1.1">Настройки <span style="font-weight:600;color:#BFCCEB">Звук</span></span>
+          <span style="font-size:18px;color:#93A9D9">Golos Text 600 / 800 — пункты, текст</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <span style="font-family:'JetBrains Mono';font-size:36px;font-weight:700;line-height:1.1">02:41.37 · 0.12</span>
+          <span style="font-size:18px;color:#93A9D9">JetBrains Mono 700 — время, числа</span>
+        </div>
+        <div style="font-family:'Dela Gothic One';font-size:22px;letter-spacing:0.1em;color:#93A9D9;margin-top:18px">РАЗМЕРЫ, PX</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px 20px;font-size:22px">
+          <span>Заголовок главного</span><span style="font-family:'JetBrains Mono';color:#FF8A1E">76 / 132</span>
+          <span>Заголовок подменю</span><span style="font-family:'JetBrains Mono';color:#FF8A1E">64</span>
+          <span>Пункт меню · высота</span><span style="font-family:'JetBrains Mono';color:#FF8A1E">42 · 80</span>
+          <span>Строка настроек · высота</span><span style="font-family:'JetBrains Mono';color:#FF8A1E">30 · 60</span>
+          <span>Описание, подсказка</span><span style="font-family:'JetBrains Mono';color:#FF8A1E">24–26</span>
+          <span>Поля экрана</span><span style="font-family:'JetBrains Mono';color:#FF8A1E">120</span>
+        </div>
+        <div style="font-family:'Dela Gothic One';font-size:22px;letter-spacing:0.1em;color:#93A9D9;margin-top:18px">КНОПКИ</div>
+        <div style="display:flex;flex-wrap:wrap;gap:14px 24px;font-size:22px;font-weight:600;color:#93A9D9">
+          <div style="display:flex;align-items:center;gap:10px"><span style="min-width:44px;height:40px;padding:0 8px;box-sizing:border-box;border:2px solid #93A9D9;border-radius:8px;display:grid;place-items:center;font-size:18px;color:#E8F0FF">↑↓</span>Выбор</div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="min-width:44px;height:40px;padding:0 8px;box-sizing:border-box;border:2px solid #93A9D9;border-radius:8px;display:grid;place-items:center;font-size:18px;color:#E8F0FF">◀▶</span>Изменить</div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:40px;height:40px;border-radius:50%;background:#E8F0FF;color:#060A18;display:grid;place-items:center;font-size:22px;font-weight:900">A</span>Выбрать</div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="width:40px;height:40px;border-radius:50%;box-sizing:border-box;border:3px solid #E8F0FF;color:#E8F0FF;display:grid;place-items:center;font-size:22px;font-weight:900">B</span>Назад</div>
+        </div>
+      </div>
+      <div style="position:absolute;left:960px;top:40px;width:560px;display:flex;flex-direction:column;gap:6px">
+        <div style="font-family:'Dela Gothic One';font-size:22px;letter-spacing:0.1em;color:#93A9D9;margin-bottom:6px">СОСТОЯНИЯ ПУНКТА</div>
+        <sc-for list="{{ sysStates }}" as="r" hint-placeholder-count="3"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,60px"></dc-import></sc-for>
+        <div style="font-size:18px;color:#93A9D9;margin-bottom:12px;line-height:1.35">Выбран: рамка 3px оранжевая, плашка 16%, маркер ▶, текст 800. Обычный: 600, без рамки. Отключён: пепел + метка.</div>
+        <div style="font-family:'Dela Gothic One';font-size:22px;letter-spacing:0.1em;color:#93A9D9;margin-bottom:6px">ЭЛЕМЕНТЫ</div>
+        <sc-for list="{{ sysCtrls }}" as="r" hint-placeholder-count="4"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,60px"></dc-import></sc-for>
+        <div style="font-family:'Dela Gothic One';font-size:22px;letter-spacing:0.1em;color:#93A9D9;margin:14px 0 6px">РАМКИ</div>
+        <div style="display:flex;gap:20px;font-size:18px;color:#93A9D9">
+          <div style="display:flex;flex-direction:column;gap:8px"><div style="width:160px;height:72px;box-sizing:border-box;border:3px solid #FF8A1E;background:rgba(255,138,30,0.16);border-radius:8px"></div>Выбор</div>
+          <div style="display:flex;flex-direction:column;gap:8px"><div style="width:160px;height:72px;box-sizing:border-box;border:3px solid #93A9D9;background:#0E1733;border-radius:6px;padding:6px"><div style="height:100%;box-sizing:border-box;border:1px dashed rgba(147,169,217,0.5);border-radius:3px"></div></div>Панель</div>
+          <div style="display:flex;flex-direction:column;gap:8px"><div style="position:relative;width:160px;height:72px;background:#E8F0FF;border-radius:6px;overflow:hidden"><div style="position:absolute;left:112px;top:0;bottom:0;border-left:3px dashed #0A1024"></div><div style="position:absolute;left:101px;top:-12px;width:24px;height:24px;border-radius:50%;background:#0A1024"></div><div style="position:absolute;left:101px;bottom:-12px;width:24px;height:24px;border-radius:50%;background:#0A1024"></div></div>Билет-карточка</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="s01" data-screen-label="01 Главное меню" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">01</span>Главное меню · живое: фон меняется по выбранному пункту (↑↓ / ◀▶)</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <sc-if value="{{ bg.bar }}" hint-placeholder-val="{{ false }}">
+        <img src="bg/bar.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(3,6,16,0.94) 0%, rgba(3,6,16,0.86) 30%, rgba(3,6,16,0.45) 52%, rgba(3,6,16,0) 70%)"></div>
+      </sc-if>
+      <sc-if value="{{ bg.port }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;inset:0"><dc-import name="Station Bg" variant="Иллюминатор" hint-size="1600px,900px"></dc-import></div>
+      </sc-if>
+      <sc-if value="{{ bg.hangar }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0"><dc-import name="Station Bg" variant="Ангар" hint-size="1600px,900px"></dc-import></div>
+        <div style="position:absolute;left:820px;top:640px;width:560px;height:60px;border-radius:50%;background:radial-gradient(ellipse at center, rgba(92,225,255,0.35), rgba(0,0,0,0) 70%)">{{ shipShadow }}</div>
+        {{ shipModel }}
+      </sc-if>
+      <sc-if value="{{ bg.cabin }}" hint-placeholder-val="{{ false }}">
+        <img src="bg/cabin.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(3,6,16,0.92) 0%, rgba(3,6,16,0.8) 34%, rgba(3,6,16,0.3) 60%, rgba(3,6,16,0) 75%)"></div>
+      </sc-if>
+      <sc-if value="{{ bg.engine }}" hint-placeholder-val="{{ false }}">
+        <img src="bg/engine.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+        <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(3,6,16,0.92) 0%, rgba(3,6,16,0.8) 34%, rgba(3,6,16,0.3) 60%, rgba(3,6,16,0) 75%)"></div>
+      </sc-if>
+      <sc-if value="{{ bg.about }}" hint-placeholder-val="{{ false }}">
+        <img src="bg/about.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+        <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(3,6,16,0.92) 0%, rgba(3,6,16,0.8) 34%, rgba(3,6,16,0.3) 60%, rgba(3,6,16,0) 75%)"></div>
+      </sc-if>
+      <sc-if value="{{ bg.exit }}" hint-placeholder-val="{{ false }}">
+        <img src="bg/exit.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+        <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(3,6,16,0.92) 0%, rgba(3,6,16,0.8) 34%, rgba(3,6,16,0.3) 60%, rgba(3,6,16,0) 75%)"></div>
+      </sc-if>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:180px;pointer-events:none;background:linear-gradient(0deg, rgba(3,6,16,0.85), rgba(3,6,16,0))"></div>
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px"></div>
+      <div style="position:absolute;inset:32px;border:1px dashed rgba(147,169,217,0.22)"></div>
+      <span style="position:absolute;left:46px;top:38px;font-size:24px;color:#93A9D9">✦</span>
+      <span style="position:absolute;right:46px;bottom:38px;font-size:24px;color:#93A9D9">✦</span>
+      <div style="position:absolute;left:120px;top:84px;display:flex;flex-direction:column">
+        <span style="font-family:'Dela Gothic One';font-size:76px;line-height:1.05;text-shadow:5px 5px 0 #02040C">КАРНАВАЛЬСКАЯ</span>
+        <span style="font-family:'Dela Gothic One';font-size:132px;line-height:1;color:#FF8A1E;text-shadow:6px 6px 0 #02040C">ГОНКА</span>
+        <span style="margin-top:16px;font-size:30px;font-weight:600;color:#93A9D9">демо-прототип</span>
+      </div>
+      <div style="position:absolute;left:104px;top:360px;width:820px;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ mainRows }}" as="r" hint-placeholder-count="7"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,52px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;width:1044px;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbMain }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+      <sc-if value="{{ bg.hangar }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:120px;bottom:72px;width:520px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;text-align:right;text-shadow:0 2px 12px rgba(2,4,12,0.9)">
+        <div style="display:flex;align-items:center;gap:16px">
+          <span style="font-size:22px;font-weight:800;letter-spacing:0.12em;color:#93A9D9">КОРАБЛЬ {{ diffN }}/{{ cardTotal }}</span>
+          <div style="display:flex;gap:10px">
+            <sc-for list="{{ pipsDark }}" as="p" hint-placeholder-count="4"><span style="width:14px;height:14px;transform:rotate(45deg);box-sizing:border-box;border:3px solid {{ p.b }};background:{{ p.c }}"></span></sc-for>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px">
+          <span style="font-size:30px;color:{{ prevD }}">◀</span>
+          <span style="font-family:'Dela Gothic One';font-size:56px;line-height:1.05;color:#E8F0FF;text-shadow:4px 4px 0 #02040C">{{ diffName }}</span>
+          <span style="font-size:30px;color:{{ nextD }}">▶</span>
+        </div>
+        <span style="font-size:28px;font-weight:800;line-height:1.2;color:#FF8A1E;text-wrap:balance">«{{ diffSlogan }}»</span>
+        <span style="max-width:460px;font-size:24px;font-weight:500;line-height:1.35;color:#BFCCEB;text-wrap:pretty">{{ diffDesc }}</span>
+      </div>
+      </sc-if>
+      <sc-if value="{{ bg.port }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute;right:120px;top:72px;width:440px;height:768px;background:#E8F0FF;color:#0A1024;border-radius:10px;box-shadow:10px 10px 0 #02040C">
+        <div style="position:absolute;left:40px;top:32px;width:360px;height:360px;overflow:hidden;background:#C8D5F0;box-shadow:inset 0 0 0 3px #0A1024;border-radius:4px">
+          <sc-for list="{{ levels }}" as="lv" hint-placeholder-count="0">
+            <sc-if value="{{ lv.cur }}" hint-placeholder-val="{{ false }}">
+              <image-slot id="lvl-{{ lv.key }}" shape="rect" placeholder="{{ lv.ph }}" style="width:360px;height:360px;display:block"></image-slot>
+            </sc-if>
+          </sc-for>
+        </div>
+        <div style="position:absolute;left:28px;right:28px;top:412px;border-top:3px dashed rgba(10,16,36,0.5)"></div>
+        <div style="position:absolute;left:-18px;top:396px;width:36px;height:36px;border-radius:50%;background:#070B18"></div>
+        <div style="position:absolute;right:-18px;top:396px;width:36px;height:36px;border-radius:50%;background:#070B18"></div>
+        <div style="position:absolute;left:32px;right:32px;top:432px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:22px;font-weight:800;letter-spacing:0.06em;white-space:nowrap">{{ cardLabel }} {{ diffN }}/{{ cardTotal }}</span>
+            <div style="display:flex;gap:10px">
+              <sc-for list="{{ pips }}" as="p" hint-placeholder-count="5"><span style="width:16px;height:16px;transform:rotate(45deg);box-sizing:border-box;border:3px solid #0A1024;background:{{ p.c }}"></span></sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:88px">
+            <span style="font-size:28px;color:{{ prevC }}">◀</span>
+            <span style="font-family:'Dela Gothic One';font-size:31px;line-height:1.1;text-align:center;text-wrap:balance;hyphens:none;overflow-wrap:normal;word-break:keep-all">{{ diffName }}</span>
+            <span style="font-size:28px;color:{{ nextC }}">▶</span>
+          </div>
+          <span style="font-size:26px;font-weight:800;line-height:1.2;text-align:center;text-wrap:balance;color:#C24E00">«{{ diffSlogan }}»</span>
+          <span style="font-size:22px;font-weight:500;line-height:1.35;text-align:center;text-wrap:pretty">{{ diffDesc }}</span>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <div id="s01c" data-screen-label="01c Главное меню · Бар" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">01c</span>Главное меню · альтернативный фон «Бар» (выбран «Старт», карточка скрыта)</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <img src="bg/bar.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+      <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(3,6,16,0.94) 0%, rgba(3,6,16,0.86) 30%, rgba(3,6,16,0.45) 52%, rgba(3,6,16,0) 70%)"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:200px;background:linear-gradient(0deg, rgba(3,6,16,0.85), rgba(3,6,16,0))"></div>
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px"></div>
+      <div style="position:absolute;left:120px;top:84px;display:flex;flex-direction:column">
+        <span style="font-family:'Dela Gothic One';font-size:76px;line-height:1.05;text-shadow:5px 5px 0 #02040C">КАРНАВАЛЬСКАЯ</span>
+        <span style="font-family:'Dela Gothic One';font-size:132px;line-height:1;color:#FF8A1E;text-shadow:6px 6px 0 #02040C">ГОНКА</span>
+        <span style="margin-top:16px;font-size:30px;font-weight:600;color:#93A9D9;text-shadow:0 2px 8px #02040C">демо-прототип</span>
+      </div>
+      <div style="position:absolute;left:104px;top:360px;width:820px;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ mainRowsBar }}" as="r" hint-placeholder-count="7"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,52px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;width:1044px;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbMain }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s01d" data-screen-label="01d Главное меню · Настройки" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">01d</span>Главное меню · выбраны «Настройки» (машинное отделение)</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <img src="bg/engine.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+      <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(3,6,16,0.94) 0%, rgba(3,6,16,0.86) 30%, rgba(3,6,16,0.45) 52%, rgba(3,6,16,0) 70%)"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:200px;background:linear-gradient(0deg, rgba(3,6,16,0.85), rgba(3,6,16,0))"></div>
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px"></div>
+      <div style="position:absolute;left:120px;top:84px;display:flex;flex-direction:column">
+        <span style="font-family:'Dela Gothic One';font-size:76px;line-height:1.05;text-shadow:5px 5px 0 #02040C">КАРНАВАЛЬСКАЯ</span>
+        <span style="font-family:'Dela Gothic One';font-size:132px;line-height:1;color:#FF8A1E;text-shadow:6px 6px 0 #02040C">ГОНКА</span>
+        <span style="margin-top:16px;font-size:30px;font-weight:600;color:#93A9D9;text-shadow:0 2px 8px #02040C">демо-прототип</span>
+      </div>
+      <div style="position:absolute;left:104px;top:360px;width:820px;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ mainRowsSet }}" as="r" hint-placeholder-count="7"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,52px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;width:1044px;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbMain }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s01e" data-screen-label="01e Главное меню · Выход" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">01e</span>Главное меню · выбран «Выход» (бар после закрытия)</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <img src="bg/exit.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+      <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(3,6,16,0.94) 0%, rgba(3,6,16,0.86) 30%, rgba(3,6,16,0.45) 52%, rgba(3,6,16,0) 70%)"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:200px;background:linear-gradient(0deg, rgba(3,6,16,0.85), rgba(3,6,16,0))"></div>
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px"></div>
+      <div style="position:absolute;left:120px;top:84px;display:flex;flex-direction:column">
+        <span style="font-family:'Dela Gothic One';font-size:76px;line-height:1.05;text-shadow:5px 5px 0 #02040C">КАРНАВАЛЬСКАЯ</span>
+        <span style="font-family:'Dela Gothic One';font-size:132px;line-height:1;color:#FF8A1E;text-shadow:6px 6px 0 #02040C">ГОНКА</span>
+        <span style="margin-top:16px;font-size:30px;font-weight:600;color:#93A9D9;text-shadow:0 2px 8px #02040C">демо-прототип</span>
+      </div>
+      <div style="position:absolute;left:104px;top:360px;width:820px;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ mainRowsExit }}" as="r" hint-placeholder-count="7"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,52px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;width:1044px;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbMain }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s01f" data-screen-label="01f Главное меню · Об игре" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">01f</span>Главное меню · выбрано «Об игре»</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <img src="bg/about.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+      <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(3,6,16,0.94) 0%, rgba(3,6,16,0.86) 30%, rgba(3,6,16,0.45) 52%, rgba(3,6,16,0) 70%)"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:200px;pointer-events:none;background:linear-gradient(0deg, rgba(3,6,16,0.85), rgba(3,6,16,0))"></div>
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px;pointer-events:none"></div>
+      <div style="position:absolute;left:120px;top:84px;display:flex;flex-direction:column">
+        <span style="font-family:'Dela Gothic One';font-size:76px;line-height:1.05;text-shadow:5px 5px 0 #02040C">КАРНАВАЛЬСКАЯ</span>
+        <span style="font-family:'Dela Gothic One';font-size:132px;line-height:1;color:#FF8A1E;text-shadow:6px 6px 0 #02040C">ГОНКА</span>
+        <span style="margin-top:16px;font-size:30px;font-weight:600;color:#93A9D9;text-shadow:0 2px 8px #02040C">демо-прототип</span>
+      </div>
+      <div style="position:absolute;left:104px;top:360px;width:820px;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ mainRowsAbout }}" as="r" hint-placeholder-count="7"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,52px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;width:1044px;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbMain }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s01g" data-screen-label="01g Об игре" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">01g</span>Экран «Об игре»</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <img src="bg/about.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+      <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(3,6,16,0.96) 0%, rgba(3,6,16,0.9) 46%, rgba(3,6,16,0.5) 66%, rgba(3,6,16,0.1) 84%)"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:200px;background:linear-gradient(0deg, rgba(3,6,16,0.9), rgba(3,6,16,0))"></div>
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px"></div>
+      <div style="position:absolute;left:120px;right:120px;top:60px;padding-bottom:20px;border-bottom:2px dashed #24335E;display:flex;align-items:flex-end;gap:20px">
+        <span style="font-family:'Dela Gothic One';font-size:30px;line-height:1.7;color:#93A9D9">МЕНЮ <span style="color:#FF8A1E">›</span></span>
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1;text-shadow:4px 4px 0 #02040C">ОБ ИГРЕ</span>
+      </div>
+      <div style="position:absolute;left:120px;top:176px;width:820px;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <span style="font-family:'Dela Gothic One';font-size:44px;line-height:1.1;color:#FF8A1E;text-shadow:4px 4px 0 #02040C">Карнавальская Гонка</span>
+          <span style="font-size:26px;font-weight:600;color:#93A9D9">демо-прототип · версия 0.1</span>
+        </div>
+        <span style="font-size:28px;font-weight:500;line-height:1.4;color:#E8F0FF;text-wrap:pretty">Космическая гонка на ярмарочной станции. Пилоты-любители, механики и букмекеры собираются, чтобы выяснить, чей корабль быстрее. В демо одна трасса, четыре корабля и пять уровней сложности.</span>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:22px;font-weight:800;letter-spacing:0.12em;color:#93A9D9;padding-bottom:10px;border-bottom:2px solid rgba(147,169,217,0.3);margin-bottom:6px">КОМАНДА</span>
+          <sc-for list="{{ credits }}" as="c" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:16px;min-height:48px;padding:0 16px 0 10px;margin-left:-26px;box-sizing:border-box;border:3px solid {{ c.border }};background:{{ c.bg }};border-radius:8px">
+              <span style="width:22px;flex:none;font-size:20px;color:{{ c.mk }}">▶</span>
+              <span style="width:280px;flex:none;font-size:24px;font-weight:600;color:#93A9D9">{{ c.role }}</span>
+              <span style="flex:1;font-size:28px;font-weight:700;color:#E8F0FF">{{ c.name }}</span>
+              <sc-if value="{{ c.links }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;gap:10px">
+                  <div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 12px 0 6px;border-radius:8px;background:#0077FF">
+                    <span style="width:28px;height:28px;border-radius:6px;background:#FFFFFF;color:#0077FF;display:grid;place-items:center;font-size:14px;font-weight:900">VK</span>
+                    <span style="font-size:20px;font-weight:700;color:#FFFFFF">VK</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 12px 0 6px;border-radius:8px;background:#FF5500">
+                    <span style="width:28px;height:28px;border-radius:6px;background:#FFFFFF;display:grid;place-items:center"><span style="display:flex;align-items:flex-end;gap:2px;height:14px"><span style="width:3px;height:6px;background:#FF5500;border-radius:1px"></span><span style="width:3px;height:10px;background:#FF5500;border-radius:1px"></span><span style="width:3px;height:14px;background:#FF5500;border-radius:1px"></span><span style="width:8px;height:9px;background:#FF5500;border-radius:5px 5px 1px 1px"></span></span></span>
+                    <span style="font-size:20px;font-weight:700;color:#FFFFFF">SoundCloud</span>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:44px"><dc-import name="Hint Bar Cold" hint="Отзывы и баги: kolyanasd@gmail.com · GitHub — скоро" btns="{{ hbAbout }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s01b" data-screen-label="01b Главное меню · Корабль" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">01b</span>Главное меню · выбран «Корабль»</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <div style="position:absolute;inset:0"><dc-import name="Station Bg" variant="Ангар" hint-size="1600px,900px"></dc-import></div>
+      <div style="position:absolute;left:820px;top:640px;width:560px;height:60px;border-radius:50%;background:radial-gradient(ellipse at center, rgba(92,225,255,0.35), rgba(0,0,0,0) 70%)">{{ shipShadow }}</div>
+      {{ shipModel }}
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px"></div>
+      <div style="position:absolute;inset:32px;border:1px dashed rgba(147,169,217,0.22)"></div>
+      <span style="position:absolute;left:46px;top:38px;font-size:24px;color:#93A9D9">✦</span>
+      <span style="position:absolute;right:46px;bottom:38px;font-size:24px;color:#93A9D9">✦</span>
+      <div style="position:absolute;left:120px;top:84px;display:flex;flex-direction:column">
+        <span style="font-family:'Dela Gothic One';font-size:76px;line-height:1.05;text-shadow:5px 5px 0 #02040C">КАРНАВАЛЬСКАЯ</span>
+        <span style="font-family:'Dela Gothic One';font-size:132px;line-height:1;color:#FF8A1E;text-shadow:6px 6px 0 #02040C">ГОНКА</span>
+        <span style="margin-top:16px;font-size:30px;font-weight:600;color:#93A9D9">демо-прототип</span>
+      </div>
+      <div style="position:absolute;left:104px;top:360px;width:820px;display:flex;flex-direction:column;gap:4px">
+        <sc-for list="{{ mainRowsS }}" as="r" hint-placeholder-count="7"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,52px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;width:1044px;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbMain }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+      <div style="position:absolute;right:120px;bottom:72px;width:520px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;text-align:right;text-shadow:0 2px 12px rgba(2,4,12,0.9)">
+        <div style="display:flex;align-items:center;gap:16px">
+          <span style="font-size:22px;font-weight:800;letter-spacing:0.12em;color:#93A9D9">КОРАБЛЬ 1/4</span>
+          <div style="display:flex;gap:10px">
+            <span style="width:14px;height:14px;transform:rotate(45deg);box-sizing:border-box;border:3px solid #FF8A1E;background:#FF8A1E"></span>
+            <span style="width:14px;height:14px;transform:rotate(45deg);box-sizing:border-box;border:3px solid #6476A6"></span>
+            <span style="width:14px;height:14px;transform:rotate(45deg);box-sizing:border-box;border:3px solid #6476A6"></span>
+            <span style="width:14px;height:14px;transform:rotate(45deg);box-sizing:border-box;border:3px solid #6476A6"></span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px">
+          <span style="font-size:30px;color:#3B4C7E">◀</span>
+          <span style="font-family:'Dela Gothic One';font-size:56px;line-height:1.05;color:#E8F0FF;text-shadow:4px 4px 0 #02040C">Третий шанс</span>
+          <span style="font-size:30px;color:#FF8A1E">▶</span>
+        </div>
+        <span style="font-size:28px;font-weight:800;line-height:1.2;color:#FF8A1E;text-wrap:balance">«Дважды разбит, дважды собран»</span>
+        <span style="max-width:460px;font-size:24px;font-weight:500;line-height:1.35;color:#BFCCEB;text-wrap:pretty">Сбалансированный корпус: средняя тяга, уверенное управление, прочная броня.</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="s02" data-screen-label="02 Пауза" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">02</span>Пауза поверх игры</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <div style="position:absolute;inset:0"><dc-import name="Station Bg" variant="Космос" hint-size="1600px,900px"></dc-import></div>
+      <span style="position:absolute;left:40px;top:32px;font-family:'JetBrains Mono';font-size:22px;color:#E8F0FF">[ кадр игры ]</span>
+      <div style="position:absolute;inset:0;background:rgba(3,6,16,0.72)"></div>
+      <div style="position:absolute;left:480px;top:130px;width:640px;box-sizing:border-box;padding:14px;background:#0E1733;border:3px solid #93A9D9;border-radius:8px;box-shadow:10px 10px 0 #010208">
+        <div style="border:1px dashed rgba(147,169,217,0.5);border-radius:4px;padding:40px 36px 40px 22px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-family:'Dela Gothic One';font-size:80px;line-height:1;text-align:center;padding-left:14px;margin-bottom:28px;text-shadow:5px 5px 0 #02040C">ПАУЗА</span>
+          <sc-for list="{{ pauseRows }}" as="r" hint-placeholder-count="4"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,80px"></dc-import></sc-for>
+        </div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbPause }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s03" data-screen-label="03 Результаты" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">03</span>Результаты финиша</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18;color:#E8F0FF">
+      <image-slot id="results-race-bg" shape="rect" placeholder="Кадр гонки: трасса и корабль игрока · 1600×900" style="position:absolute;inset:0;width:1600px;height:900px;display:block"></image-slot>
+      <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(3,6,16,0.86) 0%, rgba(3,6,16,0.7) 60%, rgba(3,6,16,0.5) 100%)"></div>
+      <div style="position:absolute;inset:24px;border:2px solid rgba(147,169,217,0.35);border-radius:4px"></div>
+      <div style="position:absolute;inset:32px;border:1px dashed rgba(147,169,217,0.22)"></div>
+      <div style="position:absolute;left:120px;top:72px;display:flex;align-items:baseline;gap:28px">
+        <span style="font-family:'Dela Gothic One';font-size:96px;line-height:1;color:#FF8A1E;text-shadow:6px 6px 0 #02040C">ФИНИШ</span>
+        <span style="font-size:28px;font-weight:600;color:#93A9D9">Сложность: Ветеран · 3 круга</span>
+      </div>
+      <div style="position:absolute;left:120px;top:210px;width:880px;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;gap:20px;padding:0 24px 10px;font-size:22px;font-weight:800;letter-spacing:0.12em;color:#93A9D9;border-bottom:2px solid rgba(147,169,217,0.4);margin-bottom:6px">
+          <span style="width:80px">МЕСТО</span><span style="flex:1">ПИЛОТ</span><span style="width:180px;text-align:right">ВРЕМЯ</span>
+        </div>
+        <sc-for list="{{ results }}" as="p" hint-placeholder-count="6">
+          <div style="display:flex;align-items:center;gap:20px;padding:10px 21px;border:3px solid {{ p.border }};background:{{ p.bg }};border-radius:8px">
+            <span style="width:80px;flex:none;font-family:'Dela Gothic One';font-size:38px;color:{{ p.placeC }}">{{ p.place }}</span>
+            <span style="flex:1;min-width:0;font-size:30px;font-weight:{{ p.w }};line-height:1.2;text-wrap:pretty;overflow-wrap:normal">{{ p.name }}</span>
+            <span style="width:180px;flex:none;text-align:right;font-family:'JetBrains Mono';font-size:30px;font-weight:700">{{ p.time }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:1064px;top:200px;width:432px;background:#E8F0FF;color:#0A1024;border-radius:10px;box-shadow:10px 10px 0 #02040C;overflow:hidden;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:24px;padding:18px 24px 14px">
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <span style="font-size:20px;font-weight:800;letter-spacing:0.12em">МЕСТО</span>
+            <span style="font-family:'Dela Gothic One';font-size:110px;line-height:1">2</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:22px;font-weight:600">из 6 · «Третий шанс»</span>
+            <span style="font-family:'JetBrains Mono';font-size:40px;font-weight:700">02:41.37</span>
+            <span style="font-size:22px;font-weight:600;color:#3B4C7E">лучший круг 0:52.11</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 24px;background:#FF8A1E;color:#060A18">
+          <span style="font-size:22px;font-weight:900;letter-spacing:0.08em">✦ НОВЫЙ РЕКОРД ТРАССЫ</span>
+          <span style="font-family:'JetBrains Mono';font-size:20px;font-weight:700">было 02:43.05</span>
+        </div>
+      </div>
+      <div style="position:absolute;left:1064px;top:442px;width:432px;display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:22px;font-weight:800;letter-spacing:0.12em;color:#93A9D9">НОВЫЕ ДОСТИЖЕНИЯ</span>
+        <sc-for list="{{ finishAch }}" as="a" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:14px;padding:8px 12px;border:2px solid #3B4C7E;border-radius:8px;background:rgba(6,10,24,0.75)">
+            <span style="width:44px;height:44px;flex:none;border-radius:50%;background:#FF8A1E;color:#060A18;display:grid;place-items:center;font-size:22px;font-weight:900;box-shadow:0 0 0 4px rgba(255,138,30,0.3)">✦</span>
+            <div style="display:flex;flex-direction:column;min-width:0">
+              <span style="font-size:26px;font-weight:800;line-height:1.15">{{ a.name }}</span>
+              <span style="font-size:20px;color:#BFCCEB;line-height:1.25;text-wrap:pretty">{{ a.cond }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:1064px;top:640px;width:432px;display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{ resultRows }}" as="r" hint-placeholder-count="2"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,70px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;width:1000px;bottom:44px"><dc-import name="Hint Bar Cold" hint="" btns="{{ hbSel }}" line="transparent" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s03b" data-screen-label="03b Достижения" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">03b</span>Достижения · каюта пилота</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;color:#E8F0FF;background:repeating-linear-gradient(90deg, #0E1733 0 196px, #0A1024 196px 200px), #0E1733">
+      <img src="bg/cabin.png" alt="" style="position:absolute;inset:0;width:1600px;height:900px;object-fit:cover;display:block">
+      <div style="position:absolute;left:0;right:0;bottom:0;height:160px;background:linear-gradient(0deg, rgba(3,6,16,0.92), rgba(3,6,16,0))"></div>
+      <div style="position:absolute;left:250px;right:120px;top:44px;display:flex;align-items:flex-end;gap:24px">
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1;text-shadow:5px 5px 0 #02040C">ДОСТИЖЕНИЯ</span>
+        <span style="font-family:'JetBrains Mono';font-size:32px;font-weight:700;color:#FF8A1E;padding-bottom:8px">6 / 12</span>
+      </div>
+      <div style="position:absolute;left:84px;top:170px;width:900px;display:grid;grid-template-columns:repeat(4,1fr);gap:26px 22px;grid-auto-rows:150px">
+        <sc-for list="{{ achievements }}" as="a" hint-placeholder-count="12">
+          <div style="position:relative;height:150px;box-sizing:border-box;padding:8px;border:{{ a.fw }} solid {{ a.fc }};border-radius:4px;background:{{ a.frameBg }};box-shadow:6px 8px 0 rgba(2,4,12,0.6)">
+            <span style="position:absolute;left:50%;top:-16px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#6476A6"></span>
+            <div style="height:100%;box-sizing:border-box;padding:10px 12px;background:{{ a.paper }};color:{{ a.ink }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center">
+              <span style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:20px;font-weight:900;background:{{ a.sealBg }};color:{{ a.sealFg }}">{{ a.seal }}</span>
+              <span style="font-size:22px;font-weight:800;line-height:1.15;text-wrap:balance">{{ a.title }}</span>
+            </div>
+            <sc-if value="{{ a.isNew }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:-12px;top:-12px;padding:3px 10px;border-radius:6px;background:#FF8A1E;color:#060A18;font-size:16px;font-weight:900;letter-spacing:0.08em">НОВОЕ</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:1130px;top:182px;width:374px;height:576px;box-sizing:border-box;padding:28px;background:rgba(6,10,24,0.88);border:3px solid #FF8A1E;border-radius:8px;box-shadow:10px 10px 0 #02040C;display:flex;flex-direction:column;gap:16px">
+        <span style="font-size:20px;font-weight:800;letter-spacing:0.12em;color:#93A9D9">ГРАМОТА 4 / 12</span>
+        <div style="width:96px;height:96px;border-radius:50%;background:#FF8A1E;color:#060A18;display:grid;place-items:center;font-size:44px;font-weight:900;box-shadow:0 0 0 8px rgba(255,138,30,0.25)">✦</div>
+        <span style="font-family:'Dela Gothic One';font-size:36px;line-height:1.15">Без единой царапины</span>
+        <span style="font-size:24px;line-height:1.35;color:#BFCCEB;text-wrap:pretty">Проехать полный круг, ни разу не коснувшись бортиков.</span>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;padding-top:16px;border-top:2px dashed #24335E">
+          <span style="font-size:20px;font-weight:700;color:#93A9D9">Получено</span>
+          <span style="font-size:24px;font-weight:700">Сегодня · трасса «Карусель», Ветеран</span>
+        </div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="Закрытые грамоты показывают условие или прогресс. Скрытые откроются сами." btns="{{ hbAch }}" line="#24335E" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s04" data-screen-label="04 Настройки" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">04</span>Настройки</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#000;color:#E8F0FF">
+      <div style="position:absolute;left:120px;right:120px;top:60px;padding-bottom:24px;border-bottom:2px dashed #24335E;display:flex;justify-content:space-between;align-items:flex-end">
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1">НАСТРОЙКИ</span>
+        <span style="font-size:24px;color:#93A9D9">✦ Карнавальская Гонка</span>
+      </div>
+      <div style="position:absolute;left:104px;top:224px;width:900px;display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{ setRows }}" as="r" hint-placeholder-count="4"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,72px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="Схема геймпада, инверсия стиков, мёртвая зона и клавиши клавиатуры." btns="{{ hbSelBack }}" line="#18224A" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s05" data-screen-label="05 Управление" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">05</span>Настройки › Управление</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#000;color:#E8F0FF">
+      <div style="position:absolute;left:120px;right:120px;top:52px;padding-bottom:20px;border-bottom:2px dashed #24335E;display:flex;align-items:flex-end;gap:20px">
+        <span style="font-family:'Dela Gothic One';font-size:30px;line-height:1.7;color:#93A9D9">НАСТРОЙКИ <span style="color:#FF8A1E">›</span></span>
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1">УПРАВЛЕНИЕ</span>
+      </div>
+      <div style="position:absolute;left:104px;top:196px;width:1040px;display:flex;flex-direction:column;gap:3px">
+        <sc-for list="{{ ctrlRows }}" as="r" hint-placeholder-count="9"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,60px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="Насколько можно отклонить стик, прежде чем корабль начнёт реагировать. Увеличьте, если стик «дрейфует»." btns="{{ hbEdit }}" line="#18224A" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s06" data-screen-label="06 Клавиши" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">06</span>Настройки › Клавиши · режим «нажмите новую клавишу»</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#000;color:#E8F0FF">
+      <div style="position:absolute;left:120px;right:120px;top:52px;padding-bottom:20px;border-bottom:2px dashed #24335E;display:flex;align-items:flex-end;gap:20px">
+        <span style="font-family:'Dela Gothic One';font-size:30px;line-height:1.7;color:#93A9D9">УПРАВЛЕНИЕ <span style="color:#FF8A1E">›</span></span>
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1">КЛАВИШИ</span>
+      </div>
+      <div style="position:absolute;left:104px;top:190px;width:1040px;display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;gap:18px;padding:0 31px 8px 65px;font-size:22px;font-weight:800;letter-spacing:0.12em;color:#93A9D9">
+          <span style="flex:1">ДЕЙСТВИЕ</span><span>КЛАВИША</span>
+        </div>
+        <sc-for list="{{ keys }}" as="k" hint-placeholder-count="9">
+          <div style="display:flex;align-items:center;gap:18px;min-height:60px;padding:4px 28px 4px 16px;box-sizing:border-box;border:3px solid {{ k.border }};background:{{ k.bg }};border-radius:8px">
+            <span style="width:28px;flex:none;font-size:26px;color:{{ k.mk }}">▶</span>
+            <span style="flex:1;font-size:30px;font-weight:{{ k.w }}">{{ k.act }}</span>
+            <sc-if value="{{ k.hasKey }}" hint-placeholder-val="{{ true }}">
+              <span style="min-width:96px;height:44px;padding:0 16px;box-sizing:border-box;display:grid;place-items:center;border:2px solid #93A9D9;border-bottom-width:5px;border-radius:8px;font-family:'JetBrains Mono';font-size:24px;font-weight:700">{{ k.key }}</span>
+            </sc-if>
+            <sc-if value="{{ k.listen }}" hint-placeholder-val="{{ false }}">
+              <span style="height:44px;padding:0 20px;box-sizing:border-box;display:grid;place-items:center;border:2px dashed #FF8A1E;border-radius:8px;font-size:24px;font-weight:800;color:#FF8A1E;animation:blink 1s steps(2) infinite">нажмите новую клавишу…</span>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="Ускорение: нажмите любую клавишу клавиатуры. Было: Пробел." btns="{{ hbListen }}" line="#18224A" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s06b" data-screen-label="06b Кнопки геймпада" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">06b</span>Настройки › Кнопки геймпада · любая кнопка кроме B открывает список, B — назад</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#000;color:#E8F0FF">
+      <div style="position:absolute;left:120px;right:120px;top:52px;padding-bottom:20px;border-bottom:2px dashed #24335E;display:flex;align-items:flex-end;gap:20px">
+        <span style="font-family:'Dela Gothic One';font-size:30px;line-height:1.7;color:#93A9D9">УПРАВЛЕНИЕ <span style="color:#FF8A1E">›</span></span>
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1">КНОПКИ ГЕЙМПАДА</span>
+      </div>
+      <svg viewBox="0 0 1600 900" width="1600" height="900" style="position:absolute;left:0;top:0;font-family:'Golos Text',sans-serif">
+        <g stroke="#6476A6" stroke-width="2" fill="none">
+          <polyline points="480,230 600,279"></polyline>
+          <polyline points="480,290 580,310"></polyline>
+          <polyline points="480,360 612,404"></polyline>
+          <polyline points="480,415 608,420"></polyline>
+          <polyline points="480,470 720,470 720,490"></polyline>
+          <polyline points="480,525 690,520"></polyline>
+          <polyline points="480,580 720,580 720,550"></polyline>
+          <polyline points="480,640 765,640 765,520 750,520"></polyline>
+          <polyline points="1120,650 918,535"></polyline>
+          <polyline points="760,398 760,200"></polyline>
+          <polyline points="840,398 840,200"></polyline>
+          <polyline points="1120,230 1000,279"></polyline>
+          <polyline points="910,402 910,350 1120,350"></polyline>
+          <polyline points="1120,410 968,380"></polyline>
+          <polyline points="1120,470 1008,420"></polyline>
+          <polyline points="1120,530 968,460"></polyline>
+          <polyline points="1120,590 922,520"></polyline>
+        </g>
+        <polyline points="1120,290 1020,310" stroke="#FF8A1E" stroke-width="4" fill="none"></polyline>
+        <rect x="600" y="262" width="90" height="34" rx="10" fill="#24335E" stroke="#93A9D9" stroke-width="3"></rect>
+        <rect x="910" y="262" width="90" height="34" rx="10" fill="#24335E" stroke="#93A9D9" stroke-width="3"></rect>
+        <rect x="580" y="298" width="130" height="24" rx="12" fill="#24335E" stroke="#93A9D9" stroke-width="3"></rect>
+        <rect x="890" y="298" width="130" height="24" rx="12" fill="#FF8A1E" stroke="#FF8A1E" stroke-width="3"></rect>
+        <path d="M 640 330 C 700 310, 900 310, 960 330 C 1040 340, 1080 380, 1100 460 C 1125 560, 1130 660, 1080 700 C 1040 730, 1000 700, 975 660 C 955 625, 930 600, 890 600 L 710 600 C 670 600, 645 625, 625 660 C 600 700, 560 730, 520 700 C 470 660, 475 560, 500 460 C 520 380, 560 340, 640 330 Z" fill="#0E1733" stroke="#93A9D9" stroke-width="4"></path>
+        <circle cx="650" cy="420" r="42" fill="#060A18" stroke="#93A9D9" stroke-width="3"></circle>
+        <circle cx="650" cy="420" r="26" fill="#24335E"></circle>
+        <circle cx="880" cy="520" r="42" fill="#060A18" stroke="#93A9D9" stroke-width="3"></circle>
+        <circle cx="880" cy="520" r="26" fill="#24335E"></circle>
+        <rect x="690" y="508" width="60" height="24" rx="4" fill="#24335E" stroke="#93A9D9" stroke-width="3"></rect>
+        <rect x="708" y="490" width="24" height="60" rx="4" fill="#24335E" stroke="#93A9D9" stroke-width="3"></rect>
+        <rect x="709" y="509" width="22" height="22" fill="#24335E"></rect>
+        <circle cx="800" cy="365" r="20" fill="none" stroke="#93A9D9" stroke-width="3"></circle>
+        <circle cx="760" cy="410" r="12" fill="#24335E" stroke="#93A9D9" stroke-width="3"></circle>
+        <circle cx="840" cy="410" r="12" fill="#24335E" stroke="#93A9D9" stroke-width="3"></circle>
+        <g font-size="20" font-weight="900" text-anchor="middle">
+          <circle cx="950" cy="380" r="18" fill="#24335E" stroke="#93A9D9" stroke-width="3"></circle><text x="950" y="387" fill="#E8F0FF">Y</text>
+          <circle cx="910" cy="420" r="18" fill="#24335E" stroke="#93A9D9" stroke-width="3"></circle><text x="910" y="427" fill="#E8F0FF">X</text>
+          <circle cx="990" cy="420" r="18" fill="#24335E" stroke="#93A9D9" stroke-width="3"></circle><text x="990" y="427" fill="#E8F0FF">B</text>
+          <circle cx="950" cy="460" r="18" fill="#E8F0FF"></circle><text x="950" y="467" fill="#060A18">A</text>
+        </g>
+      </svg>
+      <sc-for list="{{ padLabels }}" as="p" hint-placeholder-count="13">
+        <div style="position:absolute;left:{{ p.x }};top:{{ p.y }};width:{{ p.w }};height:44px;display:flex;align-items:center;justify-content:{{ p.jc }};gap:12px">
+          <span style="min-width:44px;height:36px;padding:0 10px;box-sizing:border-box;display:grid;place-items:center;border:2px solid {{ p.bc }};background:{{ p.bbg }};border-radius:8px;font-family:'JetBrains Mono';font-size:18px;font-weight:700;color:{{ p.bfg }};white-space:nowrap">{{ p.ctl }}</span>
+          <span style="font-size:26px;font-weight:{{ p.w8 }};color:{{ p.fg }};white-space:nowrap">{{ p.act }}</span>
+        </div>
+      </sc-for>
+      <div style="position:absolute;left:0;right:0;top:170px;bottom:100px;background:rgba(0,0,0,0.72)"></div>
+      <svg viewBox="0 0 1600 900" width="1600" height="900" style="position:absolute;left:0;top:0;pointer-events:none">
+        <polyline points="1120,290 1020,310" stroke="#FF8A1E" stroke-width="4" fill="none"></polyline>
+        <rect x="890" y="298" width="130" height="24" rx="12" fill="#FF8A1E"></rect>
+      </svg>
+      <div style="position:absolute;left:1130px;top:268px;height:44px;display:flex;align-items:center;gap:12px">
+        <span style="min-width:44px;height:36px;padding:0 10px;box-sizing:border-box;display:grid;place-items:center;background:#FF8A1E;border-radius:8px;font-family:'JetBrains Mono';font-size:18px;font-weight:700;color:#060A18">RB</span>
+        <span style="font-size:26px;font-weight:800;color:#FF8A1E">Крен вправо</span>
+      </div>
+      <div style="position:absolute;left:1130px;top:330px;width:380px;box-sizing:border-box;padding:12px;background:#060A18;border:3px solid #FF8A1E;border-radius:8px;box-shadow:0 0 0 2000px rgba(0,0,0,0.0),10px 10px 0 #000;display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:20px;font-weight:800;letter-spacing:0.1em;color:#93A9D9;padding:2px 8px 8px">ДЕЙСТВИЕ ДЛЯ RB</span>
+        <sc-for list="{{ padOptions }}" as="o" hint-placeholder-count="7">
+          <div style="display:flex;align-items:center;gap:12px;height:50px;padding:0 12px 0 8px;box-sizing:border-box;border:3px solid {{ o.border }};background:{{ o.bg }};border-radius:6px">
+            <span style="width:22px;font-size:20px;color:{{ o.mk }}">▶</span>
+            <span style="flex:1;font-size:26px;font-weight:{{ o.w }}">{{ o.name }}</span>
+            <span style="font-size:20px;font-weight:600;color:#93A9D9;white-space:nowrap">{{ o.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="RB: выберите действие. Если оно уже занято, прежняя кнопка станет «не назначено»." btns="{{ hbAssign }}" line="#18224A" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s07a" data-screen-label="07a Звук" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">07a</span>Настройки › Звук</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#000;color:#E8F0FF">
+      <div style="position:absolute;left:120px;right:120px;top:52px;padding-bottom:20px;border-bottom:2px dashed #24335E;display:flex;align-items:flex-end;gap:20px">
+        <span style="font-family:'Dela Gothic One';font-size:30px;line-height:1.7;color:#93A9D9">НАСТРОЙКИ <span style="color:#FF8A1E">›</span></span>
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1">ЗВУК</span>
+      </div>
+      <div style="position:absolute;left:104px;top:216px;width:1040px;display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{ soundRows }}" as="r" hint-placeholder-count="2"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,72px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="Громкость музыки и эффектов вместе." btns="{{ hbEdit }}" line="#18224A" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s07b" data-screen-label="07b Камера" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">07b</span>Настройки › Камера</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#000;color:#E8F0FF">
+      <div style="position:absolute;left:120px;right:120px;top:52px;padding-bottom:20px;border-bottom:2px dashed #24335E;display:flex;align-items:flex-end;gap:20px">
+        <span style="font-family:'Dela Gothic One';font-size:30px;line-height:1.7;color:#93A9D9">НАСТРОЙКИ <span style="color:#FF8A1E">›</span></span>
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1">КАМЕРА</span>
+      </div>
+      <div style="position:absolute;left:104px;top:216px;width:1040px;display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{ camRows }}" as="r" hint-placeholder-count="3"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,72px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="Насколько мягко камера догоняет корабль. Меньше — резче, больше — плавнее." btns="{{ hbEdit }}" line="#18224A" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+
+  <div id="s08" data-screen-label="08 Расширенные" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;font-size:28px;font-weight:600;color:#93A9D9"><span style="background:#FF8A1E;color:#060A18;font-weight:800;padding:4px 12px;border-radius:6px">08</span>Настройки › Управление › Расширенные</div>
+    <div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#000;color:#E8F0FF">
+      <div style="position:absolute;left:80px;right:80px;top:52px;padding-bottom:20px;border-bottom:2px dashed #24335E;display:flex;align-items:flex-end;gap:20px">
+        <span style="font-family:'Dela Gothic One';font-size:30px;line-height:1.7;color:#93A9D9">УПРАВЛЕНИЕ <span style="color:#FF8A1E">›</span></span>
+        <span style="font-family:'Dela Gothic One';font-size:64px;line-height:1.1">РАСШИРЕННЫЕ</span>
+      </div>
+      <div style="position:absolute;left:64px;top:196px;width:740px;display:flex;flex-direction:column;gap:3px">
+        <sc-for list="{{ advRows }}" as="r" hint-placeholder-count="7"><dc-import name="Menu Row Cold" r="{{ r }}" hint-size="100%,60px"></dc-import></sc-for>
+      </div>
+      <div style="position:absolute;left:840px;right:64px;top:192px;display:flex;flex-direction:column;gap:20px">
+        <sc-for list="{{ charts }}" as="ch" hint-placeholder-count="2">
+          <div style="border:2px solid #24335E;border-radius:8px;padding:14px 18px 8px;display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:26px;font-weight:700">{{ ch.title }}</span>
+            <svg viewBox="0 0 660 228" width="660" height="228" style="display:block;font-family:'Golos Text',sans-serif">
+              <rect x="56" y="12" width="{{ ch.dzW }}" height="180" fill="rgba(224,71,43,0.32)"></rect>
+              <line x1="{{ ch.dzX }}" y1="12" x2="{{ ch.dzX }}" y2="192" stroke="#E0472B" stroke-width="3" stroke-dasharray="6 5" opacity="{{ ch.dzOp }}"></line>
+              <text x="64" y="40" fill="#FF7A5C" font-size="20" font-weight="700" opacity="{{ ch.dzOp }}">мёртвая</text>
+              <text x="64" y="62" fill="#FF7A5C" font-size="20" font-weight="700" opacity="{{ ch.dzOp }}">зона</text>
+              <line x1="56" y1="12" x2="640" y2="12" stroke="#18224A" stroke-width="2"></line>
+              <line x1="56" y1="102" x2="640" y2="102" stroke="#18224A" stroke-width="2"></line>
+              <line x1="56" y1="192" x2="640" y2="192" stroke="#93A9D9" stroke-width="2"></line>
+              <line x1="56" y1="12" x2="56" y2="192" stroke="#93A9D9" stroke-width="2"></line>
+              <path d="{{ ch.path }}" fill="none" stroke="#FF8A1E" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"></path>
+              <circle cx="{{ ch.endX }}" cy="{{ ch.endY }}" r="7" fill="#E8F0FF"></circle>
+              <text x="48" y="20" fill="#93A9D9" font-size="18" text-anchor="end">1.0</text>
+              <text x="48" y="198" fill="#93A9D9" font-size="18" text-anchor="end">0</text>
+              <text x="56" y="218" fill="#93A9D9" font-size="18">{{ ch.x0 }}</text>
+              <text x="640" y="218" fill="#93A9D9" font-size="18" text-anchor="end">{{ ch.x1 }}</text>
+              <text x="348" y="218" fill="#93A9D9" font-size="18" text-anchor="middle">{{ ch.xl }}</text>
+            </svg>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0"><dc-import name="Hint Bar Cold" hint="Крутизна: насколько резко растёт усилие после старта. 1.0 — линейно, больше — мягкое начало." btns="{{ hbEdit }}" line="#18224A" hint-size="100%,100px"></dc-import></div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;difficulty&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Турист&quot;,&quot;Дальнобойщик&quot;,&quot;Любимец букмекеров&quot;,&quot;Ветеран&quot;,&quot;Киборг&quot;],&quot;default&quot;:&quot;Любимец букмекеров&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;station&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Иллюминатор&quot;,&quot;Коридор&quot;,&quot;Ангар&quot;,&quot;Космос&quot;],&quot;default&quot;:&quot;Иллюминатор&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const LEVELS = [
+  { key: 'tourist', name: 'Турист', slogan: 'Случайно попал на трассу', desc: 'Автопилот держит курс, скорость ограничена, удары о бортики не тормозят корабль.' },
+  { key: 'trucker', name: 'Дальнобойщик', slogan: 'Честный работяга с опытом дальних перелётов', desc: 'Стабилизация вращения включена, инерция смягчена, максимум тяги снижен.' },
+  { key: 'bookie', name: 'Любимец букмекеров', slogan: 'Ставки один к трём!', desc: 'Частичная стабилизация, полная тяга, лёгкий занос в поворотах.' },
+  { key: 'veteran', name: 'Ветеран', slogan: 'Видел всякое', desc: 'Помощь только при столкновениях, реальная инерция, перегрев ускорителя.' },
+  { key: 'cyborg', name: 'Киборг', slogan: 'Ощущает корабль, как продолжение своего тела', desc: 'Никаких помощников: полная физика, ручная стабилизация, без ограничений.' }
+];
+const SHIPS = [
+  { key: 'ship-third', name: 'Третий шанс', slogan: 'Дважды разбит, дважды собран', desc: 'Сбалансированный корпус: средняя тяга, уверенное управление, прочная броня.' },
+  { key: 'ship-lyra', name: 'Ржавая Лира', slogan: 'Поёт на каждом повороте', desc: 'Лёгкая и вёрткая, быстро разгоняется, но плохо держит удары.' },
+  { key: 'ship-samovar', name: 'Самовар', slogan: 'Горячий, тяжёлый, неудержимый', desc: 'Медленный разгон, высокая максимальная скорость, расталкивает соперников.' },
+  { key: 'ship-comet', name: 'Бархатная Комета', slogan: 'Красиво уходит в занос', desc: 'Сильный ускоритель и мягкий занос, требует аккуратного газа.' }
+];
+const MENU = ['Старт', 'Сложность', 'Корабль', 'Достижения', 'Настройки', 'Об игре', 'Выход'];
+const SIZES = { menu: { h: '52px', fs: '32px' }, big: { h: '80px', fs: '42px' }, mid: { h: '72px', fs: '34px' }, row: { h: '60px', fs: '30px' }, adv: { h: '60px', fs: '28px' } };
+function row(label, o = {}) {
+  const s = SIZES[o.size || 'row'], sel = !!o.sel, dis = !!o.dis;
+  const fg = dis ? '#5C6B94' : '#E8F0FF';
+  const r = {
+    label, h: s.h, fs: s.fs, fg, pad: o.size === 'menu' ? '2px 24px 2px 16px' : '8px 28px 8px 16px',
+    weight: sel ? 800 : 600,
+    border: sel ? '#FF8A1E' : 'transparent',
+    bg: sel ? 'rgba(255,138,30,0.16)' : 'transparent',
+    mk: sel ? '#FF8A1E' : 'transparent',
+    arrow: sel ? '#FF8A1E' : (dis ? '#2C3A66' : '#6476A6'),
+    disabledTag: dis
+  };
+  if (o.choice != null) Object.assign(r, { choice: true, val: o.choice, choiceW: o.cw || '200px', cfs: o.cfs || s.fs });
+  if (o.toggle != null) Object.assign(r, {
+    toggle: true, tglBorder: sel ? '#FF8A1E' : '#3B4C7E',
+    onBg: o.toggle ? '#FF8A1E' : 'transparent', onFg: o.toggle ? '#060A18' : '#6476A6',
+    offBg: o.toggle ? 'transparent' : '#E8F0FF', offFg: o.toggle ? '#6476A6' : '#060A18'
+  });
+  if (o.slider != null) Object.assign(r, {
+    slider: true, pctW: Math.round(o.slider * 100) + '%', valText: o.text,
+    trackW: o.tw || '360px', fill: sel ? '#FF8A1E' : '#93A9D9', knob: '#E8F0FF'
+  });
+  if (o.action) r.action = true;
+  return r;
+}
+const B = (k, g, l) => ({ g, l, pad: k === 'pad', key: k === 'key', a: k === 'A', b: k === 'B' });
+const curve = (t, k) => Math.pow(Math.max(0, Math.min(1, t)), k);
+
+class Component extends DCLogic {
+  state = { sel: 1, diff: null, ship: 0 };
+  diffIdx() {
+    if (this.state.diff != null) return this.state.diff;
+    const i = LEVELS.findIndex(l => l.name === this.props.difficulty);
+    return i < 0 ? 2 : i;
+  }
+  move(dy, dx) {
+    if (dy) this.setState(s => ({ sel: (s.sel + dy + 7) % 7 }));
+    if (dx && this.state.sel === 1) this.setState({ diff: Math.max(0, Math.min(4, this.diffIdx() + dx)) });
+    if (dx && this.state.sel === 2) this.setState(s => ({ ship: Math.max(0, Math.min(SHIPS.length - 1, s.ship + dx)) }));
+  }
+  componentDidMount() {
+    this.onKey = e => {
+      const m = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+      if (m) { e.preventDefault(); this.move(...m); }
+    };
+    window.addEventListener('keydown', this.onKey);
+    const prev = {};
+    const poll = () => {
+      const gp = (navigator.getGamepads ? navigator.getGamepads() : [])[0];
+      if (gp) {
+        const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+        const st = { u: gp.buttons[12]?.pressed || ay < -0.5, d: gp.buttons[13]?.pressed || ay > 0.5, l: gp.buttons[14]?.pressed || ax < -0.5, r: gp.buttons[15]?.pressed || ax > 0.5 };
+        if (st.u && !prev.u) this.move(-1, 0);
+        if (st.d && !prev.d) this.move(1, 0);
+        if (st.l && !prev.l) this.move(0, -1);
+        if (st.r && !prev.r) this.move(0, 1);
+        Object.assign(prev, st);
+      }
+      this.raf = requestAnimationFrame(poll);
+    };
+    this.raf = requestAnimationFrame(poll);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this.onKey); cancelAnimationFrame(this.raf); }
+
+  renderVals() {
+    const d = this.diffIdx(), lv = LEVELS[d], sel = this.state.sel;
+    const big = (l, i, o = {}) => row(l, { size: 'menu', sel: sel === i, ...o });
+    const shipMode = sel === 2, items = shipMode ? SHIPS : LEVELS, ci = shipMode ? this.state.ship : d, card = items[ci], n = items.length;
+    const dz = 0.12, start = 0.15, max = 1, k = 1.8, T = 0.6;
+    const X = x => 56 + x * 584, Y = y => 192 - y * 180;
+    let p1 = `M${X(0)},${Y(0)} L${X(dz)},${Y(0)}`, p2 = '';
+    for (let i = 0; i <= 50; i++) {
+      const x = dz + (1 - dz) * i / 50;
+      p1 += ` L${X(x).toFixed(1)},${Y(start + (max - start) * curve((x - dz) / (1 - dz), k)).toFixed(1)}`;
+      const t = i / 50;
+      p2 += `${i ? ' L' : 'M'}${X(t).toFixed(1)},${Y(start + (max - start) * curve(t / T, k)).toFixed(1)}`;
+    }
+    p1 = p1.replace(`L${X(dz)},${Y(0)} L${X(dz).toFixed(1)}`, `L${X(dz)},${Y(0)} L${X(dz).toFixed(1)}`);
+    return {
+      station: this.props.station ?? 'Иллюминатор',
+      shipShadow: React.createElement('div', { style: { position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.7), rgba(0,0,0,0) 70%)', animation: 'shadowPulse 4s ease-in-out infinite' } }),
+      shipModel: React.createElement('div', { style: { position: 'absolute', left: '760px', top: '170px', width: '680px', height: '460px', animation: 'bob 4s ease-in-out infinite' } },
+        React.createElement('image-slot', { id: 'ship-model-third', shape: 'rect', placeholder: 'Модель корабля «Третий шанс» · PNG с прозрачным фоном · 680×460', style: { width: '100%', height: '100%', display: 'block' } })),
+      swatches: [
+        { name: 'Лёд', hex: '#E8F0FF', role: 'основной текст, карточки' },
+        { name: 'Оранжевый', hex: '#FF8A1E', role: 'выбор, маркер ▶, значения' },
+        { name: 'Сталь', hex: '#93A9D9', role: 'вторичный текст, рамки' },
+        { name: 'Ночь станции', hex: '#0A1024', role: 'фон главных экранов' },
+        { name: 'Глубокий космос', hex: '#02040C', role: 'тени, текст на креме' },
+        { name: 'Чёрный', hex: '#000000', role: 'фон подменю настроек' },
+        { name: 'Пепел', hex: '#5C6B94', role: 'отключённый пункт' },
+        { name: 'Сигнал', hex: '#E0472B', role: 'мёртвая зона, ошибки' }
+      ],
+      sysStates: [
+        row('Обычный пункт'),
+        row('Выбранный пункт', { sel: true }),
+        row('Отключённый пункт', { dis: true })
+      ],
+      sysCtrls: [
+        row('Выбор', { choice: 'Ветеран', cw: '150px' }),
+        row('Переключатель', { toggle: true }),
+        row('Слайдер', { sel: true, slider: 0.12, text: '0.12', tw: '200px' }),
+        row('Переход в подменю…', { action: true })
+      ],
+      hbAll: [B('pad', '↑↓', 'Выбор'), B('pad', '◀▶', 'Изменить'), B('A', '', 'Выбрать'), B('B', '', 'Назад')],
+      hbMain: [B('pad', '↑↓', 'Выбор'), B('pad', '◀▶', 'Изменить'), B('A', '', 'Выбрать')],
+      hbPause: [B('pad', '↑↓', 'Выбор'), B('A', '', 'Выбрать'), B('B', '', 'Продолжить')],
+      hbSel: [B('pad', '↑↓', 'Выбор'), B('A', '', 'Выбрать')],
+      hbSelBack: [B('A', '', 'Выбрать'), B('B', '', 'Назад')],
+      hbEdit: [B('pad', '◀▶', 'Изменить'), B('B', '', 'Назад')],
+      ...(() => {
+        const mk = s => MENU.map((l, i) => row(l, { size: 'menu', sel: i === s,
+          ...(i === 1 ? { choice: lv.name, cw: '300px', cfs: '26px' } : i === 2 ? { choice: 'Третий шанс', cw: '300px', cfs: '26px' } : i === 3 ? { action: true } : {}) }));
+        return { mainRowsBar: mk(0), mainRowsS: mk(2), mainRowsSet: mk(4), mainRowsAbout: mk(5), mainRowsExit: mk(6) };
+      })(),
+      hbAch: [B('pad', '↑↓◀▶', 'Выбор'), B('B', '', 'Назад')],
+      finishAch: [
+        { name: 'Без единой царапины', cond: 'Круг без касания бортиков' },
+        { name: 'Личный рекорд', cond: 'Улучшить своё время на трассе' }
+      ],
+      achievements: [
+        ['Первый блин', 'got'], ['Третий шанс', 'got'], ['Любимец публики', 'lock'], ['Без единой царапины', 'sel'],
+        ['Реактивный самовар', 'got'], ['Фотофиниш', 'lock'], ['Турист со стажем', 'lock'], ['Личный рекорд', 'new'],
+        ['Дальний рейс', 'prog', '640 / 1000 км'], ['Коллекционер', 'prog', '2 / 4 корабля'], ['Киборг в душе', 'lock'], ['???', 'hidden']
+      ].map(([title, st, prog]) => {
+        const got = st === 'got' || st === 'sel' || st === 'new', sel = st === 'sel';
+        return {
+          title: prog ? title + ' · ' + prog : title,
+          isNew: st === 'sel' || st === 'new',
+          fw: sel ? '4px' : '3px', fc: sel ? '#FF8A1E' : (got ? '#93A9D9' : '#2C3A66'),
+          frameBg: sel ? 'rgba(255,138,30,0.25)' : (got ? '#3B4C7E' : '#18224A'),
+          paper: got ? '#E8F0FF' : '#0A1024', ink: got ? '#0A1024' : '#6476A6',
+          seal: got ? '✦' : (st === 'hidden' ? '?' : (prog ? '…' : '—')),
+          sealBg: got ? '#FF8A1E' : 'transparent', sealFg: got ? '#060A18' : '#6476A6'
+        };
+      }),
+      hbAbout: [B('pad', '↑↓', 'Выбор'), B('A', '', 'Открыть ссылку'), B('B', '', 'Назад')],
+      credits: [['Геймдизайн', 'Имя Фамилия'], ['Программирование', 'Имя Фамилия'], ['Графика и корабли', 'Имя Фамилия'], ['Музыка и звук', 'Имя Фамилия']].map(([role, name], i) => {
+        const sel = i === 3;
+        return { role, name, links: sel, border: sel ? '#FF8A1E' : 'transparent', bg: sel ? 'rgba(255,138,30,0.16)' : 'transparent', mk: sel ? '#FF8A1E' : 'transparent' };
+      }),
+      hbAssign: [B('pad', '↑↓', 'Выбор'), B('A', '', 'Назначить'), B('B', '', 'Отмена')],
+      padLabels: [
+        ['L', 230, 'LT', 'Тормоз'], ['L', 290, 'LB', 'Крен влево'], ['L', 360, 'Л.стик ↕', 'Тангаж'], ['L', 415, 'Л.стик ↔', 'Поворот'],
+        ['L', 470, 'Крест ↑', 'Сменить камеру'], ['L', 525, 'Крест ←', 'Радио: назад'], ['L', 580, 'Крест ↓', 'Взгляд назад'], ['L', 640, 'Крест →', 'Радио: вперёд'],
+        ['T', 200, 'View', 'Таблица мест'], ['M', 200, 'Menu', 'Пауза'],
+        ['R', 230, 'RT', 'Газ'], ['R', 290, 'RB', 'Крен вправо', 'sel'], ['R', 350, 'X', 'Сброс на трассу'], ['R', 410, 'Y', 'Гудок'],
+        ['R', 470, 'B', 'Назад · закреплено', 'lock'], ['R', 530, 'A', 'Ускорение'], ['R', 590, 'П.стик ↕', 'Камера вверх / вниз'], ['R', 650, 'П.стик ↔', 'Камера влево / вправо']
+      ].map(([side, y, ctl, act, st]) => {
+        const sel = st === 'sel', lock = st === 'lock';
+        const pos = { L: ['120px', '350px', 'flex-end'], T: ['330px', '420px', 'flex-end'], M: ['850px', '420px', 'flex-start'], R: ['1130px', '400px', 'flex-start'] }[side];
+        return { ctl, act, x: pos[0], w: pos[1], jc: pos[2], y: (side === 'T' || side === 'M' ? y - 22 : y - 22) + 'px',
+          bc: sel ? '#FF8A1E' : '#93A9D9', bbg: sel ? '#FF8A1E' : 'transparent', bfg: sel ? '#060A18' : '#E8F0FF',
+          fg: sel ? '#FF8A1E' : (lock ? '#93A9D9' : '#E8F0FF'), w8: sel ? 800 : 600 };
+      }),
+      padOptions: [['Газ', 'RT'], ['Тормоз', 'LT'], ['Ускорение', 'сейчас A', true], ['Крен влево', 'LB'], ['Крен вправо', '✓ текущее'], ['Сброс на трассу', 'X'], ['Не назначено', '']].map(([name, note, cur]) => ({
+        name, note, w: cur ? 800 : 600,
+        border: cur ? '#FF8A1E' : 'transparent', bg: cur ? 'rgba(255,138,30,0.16)' : 'transparent', mk: cur ? '#FF8A1E' : 'transparent'
+      })),
+      hbListen: [B('key', 'Esc', 'Отмена'), B('B', '', 'Назад')],
+      mainRows: MENU.map((l, i) => big(l, i, i === 1 ? { choice: lv.name, cw: '300px', cfs: '26px' } : i === 2 ? { choice: SHIPS[this.state.ship].name, cw: '300px', cfs: '26px' } : i === 3 ? { action: true } : {})),
+      levels: items.map((l, i) => ({ ...l, cur: i === ci, ph: (shipMode ? 'Корабль «' : 'Иллюстрация уровня «') + l.name + '» · 360×360' })),
+      bg: { bar: sel === 0, port: sel === 1, hangar: sel === 2, cabin: sel === 3, engine: sel === 4, about: sel === 5, exit: sel === 6 },
+      pipsDark: items.map((_, i) => ({ c: i === ci ? '#FF8A1E' : 'transparent', b: i === ci ? '#FF8A1E' : '#6476A6' })),
+      prevD: ci > 0 ? '#FF8A1E' : '#3B4C7E', nextD: ci < n - 1 ? '#FF8A1E' : '#3B4C7E',
+      cardLabel: shipMode ? 'КОРАБЛЬ' : 'СЛОЖНОСТЬ', cardTotal: n,
+      diffN: ci + 1, diffName: card.name, diffSlogan: card.slogan, diffDesc: card.desc,
+      pips: items.map((_, i) => ({ c: (shipMode ? i === ci : i <= ci) ? '#FF8A1E' : 'transparent' })),
+      prevC: ci > 0 ? '#0A1024' : 'rgba(10,16,36,0.2)', nextC: ci < n - 1 ? '#0A1024' : 'rgba(10,16,36,0.2)',
+      pauseRows: [row('Продолжить', { size: 'big', sel: true }), row('Начать заново', { size: 'big' }), row('Настройки', { size: 'big' }), row('В главное меню', { size: 'big' })],
+      results: [
+        ['1', 'Маленькое Стремительное Копье', '02:38.04'],
+        ['2', 'Вы · «Третий шанс»', '02:41.37', true],
+        ['3', 'Великий Гудящий Самовар Северного Кольца', '02:44.90'],
+        ['4', 'Пыльная Комета', '02:51.12'],
+        ['5', 'Безымянный Механик Второго Ряда Трибун', '02:58.66'],
+        ['6', 'Тётушка Турбина', '03:05.03']
+      ].map(([place, name, time, me]) => ({
+        place, name, time, w: me ? 800 : 600,
+        border: me ? '#93A9D9' : 'transparent', bg: me ? 'rgba(232,240,255,0.1)' : 'transparent',
+        placeC: place === '1' ? '#FF8A1E' : '#E8F0FF'
+      })),
+      resultRows: [row('Ещё раз', { size: 'big', sel: true }), row('В главное меню', { size: 'big' })],
+      setRows: [row('Управление', { size: 'mid', sel: true, action: true }), row('Звук', { size: 'mid', action: true }), row('Камера', { size: 'mid', action: true }), row('Назад', { size: 'mid' })],
+      ctrlRows: [
+        row('Схема геймпада', { choice: '1 / 2', cw: '110px' }),
+        row('Инверсия левого стика', { toggle: false }),
+        row('Инверсия правого стика', { toggle: true }),
+        row('Мёртвая зона', { sel: true, slider: 0.12 / 0.5, text: '0.12' }),
+        row('Клавиши клавиатуры…', { action: true }),
+        row('Расширенные…', { action: true }),
+        row('Кнопки геймпада…', { action: true }),
+        row('Сбросить управление'),
+        row('Назад')
+      ],
+      keys: [['Газ', 'W'], ['Тормоз', 'S'], ['Влево', 'A'], ['Вправо', 'D'], ['Ускорение', null, true], ['Сброс на трассу', 'R'], ['Сменить камеру', 'C'], ['Пауза', 'Esc'], ['Назад']].map(([act, key, cur]) => ({
+        act, key, hasKey: !!key, listen: !!cur, w: cur ? 800 : 600,
+        border: cur ? '#FF8A1E' : 'transparent', bg: cur ? 'rgba(255,138,30,0.16)' : 'transparent', mk: cur ? '#FF8A1E' : 'transparent'
+      })),
+      soundRows: [row('Общая громкость', { size: 'mid', sel: true, slider: 0.8, text: '80%' }), row('Назад', { size: 'mid' })],
+      camRows: [row('Плавность камеры', { size: 'mid', sel: true, slider: 0.65, text: '0.65' }), row('Тряска камеры', { size: 'mid', slider: 0.4, text: '40%' }), row('Назад', { size: 'mid' })],
+      advRows: [
+        row('Орган', { size: 'adv', choice: 'Поворот', cw: '170px' }),
+        row('Стартовое усилие', { size: 'adv', slider: start, text: '0.15', tw: '180px' }),
+        row('Максимум', { size: 'adv', slider: max, text: '1.00', tw: '180px' }),
+        row('Время до макс.', { size: 'adv', slider: T, text: '0.60с', tw: '180px' }),
+        row('Кривая', { size: 'adv', choice: 'Степенная', cw: '170px' }),
+        row('Крутизна', { size: 'adv', sel: true, slider: (k - 1) / 2, text: '1.8', tw: '180px' }),
+        row('Назад', { size: 'adv' })
+      ],
+      charts: [
+        { title: 'Стик: усилие по отклонению', path: p1, dzW: X(dz) - 56, dzX: X(dz), dzOp: 1, endX: X(1), endY: Y(max), x0: '0', x1: '1.0', xl: 'отклонение стика' },
+        { title: 'Кнопка/стрелка: усилие по времени удержания', path: p2, dzW: 0, dzX: 56, dzOp: 0, endX: X(1), endY: Y(max), x0: '0 с', x1: '1.0 с', xl: 'время удержания' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

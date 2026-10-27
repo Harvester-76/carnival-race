@@ -1,0 +1,62 @@
+gen 0 tracks [12, 5, 2] best 110.2 mean 68.4 (171 с)
+gen 1 tracks [40, 25, 26] best 109.0 mean 86.3 (171 с)
+gen 2 tracks [31, 32, 5] best 123.3 mean 102.0 (171 с)
+gen 3 tracks [31, 32, 36] best 122.2 mean 109.0 (171 с)
+gen 4 tracks [8, 11, 23] best 122.8 mean 117.0 (172 с)
+   проверка на новой трассе: 120.71998370361301
+gen 5 tracks [3, 10, 36] best 124.8 mean 117.0 (170 с)
+gen 6 tracks [23, 20, 11] best 129.5 mean 120.3 (171 с)
+gen 7 tracks [4, 23, 21] best 129.9 mean 121.2 (170 с)
+Traceback (most recent call last):
+  File "/Users/ivanconnectivity/work/3D models/Spaceships for game/Godot_Test/evo/evo.py", line 84, in <module>
+    if __name__ == "__main__": main()
+                               ^^^^^^
+  File "/Users/ivanconnectivity/work/3D models/Spaceships for game/Godot_Test/evo/evo.py", line 64, in main
+    sc, raw = evaluate(pop, tracks, par, "g%d" % gen)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ivanconnectivity/work/3D models/Spaceships for game/Godot_Test/evo/evo.py", line 51, in evaluate
+    if len(sc[i]) < len(tracks): sc[i].append(score(res[pos])); raw[i].append(res[pos])
+                                              ^^^^^^^^^^^^^^^
+  File "/Users/ivanconnectivity/work/3D models/Spaceships for game/Godot_Test/evo/evo.py", line 33, in score
+    def score(r): return r["prog"] / 1000.0 - 0.6 * r["hits"] - 6.0 * r["resp"] - 0.3 * r["lost"]
+                         ~~~~~~~~~~^~~~~~~~
+TypeError: unsupported operand type(s) for /: 'NoneType' and 'float'
+gen 8 tracks [16, 27, 15] best 127.8 mean 123.0 (170 с)
+gen 9 tracks [11, 5, 33] best 131.7 mean 126.9 (170 с)
+   проверка на новой трассе: 134.523210998535
+gen 10 tracks [34, 36, 12] best 134.7 mean 129.4 (169 с)
+gen 11 tracks [23, 39, 38] best 135.6 mean 131.0 (169 с)
+gen 12 tracks [36, 32, 6] best 137.8 mean 132.6 (169 с)
+gen 13 tracks [22, 35, 36] best 139.8 mean 135.9 (170 с)
+gen 14 tracks [2, 36, 22] best 138.8 mean 134.0 (169 с)
+   проверка на новой трассе: 142.65844732666002
+gen 15 tracks [29, 2, 12] best 136.5 mean 132.1 (169 с)
+gen 16 tracks [9, 17, 34] best 142.3 mean 137.8 (169 с)
+gen 17 tracks [40, 8, 18] best 139.7 mean 136.2 (170 с)
+gen 18 tracks [37, 15, 11] best 141.8 mean 137.8 (169 с)
+gen 19 tracks [29, 40, 19] best 139.2 mean 135.4 (169 с)
+   проверка на новой трассе: 146.78718560791
+gen 20 tracks [8, 34, 32] best 143.4 mean 138.1 (169 с)
+gen 21 tracks [22, 28, 33] best 95.6 mean 92.9 (165 с)
+gen 22 tracks [11, 6, 18] best 144.4 mean 141.7 (170 с)
+gen 23 tracks [18, 8, 40] best 143.0 mean 139.5 (170 с)
+gen 24 tracks [33, 30, 2] best 138.7 mean 136.1 (169 с)
+   проверка на новой трассе: 146.86400201416
+gen 25 tracks [34, 10, 14] best 94.8 mean 92.5 (164 с)
+gen 26 tracks [23, 32, 9] best 144.5 mean 140.9 (170 с)
+gen 27 tracks [13, 15, 34] best 142.7 mean 135.1 (169 с)
+gen 28 tracks [4, 6, 3] best 145.4 mean 142.8 (170 с)
+gen 29 tracks [6, 30, 31] best 143.6 mean 140.1 (169 с)
+   проверка на новой трассе: 145.933402404785
+gen 30 tracks [28, 8, 39] best 96.7 mean 94.5 (165 с)
+gen 31 tracks [27, 30, 28] best 95.5 mean 92.1 (164 с)
+gen 32 tracks [29, 12, 33] best 140.7 mean 138.1 (170 с)
+gen 33 tracks [10, 36, 8] best 143.8 mean 141.2 (169 с)
+gen 34 tracks [27, 12, 24] best 145.6 mean 142.6 (170 с)
+   проверка на новой трассе: 146.798625061035
+gen 35 tracks [11, 15, 13] best 145.8 mean 142.3 (170 с)
+gen 36 tracks [19, 24, 1] best 146.1 mean 142.8 (169 с)
+gen 37 tracks [36, 31, 7] best 143.4 mean 140.6 (169 с)
+gen 38 tracks [39, 24, 35] best 147.8 mean 144.6 (170 с)
+gen 39 tracks [31, 32, 40] best 143.8 mean 139.9 (170 с)
+   проверка на новой трассе: 146.38343365478502

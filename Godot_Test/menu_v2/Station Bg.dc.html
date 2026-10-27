@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:relative;width:1600px;height:900px;overflow:hidden;background:#070B18">
+  <img src="{{ src }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right center;display:block">
+  <div style="position:absolute;inset:0;background:linear-gradient(90deg, rgba(5,8,18,0.7) 0%, rgba(5,8,18,0.35) 45%, rgba(5,8,18,0) 65%)"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:900},&quot;variant&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Иллюминатор&quot;,&quot;Коридор&quot;,&quot;Ангар&quot;,&quot;Космос&quot;],&quot;default&quot;:&quot;Иллюминатор&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const v = this.props.variant ?? 'Иллюминатор';
+    const map = { 'Иллюминатор': 'porthole', 'Коридор': 'corridor', 'Ангар': 'hangar', 'Космос': 'space' };
+    return { src: './bg/' + (map[v] || 'porthole') + '.png' };
+  }
+}
+</script>
+</body>
+</html>

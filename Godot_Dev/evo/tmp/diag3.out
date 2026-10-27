@@ -1,0 +1,76 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+TRACKGEN: срезка 0 не найдена
+TRACKGEN: срезка 2 не найдена
+evo terrain ms=10212 tiles=10686
+DIAG b5 t=19 y=3864 vy=335 cos=1.00 sin=0.05 a_lift=0 a_des=1500 tl/mg=-82.76 tmax/mg=201.2 hold=3898 tgt=1671 bank=0.00 lb=0.00 thr=0.00 pitch=0.00 vh=3044 fl=0
+DIAG b5 t=19 y=3920 vy=333 cos=1.00 sin=0.05 a_lift=0 a_des=1500 tl/mg=-92.76 tmax/mg=201.4 hold=3885 tgt=1671 bank=0.00 lb=0.00 thr=0.06 pitch=-0.00 vh=3034 fl=0
+DIAG b5 t=19 y=3975 vy=330 cos=1.00 sin=0.05 a_lift=0 a_des=1500 tl/mg=-102.59 tmax/mg=201.1 hold=3871 tgt=1671 bank=0.00 lb=0.00 thr=0.41 pitch=-0.01 vh=3028 fl=0
+DIAG b5 t=19 y=4030 vy=327 cos=1.00 sin=0.04 a_lift=0 a_des=1500 tl/mg=-112.11 tmax/mg=200.6 hold=3858 tgt=1671 bank=0.00 lb=0.00 thr=0.61 pitch=-0.01 vh=3057 fl=0
+DIAG b5 t=19 y=4084 vy=323 cos=1.00 sin=0.02 a_lift=0 a_des=1500 tl/mg=-121.39 tmax/mg=200.3 hold=3845 tgt=1671 bank=0.00 lb=0.00 thr=0.75 pitch=-0.01 vh=3145 fl=0
+DIAG b5 t=19 y=4137 vy=308 cos=1.00 sin=0.01 a_lift=0 a_des=1499 tl/mg=-127.64 tmax/mg=200.1 hold=3831 tgt=1671 bank=0.00 lb=0.00 thr=0.87 pitch=-0.01 vh=3185 fl=0
+DIAG b5 t=20 y=4187 vy=287 cos=1.00 sin=0.00 a_lift=0 a_des=1500 tl/mg=-131.64 tmax/mg=200.0 hold=3818 tgt=1671 bank=0.00 lb=0.00 thr=0.92 pitch=-0.00 vh=3187 fl=0
+DIAG b5 t=20 y=4233 vy=267 cos=1.00 sin=0.01 a_lift=0 a_des=657 tl/mg=-135.44 tmax/mg=200.0 hold=3805 tgt=1671 bank=0.00 lb=0.00 thr=0.65 pitch=0.00 vh=3188 fl=0
+DIAG b5 t=20 y=4277 vy=260 cos=1.00 sin=0.00 a_lift=0 a_des=788 tl/mg=-142.53 tmax/mg=200.0 hold=3791 tgt=2460 bank=0.00 lb=0.00 thr=0.01 pitch=0.00 vh=3186 fl=0
+DIAG b5 t=20 y=4320 vy=258 cos=1.00 sin=0.01 a_lift=0 a_des=1500 tl/mg=-150.64 tmax/mg=200.0 hold=3778 tgt=2448 bank=0.00 lb=0.00 thr=0.06 pitch=0.00 vh=3181 fl=0
+DIAG b5 t=20 y=4363 vy=256 cos=1.00 sin=0.01 a_lift=0 a_des=1499 tl/mg=-156.24 tmax/mg=200.1 hold=3781 tgt=3790 bank=0.00 lb=0.00 thr=0.11 pitch=-0.00 vh=3188 fl=0
+DIAG b5 t=20 y=4405 vy=249 cos=1.00 sin=0.04 a_lift=0 a_des=1499 tl/mg=-158.79 tmax/mg=200.7 hold=3795 tgt=3786 bank=0.00 lb=0.00 thr=0.14 pitch=0.02 vh=3190 fl=1
+DIAG b5 t=21 y=4447 vy=243 cos=0.99 sin=0.13 a_lift=0 a_des=1500 tl/mg=-156.15 tmax/mg=208.9 hold=3841 tgt=5050 bank=0.00 lb=0.00 thr=0.17 pitch=0.10 vh=3190 fl=1
+DIAG b5 t=21 y=4487 vy=241 cos=0.95 sin=0.30 a_lift=0 a_des=1500 tl/mg=-151.83 tmax/mg=245.0 hold=3908 tgt=5050 bank=0.00 lb=0.00 thr=0.21 pitch=0.24 vh=3190 fl=1
+DIAG b5 t=21 y=4529 vy=253 cos=0.87 sin=0.50 a_lift=0 a_des=1500 tl/mg=-152.97 tmax/mg=332.8 hold=3963 tgt=3796 bank=0.00 lb=0.00 thr=0.31 pitch=0.41 vh=3189 fl=1
+DIAG b5 t=21 y=4575 vy=293 cos=0.72 sin=0.69 a_lift=0 a_des=1500 tl/mg=-172.74 tmax/mg=477.0 hold=3949 tgt=3786 bank=0.00 lb=0.00 thr=0.53 pitch=0.58 vh=3186 fl=1
+DIAG b5 t=21 y=4633 vy=393 cos=0.53 sin=0.85 a_lift=0 a_des=1500 tl/mg=-210.05 tmax/mg=668.2 hold=3936 tgt=3777 bank=0.00 lb=0.00 thr=0.80 pitch=0.71 vh=3175 fl=1
+DIAG b5 t=21 y=4711 vy=529 cos=0.31 sin=0.95 a_lift=0 a_des=1500 tl/mg=-260.09 tmax/mg=892.3 hold=3923 tgt=2450 bank=0.00 lb=0.00 thr=0.80 pitch=0.81 vh=3155 fl=1
+DIAG b5 t=22 y=4813 vy=686 cos=0.06 sin=1.00 a_lift=0 a_des=1499 tl/mg=-319.63 tmax/mg=1136.4 hold=3909 tgt=2448 bank=0.00 lb=0.00 thr=0.80 pitch=0.85 vh=3125 fl=1
+DIAG b5 t=22 y=4943 vy=854 cos=-0.19 sin=0.98 a_lift=0 a_des=1499 tl/mg=-385.88 tmax/mg=1200.0 hold=3896 tgt=1671 bank=0.00 lb=0.00 thr=0.87 pitch=0.83 vh=3082 fl=1
+DIAG b5 t=22 y=5089 vy=768 cos=-0.43 sin=0.91 a_lift=0 a_des=1376 tl/mg=-387.49 tmax/mg=1200.0 hold=3883 tgt=2455 bank=0.00 lb=0.00 thr=0.89 pitch=0.75 vh=2268 fl=1
+DIAG b5 t=22 y=5192 vy=498 cos=-0.60 sin=0.80 a_lift=0 a_des=1500 tl/mg=-333.83 tmax/mg=1200.0 hold=3869 tgt=1671 bank=0.00 lb=0.00 thr=0.80 pitch=0.63 vh=1484 fl=1
+DIAG b5 t=22 y=5258 vy=306 cos=-0.69 sin=0.72 a_lift=0 a_des=1499 tl/mg=-294.80 tmax/mg=1200.0 hold=3856 tgt=1671 bank=0.00 lb=0.00 thr=0.80 pitch=0.52 vh=1049 fl=1
+DIAG b5 t=22 y=5296 vy=168 cos=-0.74 sin=0.68 a_lift=0 a_des=1499 tl/mg=-266.26 tmax/mg=1200.0 hold=3843 tgt=1671 bank=0.00 lb=0.00 thr=0.80 pitch=0.43 vh=826 fl=1
+DIAG b5 t=23 y=5315 vy=65 cos=-0.76 sin=0.65 a_lift=0 a_des=1499 tl/mg=-243.93 tmax/mg=1200.0 hold=3829 tgt=1671 bank=0.00 lb=0.00 thr=0.64 pitch=0.34 vh=795 fl=1
+DIAG b5 t=23 y=5318 vy=-24 cos=-0.79 sin=0.61 a_lift=0 a_des=1500 tl/mg=-222.33 tmax/mg=1200.0 hold=3816 tgt=2458 bank=0.00 lb=0.00 thr=0.62 pitch=0.26 vh=853 fl=1
+DIAG b5 t=23 y=5309 vy=-78 cos=-0.82 sin=0.58 a_lift=0 a_des=1500 tl/mg=-208.81 tmax/mg=1200.0 hold=3803 tgt=3791 bank=0.00 lb=0.00 thr=0.69 pitch=0.17 vh=1008 fl=1
+DIAG b5 t=23 y=5292 vy=-120 cos=-0.85 sin=0.53 a_lift=0 a_des=1500 tl/mg=-192.18 tmax/mg=1200.0 hold=3821 tgt=5050 bank=0.00 lb=0.00 thr=0.65 pitch=0.09 vh=1171 fl=1
+DIAG b5 t=23 y=5269 vy=-153 cos=-0.87 sin=0.48 a_lift=0 a_des=1499 tl/mg=-169.74 tmax/mg=1200.0 hold=3888 tgt=5050 bank=0.00 lb=0.00 thr=0.51 pitch=0.02 vh=1316 fl=1
+DIAG b5 t=23 y=5241 vy=-175 cos=-0.90 sin=0.43 a_lift=0 a_des=1500 tl/mg=-149.27 tmax/mg=1200.0 hold=3955 tgt=5050 bank=0.00 lb=0.00 thr=0.00 pitch=-0.03 vh=1350 fl=1
+DIAG b5 t=24 y=5211 vy=-186 cos=-0.93 sin=0.37 a_lift=0 a_des=1500 tl/mg=-131.65 tmax/mg=1200.0 hold=4021 tgt=5050 bank=0.00 lb=0.00 thr=0.00 pitch=-0.07 vh=1350 fl=1
+DIAG b5 t=24 y=5179 vy=-193 cos=-0.90 sin=0.45 a_lift=0 a_des=1500 tl/mg=-114.54 tmax/mg=1200.0 hold=4088 tgt=5050 bank=0.00 lb=0.00 thr=0.13 pitch=-0.07 vh=1351 fl=2
+DIAG b5 t=24 y=5145 vy=-202 cos=-0.78 sin=0.63 a_lift=0 a_des=1500 tl/mg=-96.87 tmax/mg=1200.0 hold=4155 tgt=5050 bank=0.00 lb=0.00 thr=0.23 pitch=-0.01 vh=1367 fl=2
+DIAG b5 t=24 y=5111 vy=-204 cos=-0.61 sin=0.79 a_lift=0 a_des=1500 tl/mg=-80.96 tmax/mg=1200.0 hold=4221 tgt=5050 bank=0.00 lb=0.00 thr=0.28 pitch=0.08 vh=1391 fl=2
+DIAG b5 t=24 y=5077 vy=-196 cos=-0.42 sin=0.91 a_lift=0 a_des=1500 tl/mg=-67.59 tmax/mg=1200.0 hold=4288 tgt=5050 bank=0.00 lb=0.00 thr=0.36 pitch=0.17 vh=1421 fl=2
+DIAG b5 t=24 y=5045 vy=-175 cos=-0.19 sin=0.98 a_lift=0 a_des=1500 tl/mg=-58.20 tmax/mg=1200.0 hold=4355 tgt=5050 bank=0.00 lb=0.00 thr=0.50 pitch=0.25 vh=1459 fl=2
+DIAG b5 t=25 y=5019 vy=-137 cos=0.04 sin=1.00 a_lift=0 a_des=1499 tl/mg=-54.08 tmax/mg=1156.4 hold=4421 tgt=5050 bank=0.00 lb=0.00 thr=0.63 pitch=0.30 vh=1505 fl=2
+DIAG b5 t=25 y=5000 vy=-77 cos=0.28 sin=0.96 a_lift=0 a_des=1500 tl/mg=-56.90 tmax/mg=916.9 hold=4488 tgt=5050 bank=0.00 lb=0.00 thr=0.85 pitch=0.33 vh=1561 fl=2
+DIAG b5 t=25 y=4993 vy=-5 cos=0.51 sin=0.86 a_lift=0 a_des=1500 tl/mg=-69.47 tmax/mg=690.8 hold=4523 tgt=3792 bank=0.00 lb=0.00 thr=0.93 pitch=0.32 vh=1626 fl=2
+DIAG b5 t=25 y=4997 vy=64 cos=0.70 sin=0.72 a_lift=0 a_des=1500 tl/mg=-90.72 tmax/mg=501.0 hold=4509 tgt=2459 bank=0.00 lb=0.00 thr=0.98 pitch=0.27 vh=1699 fl=1
+DIAG b5 t=25 y=5013 vy=117 cos=0.69 sin=0.73 a_lift=0 a_des=1500 tl/mg=-109.25 tmax/mg=513.2 hold=4496 tgt=2450 bank=0.00 lb=0.00 thr=0.89 pitch=0.20 vh=1782 fl=1
+DIAG b5 t=25 y=5036 vy=148 cos=0.51 sin=0.86 a_lift=0 a_des=1500 tl/mg=-123.00 tmax/mg=687.3 hold=4483 tgt=1671 bank=0.00 lb=0.00 thr=0.69 pitch=0.13 vh=1871 fl=1
+DIAG b5 t=26 y=5062 vy=162 cos=0.31 sin=0.95 a_lift=0 a_des=1499 tl/mg=-132.83 tmax/mg=892.1 hold=4469 tgt=1671 bank=0.00 lb=0.00 thr=0.66 pitch=0.05 vh=1953 fl=1
+DIAG b5 t=26 y=5090 vy=163 cos=0.09 sin=1.00 a_lift=0 a_des=1500 tl/mg=-139.37 tmax/mg=1111.6 hold=4456 tgt=1671 bank=0.00 lb=0.00 thr=0.71 pitch=-0.03 vh=2044 fl=1
+DIAG b5 t=26 y=5117 vy=148 cos=-0.14 sin=0.99 a_lift=0 a_des=1500 tl/mg=-141.64 tmax/mg=1200.0 hold=4443 tgt=1671 bank=0.00 lb=0.00 thr=0.85 pitch=-0.09 vh=2145 fl=1
+DIAG b5 t=26 y=5139 vy=76 cos=-0.38 sin=0.93 a_lift=0 a_des=1500 tl/mg=-127.89 tmax/mg=1200.0 hold=4429 tgt=1671 bank=0.00 lb=0.00 thr=0.99 pitch=-0.12 vh=2364 fl=1
+DIAG b5 t=26 y=5140 vy=-46 cos=-0.57 sin=0.82 a_lift=0 a_des=1500 tl/mg=-97.62 tmax/mg=1200.0 hold=4416 tgt=1671 bank=0.00 lb=0.00 thr=0.72 pitch=-0.09 vh=2616 fl=1
+DIAG b5 t=26 y=5127 vy=-107 cos=-0.71 sin=0.70 a_lift=0 a_des=1500 tl/mg=-81.38 tmax/mg=1200.0 hold=4403 tgt=3791 bank=0.00 lb=0.00 thr=0.58 pitch=-0.04 vh=2748 fl=1
+DIAG b5 t=27 y=5107 vy=-133 cos=-0.81 sin=0.59 a_lift=0 a_des=1500 tl/mg=-65.41 tmax/mg=1200.0 hold=4441 tgt=5050 bank=0.00 lb=0.00 thr=0.35 pitch=0.02 vh=2835 fl=1
+DIAG b5 t=27 y=5084 vy=-143 cos=-0.87 sin=0.49 a_lift=0 a_des=1499 tl/mg=-49.11 tmax/mg=1200.0 hold=4508 tgt=5050 bank=0.00 lb=0.00 thr=0.20 pitch=0.07 vh=2891 fl=1
+DIAG b5 t=27 y=5060 vy=-139 cos=-0.87 sin=0.49 a_lift=0 a_des=1499 tl/mg=-36.37 tmax/mg=1200.0 hold=4575 tgt=5050 bank=0.00 lb=0.00 thr=0.07 pitch=0.09 vh=2918 fl=2
+DIAG b5 t=27 y=5037 vy=-133 cos=-0.79 sin=0.62 a_lift=0 a_des=1499 tl/mg=-24.30 tmax/mg=1200.0 hold=4641 tgt=5050 bank=0.00 lb=0.00 thr=0.00 pitch=0.05 vh=2924 fl=2
+DIAG b5 t=27 y=5015 vy=-128 cos=-0.68 sin=0.73 a_lift=0 a_des=1500 tl/mg=-11.84 tmax/mg=1200.0 hold=4708 tgt=5050 bank=0.00 lb=0.00 thr=0.00 pitch=-0.06 vh=2916 fl=2
+DIAG b5 t=27 y=4993 vy=-126 cos=-0.55 sin=0.83 a_lift=0 a_des=1499 tl/mg=1200.00 tmax/mg=1200.0 hold=4775 tgt=5050 bank=0.00 lb=0.00 thr=0.00 pitch=-0.20 vh=2902 fl=2
+DIAG b5 t=28 y=4972 vy=-123 cos=-0.40 sin=0.92 a_lift=0 a_des=1500 tl/mg=1200.00 tmax/mg=1200.0 hold=4841 tgt=5050 bank=0.00 lb=0.00 thr=0.00 pitch=-0.36 vh=2889 fl=2
+DIAG b5 t=28 y=4950 vy=-121 cos=-0.21 sin=0.98 a_lift=0 a_des=1499 tl/mg=1200.00 tmax/mg=1200.0 hold=4908 tgt=5050 bank=0.00 lb=0.00 thr=0.00 pitch=-0.48 vh=2878 fl=2
+DIAG b5 t=28 y=4929 vy=-123 cos=0.01 sin=1.00 a_lift=0 a_des=1500 tl/mg=1192.12 tmax/mg=1192.1 hold=4899 tgt=3797 bank=0.00 lb=0.00 thr=0.00 pitch=-0.57 vh=2873 fl=2
+DIAG b5 t=28 y=4906 vy=-158 cos=0.24 sin=0.97 a_lift=0 a_des=1500 tl/mg=46.65 tmax/mg=959.3 hold=4929 tgt=5050 bank=0.00 lb=0.00 thr=0.50 pitch=-0.61 vh=2900 fl=2
+DIAG b5 t=28 y=4871 vy=-248 cos=0.47 sin=0.88 a_lift=0 a_des=1500 tl/mg=85.99 tmax/mg=733.0 hold=4996 tgt=5050 bank=0.00 lb=0.00 thr=0.66 pitch=-0.58 vh=2967 fl=2
+DIAG b5 t=28 y=4822 vy=-313 cos=0.66 sin=0.75 a_lift=0 a_des=1499 tl/mg=119.11 tmax/mg=539.9 hold=5050 tgt=5050 bank=0.00 lb=0.00 thr=0.78 pitch=-0.52 vh=3006 fl=0
+DIAG b5 t=29 y=4772 vy=-271 cos=0.81 sin=0.58 a_lift=0 a_des=1499 tl/mg=113.84 tmax/mg=386.6 hold=5039 tgt=3790 bank=0.00 lb=0.00 thr=0.88 pitch=-0.42 vh=2993 fl=0
+DIAG b5 t=29 y=4733 vy=-201 cos=0.92 sin=0.39 a_lift=0 a_des=1499 tl/mg=99.15 tmax/mg=278.4 hold=5025 tgt=3797 bank=0.00 lb=0.00 thr=0.93 pitch=-0.29 vh=3000 fl=0
+DIAG b5 t=29 y=4707 vy=-113 cos=0.98 sin=0.19 a_lift=0 a_des=1500 tl/mg=77.93 tmax/mg=218.3 hold=5012 tgt=2461 bank=0.00 lb=0.00 thr=0.97 pitch=-0.14 vh=3018 fl=0
+DIAG b5 t=29 y=4696 vy=-23 cos=1.00 sin=0.07 a_lift=0 a_des=1499 tl/mg=53.48 tmax/mg=202.2 hold=4999 tgt=2458 bank=0.00 lb=0.00 thr=0.94 pitch=-0.03 vh=3044 fl=0
+DIAG b5 t=29 y=4699 vy=48 cos=1.00 sin=0.05 a_lift=0 a_des=1500 tl/mg=32.02 tmax/mg=201.0 hold=4985 tgt=2455 bank=0.00 lb=0.00 thr=0.85 pitch=0.02 vh=3066 fl=0
+DIAG b5 t=29 y=4711 vy=92 cos=1.00 sin=0.04 a_lift=0 a_des=1499 tl/mg=16.50 tmax/mg=200.8 hold=4972 tgt=1671 bank=0.00 lb=0.00 thr=0.77 pitch=0.02 vh=3059 fl=0
+DIAG b5 t=30 y=4729 vy=113 cos=1.00 sin=0.03 a_lift=0 a_des=1500 tl/mg=6.20 tmax/mg=200.5 hold=4959 tgt=2454 bank=0.00 lb=0.00 thr=0.76 pitch=0.02 vh=3020 fl=0
+DIAG b5 t=30 y=4748 vy=118 cos=1.00 sin=0.02 a_lift=0 a_des=1500 tl/mg=-0.31 tmax/mg=200.2 hold=4945 tgt=3298 bank=0.00 lb=0.00 thr=0.82 pitch=0.01 vh=2943 fl=0
+DIAG b5 t=30 y=4768 vy=118 cos=1.00 sin=0.01 a_lift=0 a_des=1499 tl/mg=-5.22 tmax/mg=200.0 hold=4932 tgt=3796 bank=0.00 lb=0.00 thr=0.85 pitch=0.00 vh=2829 fl=0
+WARNING: 11 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

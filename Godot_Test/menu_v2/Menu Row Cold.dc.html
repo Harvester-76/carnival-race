@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;align-items:center;gap:18px;min-height:{{ r.h }};padding:{{ r.pad }};box-sizing:border-box;border:3px solid {{ r.border }};background:{{ r.bg }};border-radius:8px;font-family:'Golos Text',sans-serif">
+  <span style="width:28px;flex:none;font-size:26px;line-height:1;color:{{ r.mk }}">▶</span>
+  <span style="flex:1;min-width:0;font-size:{{ r.fs }};font-weight:{{ r.weight }};color:{{ r.fg }};line-height:1.15;text-wrap:pretty">{{ r.label }}</span>
+  <sc-if value="{{ r.choice }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:14px;font-size:{{ r.cfs }};font-weight:700">
+      <span style="color:{{ r.arrow }};font-size:26px">◀</span>
+      <span style="min-width:{{ r.choiceW }};text-align:center;color:{{ r.fg }}">{{ r.val }}</span>
+      <span style="color:{{ r.arrow }};font-size:26px">▶</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ r.toggle }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;gap:4px;padding:4px;border:2px solid {{ r.tglBorder }};border-radius:999px">
+      <span style="padding:6px 18px;border-radius:999px;font-size:22px;font-weight:800;letter-spacing:0.06em;background:{{ r.offBg }};color:{{ r.offFg }}">ВЫКЛ</span>
+      <span style="padding:6px 18px;border-radius:999px;font-size:22px;font-weight:800;letter-spacing:0.06em;background:{{ r.onBg }};color:{{ r.onFg }}">ВКЛ</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ r.slider }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:22px">
+      <div style="position:relative;width:{{ r.trackW }};height:12px;border-radius:6px;background:#24335E">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:{{ r.pctW }};border-radius:6px;background:{{ r.fill }}"></div>
+        <div style="position:absolute;top:50%;left:{{ r.pctW }};width:28px;height:28px;margin:-14px 0 0 -14px;box-sizing:border-box;border-radius:50%;background:{{ r.knob }};border:5px solid {{ r.fill }}"></div>
+      </div>
+      <span style="min-width:104px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:{{ r.fg }}">{{ r.valText }}</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ r.action }}" hint-placeholder-val="{{ false }}">
+    <span style="font-size:36px;font-weight:700;color:{{ r.arrow }}">›</span>
+  </sc-if>
+  <sc-if value="{{ r.disabledTag }}" hint-placeholder-val="{{ false }}">
+    <span style="font-size:20px;font-weight:700;letter-spacing:0.08em;color:#6476A6;border:2px solid #2C3A66;border-radius:6px;padding:4px 10px">НЕДОСТУПНО</span>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:900,&quot;height&quot;:90},&quot;r&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+.DS_Store
+.claude/
+.godot/
+Backups/
+Base ship BACKUP*/
+*.blend1
+*.blend2
+*_before_*.blend
+*_autosave_*.blend
+*.tmp
+# автогенерируемые логи полёта
+flight_log.*
+# модели: в репозитории только актуальный исходник корабля (spaceship_4.blend); старые версии и промежуточные копии остаются локально
+Base ship/spaceship_3*.blend
+Base ship/spaceship_4_*.blend
+# запечённые варианты кораблей: пересоздаются godot --headless --script res://tools/bake_variants.gd
+*/ship/variants/*.scn
+# рендеры-превью: не модели, пересоздаются из .blend
+Base ship/renders/

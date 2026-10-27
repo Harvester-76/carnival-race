@@ -1,0 +1,13 @@
+gen 0 tracks [24, 29, 23] best -6.0 mean -6.0 (215 с)
+gen 1 tracks [14, 23, 6] best -6.0 mean -6.0 (215 с)
+gen 2 tracks [8, 38, 29] best -6.0 mean -6.0 (217 с)
+gen 3 tracks [29, 6, 7] best -6.0 mean -6.0 (219 с)
+gen 4 tracks [29, 8, 17] best -6.0 mean -6.0 (219 с)
+   проверка на новой трассе: -6.0
+gen 5 tracks [3, 8, 38] best -6.0 mean -6.0 (217 с)
+gen 6 tracks [17, 35, 3] best 28.9 mean -0.6 (217 с)
+gen 7 tracks [12, 3, 24] best -6.0 mean -6.0 (217 с)
+gen 8 tracks [33, 25, 8] best -6.0 mean -6.0 (218 с)
+gen 9 tracks [24, 27, 7] best 71.2 mean 8.3 (217 с)
+   проверка на новой трассе: -6.0
+gen 10 tracks [14, 24, 33] best -6.0 mean -6.0 (217 с)

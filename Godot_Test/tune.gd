@@ -1,0 +1,220 @@
+extends RefCounted
+# Технический экран настройки органов управления и моторов (F4). Ограничений на значения нет.
+# Значения лежат в tuning.json рядом с проектом: можно править руками, читается при старте.
+
+const PATH := "res://tuning.json"
+const FN_NAMES := ["линейная", "экспоненциальная", "логарифмическая"]
+
+# Органы управления. Усилие = старт + (макс − старт) · форма(u).
+# Кнопка: u = время удержания / время. Стик/курок: u = отклонение (0…1), время не используется.
+# [ключ, название, подсказка, старт, макс, время, функция, крутизна]
+const ORGANS := [
+	["thr", "Газ тяговых (W / правый курок RT)", "Доля от полной тяги тяговых моторов (1 = main_acc). Тормоза нет.", 0.0, 1.0, 0.3, 1, 3.5],
+	["pitch", "Тангаж (стрелки вверх/вниз / левый стик вверх-вниз)", "Команда хвостовым маневровым на кабрирование/пикирование.", 0.1, 1.0, 0.6, 0, 3.0],
+	["yaw", "Рыскание (стрелки влево/вправо / левый стик влево-вправо)", "Команда хвостовым маневровым на поворот носа влево/вправо.", 0.1, 1.0, 0.6, 0, 3.0],
+	["roll", "Крен (Q/E / LB/RB)", "Команда на крен. Максимум 0.45 = крен слабее остальных осей.", 0.2, 0.4, 0.6, 0, 3.0],
+	["shunt", "Вектор маневровых (I/J/K/L / правый стик; схема 2: оба стика)", "Тяга самих маневровых вперёд-назад и вбок (отдача).", 0.1, 1.0, 0.5, 0, 3.0],
+	["boost", "Усиление маневровых (Shift / левый курок LT)", "Множитель усилия маневровых и тяга вперёд без команды.", 0.0, 1.0, 0.5, 0, 3.0],
+	["lift", "Взлётные: форсаж/замедление (Space/Ctrl / D-pad вверх-вниз)", "Усилие форсажа (вверх) или замедления (вниз) взлётных; доводит тягу от веса до максимальной (× lift_boost) или снижает её (lift_down).", 0.4, 3.0, 0.5, 2, 5.0]]
+
+# Моторы: [группа, ключ, название, подсказка, по умолчанию]
+const MOTORS := [
+	["Тяговые моторы (корма, самые сильные)", "main_acc", "Ускорение при полном газе, м/с²", "400 ≈ 41 g. Больше = быстрее разгон. Потолок скорости 2300 м/с задан отдельно (Jolt, project.godot).", 1500.0],
+	["Тяговые моторы (корма, самые сильные)", "main_spool", "Скорость выхода на газ, 1/с", "Как быстро фактическая тяга догоняет команду: 3 = 0,33 с от нуля до полной. Меньше = инерционнее моторы.", 5.0],
+	["Взлётные моторы (брюхо)", "lift_max", "Максимальная тяга, g", "Потолок тяги в g (вес корабля = 1 g). Ограничивает всё: удержание, форсаж, торможение.", 200.0],
+	["Взлётные моторы (брюхо)", "lift_boost", "Доля максимальной тяги при полном усилии форсажа", "Тяга при полном усилии форсажа = «Максимальная тяга» × это (1 = вся). Усилие форсажа ведёт тягу от веса к этому значению. Увеличение «Максимальной тяги» теперь сразу усиливает форсаж.", 0.6],
+	["Взлётные моторы (брюхо)", "lift_down", "Сила замедления (вниз)", "Тяга при замедлении = вес × (1 − это × усилие). 0.95 = почти выключить моторы при полном усилии.", 1.0],
+	["Взлётные моторы (брюхо)", "hold_kp", "Удержание высоты: жёсткость", "Ускорение на метр отклонения от удерживаемой высоты, 1/с². Больше = резче возвращается, но может раскачиваться.", 1.5],
+	["Взлётные моторы (брюхо)", "hold_kd", "Удержание высоты: демпфирование", "Ускорение на м/с вертикальной скорости, 1/с. Хорошо ≈ 2·√(жёсткость), иначе качает или вязнет.", 2.6],
+	["Взлётные моторы (брюхо)", "hold_acc_max", "Удержание высоты: предел подъёма, м/с²", "Предел ускорения вверх, которое удержание высоты может потребовать у взлётных на ровном корпусе (30 ≈ 3 g). Без него при крене корабль проваливается, удержание «давит» на полную и швыряет вбок. 0 = без предела.", 30.0],
+	["Взлётные моторы (брюхо)", "hold_tilt_pow", "Удержание высоты: степень cos наклона для предела", "Предел × cos^это. 2 = при крене 60° предел падает вчетверо, 4 = почти ноль; больше = корабль в крене проваливается сильнее и не швыряется вбок.", 2.0],
+	["Взлётные моторы (брюхо)", "lift_cos", "Нижний предел cos наклона при компенсации веса", "Тяга удержания = вес / max(cos наклона, это). Меньше = сильнее компенсация в крене, но рывки; 1 = без компенсации.", 1.0],
+	["Взлётные моторы (брюхо)", "lift_side", "Бонус максимума тяги при крене на бок", "Максимум тяги × (1 + это × (1 − cos наклона)). 2 → втрое при 90°. Нужен, чтобы гасить боковую инерцию в крене.", 5.0],
+	["Взлётные моторы (брюхо)", "lift_boost_tilt", "Ограничение подъёма форсажем в крене (степень cos)", "Вертикальная часть тяги форсажа ограничена: тяга·cos^это. Боковая часть не ограничена (торможение боком работает). 0 = без ограничения (в крене улетает вверх), 6 = при крене 60° форсаж уже не поднимает, а проваливает.", 10.0],
+	["Взлётные моторы (брюхо)", "lift_inv_power", "Тяга «вверх ногами», доля", "Какую долю полной тяги взлётные дают САМИ, когда наклон за порогом выше (крен за ~81°, вверх ногами). 0 = молчат, корабль падает; 1 = полная тяга вниз корпуса (как раньше, впечатывает в землю). Ручной форсаж (кнопка) всегда работает на полную.", 0.0],
+	["Взлётные моторы (брюхо)", "lift_inv_cos", "Порог «вверх ногами»", "Если cos наклона ниже этого значения, взлётные дают полную тягу вниз корпуса (валят корабль). 0.15 ≈ крен 81°.", 0.15],
+	["Маневровые (концы крыльев, 4 шт.)", "shunt_acc", "Ускорение одного маневрового, м/с²", "Сила одного двигателя при усилии 1, делённая на массу. Приложена на крыле, поэтому и толкает, и вращает корабль.", 14.0],
+	["Маневровые (концы крыльев, 4 шт.)", "shunt_boost_gain", "Прирост от усиления", "Сила маневровых × (1 + это × усилие форсажа). 1.5 → ×2.5 при полном усилии.", 3.0],
+	["Маневровые (концы крыльев, 4 шт.)", "shunt_boost_fwd", "Тяга вперёд от усиления", "Доля shunt_acc, которую усиление даёт вперёд даже без команды (струи назад).", 1.2],
+	["Взлётные моторы (брюхо)", "lift_idle_slide", "Боковой снос на холостых", "Дополнительная боковая сила при небольшом крене/тангаже, когда взлётные просто держат высоту (форсаж не нажат): сила = тяга × наклон «верха» × это. 0 = как раньше, 0.5 = на 50% сильнее снос, 1 = вдвое.", 10.0],
+	["Боты (мастерство)", "bot_skill_max", "Мастерство сильнейшего бота, ×", "Множитель предельной скорости, боковой перегрузки и лимита ускорения у бота №1. 1 = полностью по обученным генам (~2600 м/с в среднем).", 1.0],
+	["Боты (мастерство)", "bot_skill_min", "Мастерство слабейшего бота, ×", "То же у последнего бота; остальные равномерно между. 0.55 ≈ 1400 м/с в среднем. Применяется при запуске гонки.", 0.55],
+	["Боты (мастерство)", "fork_flip", "На развилке часть ботов идёт против гена (1 = вкл)", "Каждый третий бот (№2, 5, 8) выбирает рукав наоборот, чтобы на обоих путях были соперники.", 1.0],
+	["Боты (мастерство)", "bot_chars", "Характеры по высоте (1 = вкл)", "Боты по кругу: низкий (держится ближе к земле), высокий (больше пространства), ищущий наименее занятую высоту.", 1.0],
+	["Боты (мастерство)", "bot_max_resp", "Вылетов до схода с дистанции", "Сколько раз бот может вылететь и вернуться на трассу, прежде чем сойдёт (DNF, замирает на месте). 0 = без схода.", 3.0],
+	["Корабль", "eng_skew", "Перекос тяги при потере моторов, ×", "Взлётные и тяговые моторы: когда часть вышла из строя, оставшиеся несут тягу сами, и корабль разворачивает/кренит в сторону уцелевших. 1 = по геометрии, 0 = без перекоса, 2 = вдвое сильнее.", 1.0],
+	["Сложность управления", "slip_scale", "Сила гашения сноса, ×", "Множитель гашения скорости поперёк носа для уровней Салага / Ученик / Опытный (у Ветерана и Киборга гашения нет). Меняет все уровни сразу.", 1.0],
+	["Сложность управления", "slip_amax", "Предел гашения сноса, м/с²", "Потолок ускорения от этого гашения. Чем больше, тем жёстче «рельсы».", 800.0],
+	["Стабилизация вращения", "assist_damp", "Гашение тангажа и крена, рад/с²", "Насколько быстро гасится вращение по оси, когда нет команды по ней (клавиша T включает). 0 = чистая инерция без гашения.", 1.0],
+	["Стабилизация вращения", "assist_damp_yaw", "Гашение рыскания, рад/с²", "Отдельное гашение рыскания, когда нет команды рыскания (даже если вы тянете тангаж или крен). Рыскание уводит нос от вектора скорости, и тогда крен не поворачивает, а тормозит. Больше = нос быстрее встаёт по курсу, 0 = как остальные оси.", 4.0],
+	["Камера (плавность следования)", "cam_smooth", "Общая плавность камеры, ×", "Множитель всех времён запаздывания ниже. 0 = камера жёстко за кораблём, 1 = как настроено, 2 = вдвое плавнее.", 2.0],
+	["Камера (плавность следования)", "cam_pos_lag", "Запаздывание позиции, с", "Камера догоняет корабль пружиной со сглаживанием по ускорению (как фильтр Калмана с предсказанием): на ровной скорости не отстаёт, при разгоне отстаёт на ускорение × время², при торможении подлетает вперёд и возвращается. 0 = выкл. Хорошо 0.3–0.8.", 0.0],
+	["Камера (плавность следования)", "cam_rot_lag", "Запаздывание поворота, с", "Как долго камера доворачивается за кораблём при резких наклонах и поворотах. 0.11 = как раньше.", 0.11],
+	["Камера (плавность следования)", "cam_off_lag", "Запаздывание смещения и «верха», с", "Как долго камера занимает место за кораблём после его разворота. 0.3 = как раньше.", 0.3],
+	["Корабль", "max_speed", "Максимальная скорость, м/с", "Мягкий предел скорости корабля и ботов (3200 ≈ 11500 км/ч). Физика Jolt разрешает до 8000. Выше предела скорость срезается. Выше 4000 растёт риск проскочить сквозь стены и не успеть подгрузить рельеф.", 3200.0],
+	["Камера (плавность следования)", "cam_shake", "Тряска камеры, ×", "Амплитуда тряски при очень больших ускорениях (свыше ~50 g) и ударах. 0 = нет тряски.", 0.5],
+	["Стабилизация вращения", "max_spin", "Предел угловой скорости, рад/с", "2 ≈ 115°/с. Выше вращение принудительно ограничивается.", 2.0]]
+
+var v := {}
+var plots: Array = []
+var root: Control
+
+func _init() -> void:
+	reset_defaults()
+
+func reset_organ(key: String) -> void:
+	for o in ORGANS:
+		if o[0] == key: v[key + ".start"] = o[3]; v[key + ".max"] = o[4]; v[key + ".time"] = o[5]; v[key + ".fn"] = o[6]; v[key + ".k"] = o[7]
+
+func reset_organs() -> void:
+	for o in ORGANS: reset_organ(o[0])
+
+func reset_defaults() -> void:
+	for o in ORGANS:
+		v[o[0] + ".start"] = o[3]; v[o[0] + ".max"] = o[4]; v[o[0] + ".time"] = o[5]; v[o[0] + ".fn"] = o[6]; v[o[0] + ".k"] = o[7]
+	for m in MOTORS: v[m[1]] = m[4]
+
+var path_override := ""
+func file_path() -> String:
+	return path_override if path_override != "" else ProjectSettings.globalize_path(PATH)
+
+func load_file() -> bool:
+	if not FileAccess.file_exists(file_path()): return false
+	var d = JSON.parse_string(FileAccess.get_file_as_string(file_path()))
+	if typeof(d) != TYPE_DICTIONARY: return false
+	for k in d: if v.has(k): v[k] = float(d[k])
+	return true
+
+func save_file() -> void:
+	var f := FileAccess.open(file_path(), FileAccess.WRITE)
+	if f: f.store_string(JSON.stringify(v, "\t", true))
+
+static func shape(fn: int, k: float, u: float) -> float:
+	u = clampf(u, 0.0, 1.0)
+	k = maxf(k, 0.0001)
+	match fn:
+		1: return (exp(k * u) - 1.0) / (exp(k) - 1.0)
+		2: return log(1.0 + k * u) / log(1.0 + k)
+	return u
+
+# усилие органа при u: 0 — не нажато
+func effort(organ: String, u: float) -> float:
+	if u <= 0.0: return 0.0
+	var s: float = v[organ + ".start"]
+	return s + (float(v[organ + ".max"]) - s) * shape(int(v[organ + ".fn"]), v[organ + ".k"], u)
+
+func time_of(organ: String) -> float:
+	return maxf(float(v[organ + ".time"]), 0.001)
+
+func build(parent: Node) -> void:
+	root = PanelContainer.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var sb := StyleBoxFlat.new(); sb.bg_color = Color(0.04, 0.05, 0.07, 1.0); (root as PanelContainer).add_theme_stylebox_override("panel", sb)
+	root.visible = false
+	parent.add_child(root)
+	var outer := VBoxContainer.new(); root.add_child(outer)
+	var head := HBoxContainer.new(); outer.add_child(head)
+	var title := Label.new(); title.text = "КРИВЫЕ ОРГАНОВ УПРАВЛЕНИЯ   (F4 / Esc — закрыть; значения вводятся с клавиатуры, Enter — применить; всё сохраняется в tuning.json)"
+	title.add_theme_font_size_override("font_size", 16); title.size_flags_horizontal = Control.SIZE_EXPAND_FILL; head.add_child(title)
+	var rb := Button.new(); rb.text = "Сбросить всё по умолчанию"; head.add_child(rb)
+	var sc := ScrollContainer.new(); sc.size_flags_vertical = Control.SIZE_EXPAND_FILL; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; outer.add_child(sc)
+	var col := VBoxContainer.new(); col.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sc.add_child(col)
+	var edits := {}
+	_header(col, "ОРГАНЫ УПРАВЛЕНИЯ. Усилие = старт + (макс − старт) · форма(u). Кнопка: u = время удержания / время. Стик или курок: u = отклонение 0…1 (время не используется).")
+	for o in ORGANS:
+		var box := HBoxContainer.new(); col.add_child(box)
+		var left := VBoxContainer.new(); left.custom_minimum_size = Vector2(620, 0); box.add_child(left)
+		var nm := Label.new(); nm.text = o[1]; nm.add_theme_font_size_override("font_size", 17); nm.add_theme_color_override("font_color", Color(1, 0.85, 0.4)); left.add_child(nm)
+		_hint(left, o[2])
+		_row(left, edits, o[0] + ".start", "Стартовое усилие", "Усилие в момент нажатия (для стика — как только вышел из мёртвой зоны). Не ноль = сразу ощутимый отклик.")
+		_row(left, edits, o[0] + ".max", "Максимальное усилие", "Усилие, к которому приходим через заданное время (стик: при полном отклонении).")
+		_row(left, edits, o[0] + ".time", "Время от стартового до максимального, с", "Только для кнопок и клавиш: сколько нужно держать, чтобы дойти до максимума.")
+		_fn_row(left, edits, o[0] + ".fn")
+		_row(left, edits, o[0] + ".k", "Крутизна кривой (k)", "Для экспоненты и логарифма: больше k = круче изгиб; у линейной не используется. Экспонента: слабо в начале, резко в конце. Логарифм: наоборот.")
+		var pl := CurvePlot.new(); pl.tn = self; pl.organ = o[0]; box.add_child(pl); plots.append(pl)
+		col.add_child(HSeparator.new())
+	var grp := ""
+	for m in (MOTORS if "dev" in OS.get_cmdline_user_args() else []):
+		if m[0] != grp:
+			grp = m[0]; _header(col, "МОТОРЫ: " + grp)
+		var wrap := VBoxContainer.new(); wrap.custom_minimum_size = Vector2(700, 0); col.add_child(wrap)
+		_row(wrap, edits, m[1], m[2], m[3])
+	rb.pressed.connect(func():
+		reset_defaults()
+		for k in edits: _refresh(edits[k], k)
+		for p in plots: p.queue_redraw()
+		save_file())
+
+func _header(p: Control, t: String) -> void:
+	var l := Label.new(); l.text = t; l.add_theme_font_size_override("font_size", 16); l.add_theme_color_override("font_color", Color(0.5, 0.85, 1)); l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; p.add_child(l)
+
+func _hint(p: Control, t: String) -> void:
+	var l := Label.new(); l.text = t; l.add_theme_font_size_override("font_size", 13); l.add_theme_color_override("font_color", Color(0.62, 0.66, 0.72)); l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; p.add_child(l)
+
+func _fmt(x: float) -> String:
+	return str(snappedf(x, 0.0001))
+
+func _refresh(ed: Control, key: String) -> void:
+	if ed is LineEdit: ed.text = _fmt(v[key])
+	elif ed is OptionButton: ed.select(int(v[key]))
+
+func _row(p: Control, edits: Dictionary, key: String, label: String, hint: String) -> void:
+	var h := HBoxContainer.new(); p.add_child(h)
+	var l := Label.new(); l.text = label; l.custom_minimum_size = Vector2(380, 0); h.add_child(l)
+	var e := LineEdit.new(); e.custom_minimum_size = Vector2(120, 0); e.text = _fmt(v[key]); h.add_child(e)
+	edits[key] = e
+	var apply := func(_t = ""):
+		if e.text.is_valid_float(): v[key] = e.text.to_float()
+		e.text = _fmt(v[key])
+		for pl in plots: pl.queue_redraw()
+		save_file()
+	e.text_submitted.connect(apply); e.focus_exited.connect(apply)
+	_hint(p, hint)
+
+func _fn_row(p: Control, edits: Dictionary, key: String) -> void:
+	var h := HBoxContainer.new(); p.add_child(h)
+	var l := Label.new(); l.text = "Функция роста"; l.custom_minimum_size = Vector2(380, 0); h.add_child(l)
+	var ob := OptionButton.new(); for n in FN_NAMES: ob.add_item(n)
+	ob.select(int(v[key])); h.add_child(ob)
+	edits[key] = ob
+	ob.item_selected.connect(func(i):
+		v[key] = float(i)
+		for pl in plots: pl.queue_redraw()
+		save_file())
+	_hint(p, "Как усилие растёт от старта к максимуму: линейно, экспоненциально (вначале медленно) или логарифмически (вначале быстро).")
+
+class CurvePlot extends Control:
+	var tn
+	var organ := ""
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(430, 260)
+
+	func _draw() -> void:
+		var f := ThemeDB.fallback_font
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.09, 0.11, 0.14))
+		var s: float = tn.v[organ + ".start"]; var mx: float = tn.v[organ + ".max"]
+		var t: float = tn.time_of(organ); var fn := int(tn.v[organ + ".fn"]); var k: float = tn.v[organ + ".k"]
+		var lo := minf(0.0, minf(s, mx)); var hi := maxf(0.0, maxf(s, mx))
+		if hi - lo < 0.0001: hi = lo + 1.0
+		var pad := (hi - lo) * 0.08; hi += pad; if lo < 0.0: lo -= pad
+		var r := Rect2(56, 16, size.x - 76, size.y - 62)
+		for i in 11:                                           # сетка 10 × 10 по u и по усилию
+			var x := r.position.x + r.size.x * i / 10.0
+			draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), Color(1, 1, 1, 0.12 if i % 5 else 0.28))
+			var y := r.position.y + r.size.y * i / 10.0
+			draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(1, 1, 1, 0.12 if i % 5 else 0.28))
+		for i: int in [0, 2, 4, 6, 8, 10]:
+			var val: float = lo + (hi - lo) * i / 10.0
+			draw_string(f, Vector2(4, r.end.y - r.size.y * i / 10.0 + 4), "%.2f" % val, HORIZONTAL_ALIGNMENT_LEFT, 50, 12, Color(0.75, 0.8, 0.85))
+			draw_string(f, Vector2(r.position.x + r.size.x * i / 10.0 - 14, r.end.y + 16), "%.2f" % (t * i / 10.0), HORIZONTAL_ALIGNMENT_LEFT, 40, 12, Color(0.75, 0.8, 0.85))
+		draw_string(f, Vector2(r.position.x, r.end.y + 34), "время удержания, с   (стик: u = отклонение 0…1 → 0…%.2f с)" % t, HORIZONTAL_ALIGNMENT_LEFT, r.size.x + 20, 12, Color(0.6, 0.7, 0.8))
+		var pts := PackedVector2Array()
+		for i in 81:
+			var u := i / 80.0
+			var e: float = tn.effort(organ, maxf(u, 0.0001)) if i > 0 else s
+			pts.append(Vector2(r.position.x + r.size.x * u, r.end.y - r.size.y * (e - lo) / (hi - lo)))
+		draw_polyline(pts, Color(1, 0.8, 0.25), 2.5)
+		draw_circle(pts[0], 5, Color(0.4, 1, 0.5)); draw_circle(pts[80], 5, Color(1, 0.4, 0.4))
+		draw_string(f, pts[0] + Vector2(8, -8), "старт %.2f" % s, HORIZONTAL_ALIGNMENT_LEFT, 120, 13, Color(0.5, 1, 0.6))
+		draw_string(f, pts[80] + Vector2(-110, -10 if mx >= s else 18), "макс %.2f при %.2f с" % [mx, t], HORIZONTAL_ALIGNMENT_LEFT, 150, 13, Color(1, 0.55, 0.55))

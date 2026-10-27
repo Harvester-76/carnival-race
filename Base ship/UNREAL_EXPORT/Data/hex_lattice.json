@@ -1,0 +1,9 @@
+{
+ "cell_width_m": 1.2,
+ "row_pitch_m": 1.0392,
+ "orientation": "pointy-top",
+ "odd_row_offset": "W/2",
+ "projection": "dominant axis of normal: X->(y,z), Y->(x,z), Z->(x,y) (Blender-координаты)",
+ "cell": "(axis,i,j): b=j*H, a=(i+0.5*(j&1))*W",
+ "note": "координаты в таблице hex_cells.csv даны в метрах Blender; в UE (x,y,z)->(y,x,z)*100 см"
+}
