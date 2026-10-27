@@ -518,6 +518,8 @@ func _draw() -> void:
 	elif mode == "page": _draw_page()
 	elif mode == "pause": _draw_pause()
 	elif mode == "about": _draw_about()
+	elif mode == "linkdlg": _draw_linkdlg()
+	elif mode == "project": _draw_project()
 	elif mode == "dialog": _draw_dialog()
 	elif mode == "ach": _draw_ach()
 	elif mode == "results": _draw_results()
@@ -581,6 +583,29 @@ func _draw_dialog() -> void:
 	_rows(104, 420, 700, 80, 38, 8.0, 900.0)
 	_hint_bar(1480.0, 756.0, "")
 
+func _draw_linkdlg() -> void:                                                # диалог «Открыть ссылку?»: QR-код, адрес и кнопки «Закрыть» / «Перейти»
+	_bg_img("exit"); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.012, 0.024, 0.063, 0.94)], [0.5, Color(0.012, 0.024, 0.063, 0.82)], [0.8, Color(0.012, 0.024, 0.063, 0.45)], [1.0, Color(0.012, 0.024, 0.063, 0.3)]])
+	_frame()
+	_txt_sh(f_title, Vector2(120, 210), title, 64, ICE, 5.0)
+	_txt(f_t8, Vector2(120, 290), String(card.get("name", "")), 34, ORANGE)
+	var url_lines := _wrap(f_t6, hint, 24, 760.0)
+	var uy := 336.0
+	for ln in url_lines: _txt(f_t6, Vector2(120, uy + 14), ln, 24, STEEL); uy += 32.0
+	_rows(104, 440, 640, 80, 38, 8.0, 900.0)
+	var qr = card.get("qr")
+	var q := Rect2(980, 190, 460, 460)
+	_box(Rect2(q.position + Vector2(10, 12), q.size), DEEP, Color(0, 0, 0, 0), 0, 14)
+	_box(q, Color.WHITE, ORANGE, 4, 14)
+	if qr != null: draw_texture_rect(qr, q.grow(-22), false)
+	_txt(f_t6, Vector2(q.position.x, q.end.y + 36), "Наведите камеру телефона на код", 22, STEEL, HORIZONTAL_ALIGNMENT_CENTER, q.size.x)
+	_txt(f_t6, Vector2(q.position.x, q.end.y + 66), "или нажмите «Перейти»", 22, STEEL, HORIZONTAL_ALIGNMENT_CENTER, q.size.x)
+	_hint_bar(1480.0, 756.0, "")
+
+func _tg_icon(c: Vector2, sc: float, bg: Color = Color("27A7E7"), fg: Color = Color.WHITE) -> void:      # значок Телеграма: бумажный самолётик на круге
+	draw_circle(c, 14.0 * sc, bg)
+	var P := func(x: float, y: float) -> Vector2: return c + Vector2(x, y) * sc
+	draw_colored_polygon(PackedVector2Array([P.call(-8.0, -0.5), P.call(7.5, -7.0), P.call(4.5, 8.0), P.call(-0.5, 3.5), P.call(-3.0, 7.0), P.call(-3.5, 2.0), P.call(4.0, -4.0), P.call(-5.0, 1.0)]), fg)
+
 func _draw_about() -> void:
 	_bg_img("about"); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.012, 0.024, 0.063, 0.96)], [0.46, Color(0.012, 0.024, 0.063, 0.9)], [0.66, Color(0.012, 0.024, 0.063, 0.5)], [0.84, Color(0.012, 0.024, 0.063, 0.1)]])
 	_grad_v(Rect2(0, 700, 1600, 200), Color(0.012, 0.024, 0.063, 0.0), Color(0.012, 0.024, 0.063, 0.9))
@@ -593,7 +618,7 @@ func _draw_about() -> void:
 	var y := 176.0
 	_txt_sh(f_title, Vector2(120, y + 24), "Карнавальская Гонка", 44, ORANGE, 4.0); y += 56.0
 	_txt(f_t6, Vector2(120, y + 14), String(card.get("version", "")), 26, STEEL); y += 50.0
-	y += _para(f_t6, Vector2(120, y), String(card.get("about", "")), 25, ICE, 820.0, 34.0) + 12.0
+	y += _para(f_t6, Vector2(120, y), String(card.get("about", "")), 24, ICE, 840.0, 31.0) + 8.0
 	_txt(f_t8, Vector2(120, y + 12), "КОМАНДА", 22, STEEL); y += 34.0
 	draw_line(Vector2(120, y), Vector2(940, y), Color(STEEL.r, STEEL.g, STEEL.b, 0.3), 2.0); y += 10.0
 	for i in items.size():
@@ -610,12 +635,38 @@ func _draw_about() -> void:
 				bx -= lw; _box(Rect2(bx, y + 5, lw, 38), lk[1], Color(0, 0, 0, 0), 0, 8)
 				_box(Rect2(bx + 6, y + 10, 28, 28), Color.WHITE, Color(0, 0, 0, 0), 0, 6); _txt(f_t8, Vector2(bx + 6, y + 24), "♪" if lk[0] == "SoundCloud" else "VK", 14, lk[1], HORIZONTAL_ALIGNMENT_CENTER, 28)
 				_txt(f_t7, Vector2(bx + 42, y + 24), lk[0], 20, Color.WHITE); bx -= 10.0
-		elif String(it.get("vk", "")) != "":                                       # одна ссылка: страница ВКонтакте
-			var vw := f_t7.get_string_size("VK", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 58.0; var vx := 940.0 - vw
-			_box(Rect2(vx, y + 5, vw, 38), Color("0077FF"), Color(0, 0, 0, 0), 0, 8)
-			_box(Rect2(vx + 6, y + 10, 28, 28), Color.WHITE, Color(0, 0, 0, 0), 0, 6); _txt(f_t8, Vector2(vx + 6, y + 24), "VK", 14, Color("0077FF"), HORIZONTAL_ALIGNMENT_CENTER, 28)
-			_txt(f_t7, Vector2(vx + 42, y + 24), "VK", 20, Color.WHITE)
+		elif String(it.get("tg", "")) != "":                                       # одна ссылка: Телеграм-канал
+			var vw := f_t7.get_string_size("Telegram", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 58.0; var vx := 940.0 - vw
+			_box(Rect2(vx, y + 5, vw, 38), Color("27A7E7"), Color(0, 0, 0, 0), 0, 8)
+			_tg_icon(Vector2(vx + 20, y + 24), 1.0, Color.WHITE, Color("27A7E7"))
+			_txt(f_t7, Vector2(vx + 42, y + 24), "Telegram", 20, Color.WHITE)
 		y += 54.0
+	_hint_bar(1480.0, 756.0, hint)
+
+func _draw_project() -> void:                                                # «Об игре › О проекте»: слева разделы, справа текст выбранного
+	_bg_img("about"); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.012, 0.024, 0.063, 0.97)], [0.7, Color(0.012, 0.024, 0.063, 0.93)], [1.0, Color(0.012, 0.024, 0.063, 0.85)]])
+	draw_rect(Rect2(24, 24, 1552, 852), Color(STEEL.r, STEEL.g, STEEL.b, 0.35), false, 2.0)
+	var mw := f_title.get_string_size("ОБ ИГРЕ", HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+	_txt(f_title, Vector2(120, 60 + 54), "ОБ ИГРЕ", 30, STEEL)
+	_tri(Vector2(120 + mw + 22, 60 + 54), 16, 1, ORANGE)
+	_txt_sh(f_title, Vector2(120 + mw + 48, 60 + 40), "О ПРОЕКТЕ", 64, ICE, 4.0)
+	draw_dashed_line(Vector2(120, 60 + 86), Vector2(1480, 60 + 86), Color("24335E"), 2.0, 8.0)
+	var y := 190.0
+	for i in items.size():
+		var on := i == sel
+		var r := Rect2(94, y, 400, 52)
+		_box(r, Color(ORANGE.r, ORANGE.g, ORANGE.b, 0.16) if on else Color(0, 0, 0, 0), ORANGE if on else Color(0, 0, 0, 0), 3 if on else 0, 8)
+		if on: _tri(Vector2(114, y + 26), 16, 1, ORANGE)
+		_txt(f_t7, Vector2(142, y + 26), String(items[i].get("t", "")), 25, ICE if on else STEEL)
+		y += 58.0
+	if items.size() > 0:
+		var it: Dictionary = items[clampi(sel, 0, items.size() - 1)]
+		var px := 560.0
+		draw_line(Vector2(px - 30, 190), Vector2(px - 30, 740), Color(STEEL.r, STEEL.g, STEEL.b, 0.3), 2.0)
+		_txt_sh(f_title, Vector2(px, 190 + 30), String(it.get("t", "")), 40, ORANGE, 3.0)
+		var yy := 190.0 + 66.0
+		for para in String(it.get("body", "")).split("\n\n"):
+			yy += _para(f_t6, Vector2(px, yy), para, 22, ICE, 920.0, 30.0) + 14.0
 	_hint_bar(1480.0, 756.0, hint)
 
 func _draw_ach() -> void:                                                   # грамоты на стене каюты

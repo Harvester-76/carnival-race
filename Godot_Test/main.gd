@@ -211,6 +211,7 @@ const KEYBIND := [
 	["roll_left", "Крен влево", KEY_Q], ["roll_right", "Крен вправо", KEY_E],
 	["sh_fwd", "Маневровые: вперёд", KEY_I], ["sh_back", "Маневровые: назад", KEY_K], ["sh_left", "Маневровые: влево", KEY_J], ["sh_right", "Маневровые: вправо", KEY_L],
 	["boost", "Усиление маневровых", KEY_SHIFT],
+	["look_left", "Взгляд влево (из кабины)", KEY_N], ["look_right", "Взгляд вправо (из кабины)", KEY_M], ["look_up", "Взгляд вверх (из кабины)", KEY_B], ["look_down", "Взгляд вниз (из кабины)", KEY_COMMA],
 	["cam", "Камера", KEY_V], ["assist", "Стабилизация вращения", KEY_T], ["grav", "Гравитация", KEY_G], ["interior", "Интерьер", KEY_H],
 	["detach", "Оторвать деталь", KEY_X], ["boom", "Оторвать всё", KEY_Z], ["reset", "Сброс на старт", KEY_R], ["unstick", "Вернуть на трассу (+20 с)", KEY_Y]]
 const KEY_ACTIONS := ["cam", "assist", "grav", "interior", "detach", "boom", "reset", "unstick"]   # из них часть идёт через InputMap
@@ -975,13 +976,20 @@ void fragment(){
 }"""
 	core_shader = Shader.new()
 	core_shader.code = """shader_type spatial;
-render_mode cull_disabled;
+render_mode unshaded, cull_disabled;
 uniform float power = 0.0;
+varying vec3 lp;
+void vertex(){ lp = VERTEX; }
 void fragment(){
-  float fr = pow(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 2.0);
-  vec3 c = mix(vec3(0.06, 0.32, 1.0), vec3(0.45, 0.75, 1.0), fr);
-  ALBEDO = c * 0.2; ROUGHNESS = 0.3;
-  EMISSION = c * (0.25 + power * 3.0);
+  // светящееся плазменное ядро, а не крашеный шар: без бликов, середина горячее, к краю темнеет, внутри медленно «переливается»
+  float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+  float core = pow(nv, 2.6);
+  float sw = 0.5 + 0.12 * cos(nv * 11.0);                        // неподвижные мягкие кольца вокруг центра: без бегущих волн
+  float flick = 0.93 + 0.07 * sin(TIME * (2.5 + power * 22.0));   // дыхание ядра целиком (ничего не «течёт»)
+  float heat = clamp(core * (0.55 + 0.35 * sw) + power * 0.55, 0.0, 1.0);
+  vec3 deep = vec3(0.01, 0.05, 0.38); vec3 hot = vec3(0.6, 0.88, 1.0);
+  vec3 c = mix(deep, hot, heat * heat * (3.0 - 2.0 * heat));
+  ALBEDO = c * (0.3 + core * 0.7 + power * 2.6) * flick;
 }"""
 
 func _build_world() -> void:
@@ -2267,11 +2275,12 @@ func _read_controls(dt: float) -> Dictionary:
 	var shl := sh; var shr := sh; var tr := sh
 	# --- геймпад ---
 	look_in = Vector2.ZERO
+	if CAM_MODES[cam_mode] == "cockpit": look_in = Vector2(_kd("look_right") - _kd("look_left"), _kd("look_down") - _kd("look_up"))      # клавиатура: осмотр из кабины
 	if pad:
 		var d := 0
 		var lx := _dz(Input.get_joy_axis(d, JOY_AXIS_LEFT_X)); var ly := _dz(Input.get_joy_axis(d, JOY_AXIS_LEFT_Y))
 		var rx := _dz(Input.get_joy_axis(d, JOY_AXIS_RIGHT_X)); var ry := _dz(Input.get_joy_axis(d, JOY_AXIS_RIGHT_Y))
-		if CAM_MODES[cam_mode] == "cockpit": look_in = Vector2(rx, ry); rx = 0.0; ry = 0.0
+		if CAM_MODES[cam_mode] == "cockpit": look_in = (look_in + Vector2(rx, ry)).limit_length(1.0); rx = 0.0; ry = 0.0
 		var lb := Input.is_joy_button_pressed(d, JOY_BUTTON_LEFT_SHOULDER); var rb := Input.is_joy_button_pressed(d, JOY_BUTTON_RIGHT_SHOULDER)
 		if cfg["inv_lx"]: lx = -lx
 		if cfg["inv_ly"]: ly = -ly
