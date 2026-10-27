@@ -76,7 +76,10 @@ const INTRO_CUT := 21.0
 var intro_on := false
 var world_env: Environment
 const FOG_BASE := 0.00003
+var intro_skipped := false
+var intro_seen := false
 func skip_intro() -> void:                                                  # пропуск катсцены: музыка перематывается на начало отсчёта (21 с)
+	intro_skipped = true
 	music.seek_intro(INTRO_CUT); cam_snap = true; intro_picks = []
 	if Input.is_action_just_pressed("assist"): assist = not assist         # A на геймпаде — и пропуск, и стабилизация: нажатие не должно выключать стабилизацию
 	if world_env != null: world_env.fog_density = FOG_BASE
@@ -86,7 +89,7 @@ func intro_t() -> float: return INTRO_T - start_t if in_cutscene() else 99.0
 func music_ok() -> bool: return not (evo_mode or test_mode or shot_mode or soak or not (ui_shot == "" or ui_shot == "intro"))
 func begin_intro() -> void:
 	if music == null or not music_ok(): start_t = 4.0; return
-	assist = true; start_t = INTRO_T; intro_on = true; cam_snap = true; music.play_intro()
+	assist = true; start_t = INTRO_T; intro_on = true; cam_snap = true; music.play_intro(); intro_skipped = false; intro_seen = false
 var shot_k := 0
 var ui_shot := ""
 var tour_bot := 1
@@ -2158,11 +2161,44 @@ func _load_cfg() -> void:
 	for k in cfg: cfg[k] = cf.get_value("controls", k, cfg[k])
 	scheme = int(cf.get_value("controls", "scheme", scheme))
 	cam_mode = clampi(int(cfg["cam_view"]), 0, CAM_MODES.size() - 1)
+	var stored := String(cf.get_value("controls", "sig", "")); var side := _read_sig_file(); var now := _progress_sig()
+	var ok := (stored == now and (side == "" or side == now)) or (stored == "" and (side == "" or side == now))        # без подписи — старый файл (подпишем при сохранении)
+	if not ok and not (evo_mode or test_mode or soak or shot_mode):          # прогресс правили руками: всё обнуляем, ui выдаст взамен «Мамкин хацкер»
+		cfg["ach"] = {}; cfg["rec"] = {}; cfg["stats"] = {}; tamper_flag = true; _save_cfg()
+	elif stored == "": _save_cfg()
+
+# Подпись прогресса (достижения, рекорды, статистика): если файл правили руками, при старте подпись не сойдётся
+const SIG_SALT := "kk-race-7f3a91-прогресс"
+const SIG_PATH := "user://progress.sig"
+var tamper_flag := false
+func _canon(v) -> String:
+	if v is Dictionary:
+		var ks := (v as Dictionary).keys(); ks.sort_custom(func(a, b): return String(a) < String(b))
+		var s := "{"
+		for k in ks: s += String(k) + ":" + _canon(v[k]) + ","
+		return s + "}"
+	if v is Array:
+		var s2 := "["
+		for e in v: s2 += _canon(e) + ","
+		return s2 + "]"
+	if v is float or v is int: return "%.9g" % float(v)
+	return str(v)
+
+func _progress_sig() -> String:
+	return (SIG_SALT + _canon({"ach": cfg.get("ach", {}), "rec": cfg.get("rec", {}), "stats": cfg.get("stats", {})})).sha256_text()
+
+func _read_sig_file() -> String:
+	if not FileAccess.file_exists(SIG_PATH): return ""
+	var f := FileAccess.open(SIG_PATH, FileAccess.READ)
+	return f.get_as_text().strip_edges() if f != null else ""
 
 func _save_cfg() -> void:
 	var cf := ConfigFile.new()
 	for k in cfg: cf.set_value("controls", k, cfg[k])
 	cf.set_value("controls", "scheme", scheme)
+	var sig := _progress_sig(); cf.set_value("controls", "sig", sig)
+	var sf := FileAccess.open(SIG_PATH, FileAccess.WRITE)
+	if sf != null: sf.store_string(sig)
 	for kb in KEYBIND: cf.set_value("keys", kb[0], keys[kb[0]])
 	for pb in PADBIND: cf.set_value("pad", pb[0], "%s:%d:%d" % [pad[pb[0]]["t"], pad[pb[0]]["i"], pad[pb[0]]["s"]])
 	cf.save(CFG_PATH)
@@ -2742,6 +2778,16 @@ func _process(dt: float) -> void:
 			if pf == 90 and Engine.has_meta("swapped"): print("SWAP ship_id=", ship_id, " cfg=", cfg["ship"], " sel=", ui.sel); get_viewport().get_texture().get_image().save_png("/private/tmp/shipswap.png"); cfg["ship"] = 0; _save_cfg(); get_tree().quit()
 		if ui_shot == "cutwidth" and pf == 5: _cutwidth(); get_tree().quit()
 		if ui_shot == "tmap" and pf == 5: _tmap_dump(); get_tree().quit()
+		if ui_shot == "hatchcam":
+			if pf == 20:
+				var hv := [-22.0, 1.0, 10.6, -11.9, 0.97, 10.6]
+				for a in OS.get_cmdline_user_args(): if a.begins_with("v="): hv = Array(a.substr(2).split(",")).map(func(x): return float(x))
+				var cp0 := ship.global_transform * Vector3(hv[0], hv[1], hv[2]); var tp0 := ship.global_transform * Vector3(hv[3], hv[4], hv[5])
+				cc_tf = Transform3D(Basis.IDENTITY, cp0).looking_at(tp0, Vector3.UP); cc_on = true; ui.visible = false
+			if pf == 60:
+				var outp := "/private/tmp/hatchcam.png"
+				for a in OS.get_cmdline_user_args(): if a.begins_with("out="): outp = a.substr(4)
+				get_viewport().get_texture().get_image().save_png(outp); get_tree().quit()
 		if ui_shot == "fin":
 			if pf == 20: ui._show_state("hud"); start_t = 0.0; racing = true; Engine.time_scale = 1.0
 			if pf == 40:
@@ -2775,7 +2821,7 @@ func _process(dt: float) -> void:
 			if pf == 40: ui.sel = 0; ui._activate()
 			if pf % 60 == 0 and pf >= 40: print("FLOW pf=", pf, " state=", ui.state, " start_t=", snappedf(start_t, 0.1), " race_t=", snappedf(race_t, 0.1), " v=", int(ship.linear_velocity.length()), " ts=", Engine.time_scale)
 			if pf == 400: get_tree().quit()
-		if pf == 70 and ui_shot != "spurcam" and ui_shot != "flow" and ui_shot != "flowpad" and ui_shot != "fin" and ui_shot != "tour" and ui_shot != "dump" and ui_shot != "intro" and not ui_shot.begins_with("padtest") and ui_shot != "padlog" and ui_shot != "tilebench" and ui_shot != "cutcam" and ui_shot != "cutwidth" and ui_shot != "cutship" and ui_shot != "gridcam" and ui_shot != "liverycam" and ui_shot != "shipswap" and ui_shot != "unstick":
+		if pf == 70 and ui_shot != "spurcam" and ui_shot != "hatchcam" and ui_shot != "flow" and ui_shot != "flowpad" and ui_shot != "fin" and ui_shot != "tour" and ui_shot != "dump" and ui_shot != "intro" and not ui_shot.begins_with("padtest") and ui_shot != "padlog" and ui_shot != "tilebench" and ui_shot != "cutcam" and ui_shot != "cutwidth" and ui_shot != "cutship" and ui_shot != "gridcam" and ui_shot != "liverycam" and ui_shot != "shipswap" and ui_shot != "unstick":
 			get_viewport().get_texture().get_image().save_png("/private/tmp/ui_" + ui_shot + ".png"); get_tree().quit()
 	if "tech" in OS.get_cmdline_user_args() and frame >= 40 and tech_shot_n == 0 and not tech_open: _set_tech(true)
 	var esc := Input.is_key_pressed(KEY_ESCAPE)
@@ -2826,6 +2872,7 @@ func _process(dt: float) -> void:
 		var ip: float = music.intro_pos() if intro_on else -1.0
 		if ip >= 0.0: start_t = maxf(INTRO_T - ip, 0.0)               # отсчёт привязан к позиции трека: рифф ровно в момент старта
 		else: start_t -= dt
+		if intro_on and not intro_skipped and not intro_seen and start_t <= INTRO_T - INTRO_CUT: intro_seen = true; ui.cutscene_seen()
 		if start_t <= 0.0:
 			racing = true
 			if intro_on: intro_on = false; music.race_started()
@@ -2935,7 +2982,7 @@ func _track_stats(dt: float) -> void:                                       # у
 	if p_back >= 20000.0: ui.grant("lost3")
 	if p_max_v >= 3000.0: ui.grant("speed")
 	if unstick_n >= UNSTICK_MAX: ui.grant("unstick3")
-	if parts.is_empty() and not p_boom: ui.grant("crash_total")
+	if parts.is_empty() and not p_boom: ui.grant("crash_total"); ui.ship_wrecked(ship_id)
 
 func _add_dent(po: Vector3, r: float) -> void:                            # вмятина на обшивке игрока (только вид: коллизии не меняются)
 	var merged := false
@@ -2977,7 +3024,7 @@ func _cam_tail(dt: float) -> void:                                          # у
 			cam.rotate_object_local(Vector3.FORWARD, sin(tt * 53.0) * 0.004 * amp)
 
 func _camera(dt: float) -> void:
-	if (ui_shot == "cutcam" or ui_shot == "spurcam" or ui_shot == "cutship" or ui_shot == "gridcam" or ui_shot == "liverycam" or ui_shot == "shippic") and cc_on: cam.global_transform = cc_tf; cam.fov = cc_fov; return
+	if (ui_shot == "cutcam" or ui_shot == "hatchcam" or ui_shot == "spurcam" or ui_shot == "cutship" or ui_shot == "gridcam" or ui_shot == "liverycam" or ui_shot == "shippic") and cc_on: cam.global_transform = cc_tf; cam.fov = cc_fov; return
 	var t := ship.global_transform
 	if ui_shot == "tour" and tour_ready:                                      # режим съёмки: камера за ботом
 		if tour_phase == "fixed_wait": cam.global_transform = fixed_cam; return

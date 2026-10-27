@@ -76,7 +76,7 @@ const ACH := [
 	{"id": "aggressor", "title": "Агрессор", "cond": "Совершить столкновение с другим кораблём."},
 	{"id": "melomaniac", "title": "Меломан", "cond": "Прослушать до конца все треки игры: и в меню, и в гонке."},
 	{"id": "seagull", "title": "Чайка", "cond": "Дойти до финиша на «Долгоносике»."},
-	{"id": "not_mine", "title": "Это не мое", "cond": "Выйти из игры, не совершив ни одной гонки."},
+	{"id": "not_mine", "title": "Это не мое", "cond": "Выйти из игры при первом запуске, не начав ни одной гонки."},
 	{"id": "tester", "title": "Тестировщик", "cond": "Посетить все экраны и подэкраны меню и совершить хотя бы одну гонку."},
 	{"id": "shor", "title": "Шор", "cond": "Назначить тангаж и крен на правый стик."},
 	{"id": "os_win", "title": "Установщик Винды", "cond": "Запустить игру на Windows."},
@@ -92,8 +92,13 @@ const ACH := [
 	{"id": "intact", "title": "Целёхонек", "cond": "Дойти до финиша, не потеряв ни одной детали."},
 	{"id": "km1000", "title": "Налётчик", "cond": "Налетать суммарно 20000 км."},
 	{"id": "vet25", "title": "Ветеран трассы", "cond": "Дойти до финиша 25 раз."},
+	{"id": "will", "title": "Воля к победе", "cond": "Прийти к финишу первым, потеряв все моторы."},
+	{"id": "timid", "title": "Робкий гонщик", "cond": "Нажать «Выход», а потом передумать."},
+	{"id": "connoisseur", "title": "Ценитель", "cond": "Получить «Летная Академия», «Лётчик испытатель», «Меломан» и посмотреть катсцену до конца."},
+	{"id": "graveyard", "title": "Кладбище кораблей", "cond": "Полностью уничтожить каждый корабль в игре."},
+	{"id": "hacker", "title": "Мамкин хацкер", "cond": "Попытаться руками подправить файл прогресса.", "hidden": true},
 	{"id": "collector", "title": "Коллекционер грамот", "cond": "Получить 20 других достижений."}]
-const DEV_RECORDS := {"0:1": 330.0, "2:0": 263.9, "2:1": 271.7}          # рекорды разработчика «уровень:корабль», с; обновляются с версиями игры
+const DEV_RECORD := 137.36                                                  # рекорд разработчика, с (2:17.36, «Дальнобойщик»): один на все уровни и корабли; обновляется с версиями игры
 const OS_ACH := {"Windows": "os_win", "macOS": "os_mac", "Linux": "os_linux", "FreeBSD": "os_linux", "NetBSD": "os_linux", "OpenBSD": "os_linux", "BSD": "os_linux", "Android": "os_android", "iOS": "os_ios"}
 const MUSIC_ALL := ["tuman.mp3", "radium.mp3", "avenger.mp3", "globacide.mp3", "retribution.mp3", "results.mp3"]
 const PAGES_ALL := ["settings", "controls", "sound", "camera", "keys", "pad", "advanced", "ach", "about", "exit"]
@@ -113,7 +118,7 @@ func _ready() -> void:
 	sfx = UiSfx.new(); sfx.cfg = main.cfg; add_child(sfx)
 	root = Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_IGNORE; add_child(root)
 	_build_hud(); _build_menu(); _build_results()
-	call_deferred("_check_platform")
+	call_deferred("_check_platform"); call_deferred("_check_derived"); call_deferred("_apply_tamper")
 	skin = MenuSkin.new(); root.add_child(skin); skin.visible = false
 	marker_root = Control.new(); marker_root.set_anchors_preset(Control.PRESET_FULL_RECT); marker_root.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(marker_root); root.move_child(marker_root, 0)
 	_show_state("hud")
@@ -340,7 +345,7 @@ func _page_items() -> Array:
 			elif state == "pause":
 				it = [{"t": "Продолжить", "a": func(): close_pause()}, {"t": "Начать заново", "a": func(): _restart()}, {"t": "Вернуть на трассу  (+20 с)", "a": func(): close_pause(); main._unstick()}, lvl_item, {"t": "Настройки", "kind": "action", "a": func(): goto_page("settings")}, {"t": "В главное меню", "a": func(): _to_menu()}]
 		"exit":
-			it = [{"t": "Да, выйти", "a": func(): _quit_game()}, {"t": "Остаться", "a": func(): back_page()}]
+			it = [{"t": "Да, выйти", "a": func(): _quit_game()}, {"t": "Остаться", "a": func(): grant("timid"); back_page()}]
 		"about":
 			it = [{"role": "Гейм-дизайн", "name": "Harvester", "vk": "https://vk.ru/id73472340", "d": "A — открыть страницу ВКонтакте", "a": func(): OS.shell_open("https://vk.ru/id73472340")}, {"role": "Программист", "name": "Claude"},
 				{"role": "Музыка", "name": "Re:Cycle", "links": true, "lk": about_link, "d": "◀ ▶ выбрать ссылку, A открыть", "s": func(d): about_link = posmod(about_link + d, 2), "a": func(): OS.shell_open(LINKS[about_link])}]
@@ -348,7 +353,7 @@ func _page_items() -> Array:
 			var got: Dictionary = main.cfg.get("ach", {})
 			for a in ACH:
 				var has: bool = got.has(a["id"])
-				it.append({"title": a["title"], "cond": a["cond"], "st": "got" if has else ("hidden" if a.get("hidden", false) else "lock"), "when": String(got.get(a["id"], "")), "prog": "" if has else _ach_prog(String(a["id"]))})
+				it.append({"id": a["id"], "title": a["title"], "cond": a["cond"], "st": "got" if has else ("hidden" if a.get("hidden", false) else "lock"), "when": String(got.get(a["id"], "")), "prog": "" if has else _ach_prog(String(a["id"]))})
 		"settings":
 			it = [{"t": "Управление", "kind": "action", "a": func(): goto_page("controls")}, {"t": "Звук", "kind": "action", "a": func(): goto_page("sound")}, {"t": "Камера", "kind": "action", "a": func(): goto_page("camera")}, back]
 		"controls":
@@ -406,7 +411,9 @@ func _page_items() -> Array:
 	return it
 
 func _quit_game() -> void:
-	if int(_stats().get("starts", 0)) == 0: grant("not_mine")
+	if int(_stats().get("starts", 0)) == 0 and not has_ach("not_mine"):          # «Это не моё»: за всё время не начато ни одной гонки
+		grant("not_mine")
+		await get_tree().create_timer(1.6, true, false, true).timeout        # дать увидеть плашку и услышать звук
 	get_tree().quit()
 
 func _ach_prog(id: String) -> String:
@@ -418,8 +425,14 @@ func _ach_prog(id: String) -> String:
 		"melomaniac": return "%d / %d" % [_sarr("heard").size(), MUSIC_ALL.size()]
 		"tester": return "%d / %d" % [_sarr("screens").size(), _screens_total()]
 		"km1000": return "%d / 20000 км" % int(float(st.get("km", 0.0)))
+		"graveyard": return "%d / %d" % [_sarr("wrecked").size(), main.SHIP_NAMES.size()]
+		"connoisseur":
+			var gt: Dictionary = main.cfg.get("ach", {}); var c4 := 0
+			for k4 in ["academy", "pilot_test", "melomaniac"]: if gt.has(k4): c4 += 1
+			if bool(st.get("cutscene", false)): c4 += 1
+			return "%d / 4" % c4
 		"vet25": return "%d / 25" % int(st.get("finishes", 0))
-		"collector": return "%d / 20" % maxi((main.cfg.get("ach", {}) as Dictionary).size(), 0)
+		"collector": return "%d / 20" % mini(_ach_count_others(), 20)
 	return ""
 
 func _tog(key: String) -> void:
@@ -599,10 +612,42 @@ func grant(id: String, ctx := "") -> void:                                   # �
 	main.cfg["ach"] = got; main._save_cfg()
 	for a in ACH: if a["id"] == id: _toast("Достижение: " + String(a["title"])); break
 	sfx.play("unlock")
-	if id != "collector" and got.size() >= 21: grant("collector")
+	if id != "collector" and id != "connoisseur": _check_derived()
 
 var toast_lbl: Label
 var toast_t := 0.0
+func _apply_tamper() -> void:                                                # файл прогресса правили руками: рекорды и достижения уже обнулены, выдаём единственное достижение
+	if not main.tamper_flag: return
+	main.tamper_flag = false; grant("hacker", "прогресс обнулён")
+
+func _ach_count_others() -> int:                                              # сколько получено достижений, кроме самого «Коллекционера»
+	var n := 0
+	for k in (main.cfg.get("ach", {}) as Dictionary): if String(k) != "collector": n += 1
+	return n
+
+func _derived_ok(id: String, got: Dictionary) -> bool:                       # достижения, которые зависят от других достижений
+	match id:
+		"connoisseur": return got.has("academy") and got.has("pilot_test") and got.has("melomaniac") and bool(_stats().get("cutscene", false))
+		"collector":
+			var n := 0
+			for k in got: if String(k) != "collector": n += 1
+			return n >= 20
+	return false
+
+func _check_derived() -> void:
+	var got: Dictionary = main.cfg.get("ach", {})
+	for did in ["connoisseur", "collector"]: if not got.has(did) and _derived_ok(did, got): grant(did); got = main.cfg.get("ach", {})
+
+func cutscene_seen() -> void:                                                # катсцена досмотрена до конца (без пропуска)
+	if not _ach_on() or bool(_stats().get("cutscene", false)): return
+	_stats()["cutscene"] = true; main._save_cfg(); _check_derived()
+
+func ship_wrecked(sid: int) -> void:                                         # корабль полностью уничтожен (без кнопки «взорвать всё»)
+	if not _ach_on(): return
+	if _sadd("wrecked", sid):
+		main._save_cfg()
+		if _sarr("wrecked").size() >= main.SHIP_NAMES.size(): grant("graveyard")
+
 func _toast(txt: String) -> void:
 	if toast_lbl == null:
 		toast_lbl = _lbl("", 28, ORANGE, root, Vector2(0, 22)); toast_lbl.set_anchors_preset(Control.PRESET_CENTER_TOP); toast_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -619,6 +664,7 @@ func on_track_done(file: String) -> void:                                    # �
 		if all: grant("melomaniac")
 
 func _check_platform() -> void:
+	if main.tamper_flag: return                                              # после наказания за правку файла выдаётся только «Мамкин хацкер»
 	var id: String = OS_ACH.get(OS.get_name(), "")
 	if id != "": grant(id)
 
@@ -662,7 +708,7 @@ func check_custom() -> void:                                                 # �
 var fin_info := {}
 func _eval_finish() -> void:                                                # рекорд и новые достижения за этот финиш; в тестовых снимках конфиг не трогаем
 	fin_info = {"rec_new": false, "rec_prev": -1.0, "ach": []}
-	if main.ui_shot == "results": fin_info = {"rec_new": true, "rec_prev": 74.31, "ach": [{"name": ACH[3]["title"], "cond": ACH[3]["cond"]}, {"name": ACH[10]["title"], "cond": ACH[10]["cond"]}]}; return
+	if main.ui_shot == "results": fin_info = {"rec_new": true, "rec_prev": 74.31, "ach": [{"id": ACH[3]["id"], "name": ACH[3]["title"], "cond": ACH[3]["cond"]}, {"id": ACH[10]["id"], "name": ACH[10]["title"], "cond": ACH[10]["cond"]}]}; return
 	if main.ui_shot != "" or not (main.p_fin or main.p_dsq): return
 	var stt := _stats()
 	stt["races"] = int(stt.get("races", 0)) + 1; stt["km"] = float(stt.get("km", 0.0)) + main.race_dist / 1000.0
@@ -691,7 +737,7 @@ func _eval_finish() -> void:                                                # р
 	var ret_len: float = (load("res://music/retribution.mp3") as AudioStream).get_length()
 	if t < ret_len - main.INTRO_T: earned.append("short_music")
 	if main.rank == main.bots.size() + 1: earned.append("loser")
-	if DEV_RECORDS.has(key) and t < float(DEV_RECORDS[key]): earned.append("beat_dev")
+	if t < DEV_RECORD: earned.append("beat_dev")
 	if sid == 2: earned.append("seagull")
 	if _sarr("ships_done").size() >= main.SHIP_NAMES.size(): earned.append("pilot_test")
 	if _sarr("levels_done").size() >= 5: earned.append("academy")
@@ -701,10 +747,17 @@ func _eval_finish() -> void:                                                # р
 	if main.p_parts0 >= 0 and main.parts.size() >= main.p_parts0: earned.append("intact")
 	if float(stt["km"]) >= 20000.0: earned.append("km1000")
 	if int(stt["finishes"]) >= 25: earned.append("vet25")
+	var eng_left := false
+	for pn in main.parts: if String(pn).begins_with("SM_Engine_"): eng_left = true
+	if main.rank == 1 and not eng_left: earned.append("will")
 	var got: Dictionary = main.cfg.get("ach", {}); var dt := Time.get_datetime_dict_from_system()
 	var when := "%02d.%02d.%d · %s, %s" % [dt["day"], dt["month"], dt["year"], main.LEVEL_NAMES[lvl], main.SHIP_NAMES[sid]]
 	for a in ACH:
-		if earned.has(a["id"]) and not got.has(a["id"]): got[a["id"]] = when; fin_info["ach"].append({"name": a["title"], "cond": a["cond"]})
+		if earned.has(a["id"]) and not got.has(a["id"]): got[a["id"]] = when; fin_info["ach"].append({"id": a["id"], "name": a["title"], "cond": a["cond"]})
+	for did in ["connoisseur", "collector"]:                                  # зависимые от других достижений могут открыться сразу вместе с финишем
+		if not got.has(did) and _derived_ok(did, got):
+			got[did] = when
+			for a in ACH: if a["id"] == did: fin_info["ach"].append({"id": did, "name": a["title"], "cond": a["cond"]})
 	main.cfg["ach"] = got; main._save_cfg(); _check_tester()
 
 func _show_state(st: String) -> void:

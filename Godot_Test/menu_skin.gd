@@ -109,6 +109,17 @@ func _tri(c: Vector2, sz: float, dir: int, col: Color) -> void:     # треуг
 	var h := sz * 0.5
 	draw_colored_polygon(PackedVector2Array([c + Vector2(-h * dir * 0.7, -h), c + Vector2(h * dir * 0.7, 0), c + Vector2(-h * dir * 0.7, h)]), col)
 
+var ach_tex := {}                                                   # иконки достижений menu_v2/ach/<id>.png (кэш; null — файла нет, рисуется звёздочка)
+func _ach_icon(id: String, c: Vector2, size: float, dim: bool = false) -> bool:
+	if id == "": return false
+	if not ach_tex.has(id):
+		var p := "res://menu_v2/ach/%s.png" % id
+		ach_tex[id] = load(p) if ResourceLoader.exists(p) else null
+	var t = ach_tex[id]
+	if t == null: return false
+	draw_texture_rect(t, Rect2(c - Vector2(size, size) * 0.5, Vector2(size, size)), false, Color(0.07, 0.09, 0.2, 0.92) if dim else Color.WHITE)    # закрытое достижение — тёмный силуэт
+	return true
+
 func _star(c: Vector2, r: float, col: Color) -> void:             # четырёхлучевая звёздочка ✦
 	var pts := PackedVector2Array()
 	for i in 8:
@@ -634,9 +645,11 @@ func _draw_ach() -> void:                                                   # г
 		_box(inner, Color("F1E4C4") if has else Color("1A2550"), Color(0, 0, 0, 0), 0, 0)
 		var ink := Color("2A1A0C") if has else (Color("6476A6") if st != "hidden" else Color("3B4C7E"))
 		var seal := Vector2(r.get_center().x, r.position.y + 50)
-		draw_circle(seal, 19, ORANGE if has else Color("24335E"))
-		if has: _star(seal, 10, INK)
-		else: _txt(f_t8, Vector2(seal.x - 19, seal.y), "?" if st == "hidden" else "·", 20, Color("6476A6"), HORIZONTAL_ALIGNMENT_CENTER, 38.0)
+		if st != "hidden" and _ach_icon(String(it.get("id", "")), Vector2(seal.x, r.position.y + 54), 68.0, not has): pass
+		else:
+			draw_circle(seal, 19, ORANGE if has else Color("24335E"))
+			if has: _star(seal, 10, INK)
+			else: _txt(f_t8, Vector2(seal.x - 19, seal.y), "?" if st == "hidden" else "·", 20, Color("6476A6"), HORIZONTAL_ALIGNMENT_CENTER, 38.0)
 		var ttl := String(it.get("title", "")) if st != "hidden" else "???"
 		var lines := _wrap(f_t8, ttl, 20, inner.size.x - 16)
 		for k in lines.size(): _txt(f_t8, Vector2(inner.position.x + 8, r.position.y + 96 + k * 23), lines[k], 20, ink, HORIZONTAL_ALIGNMENT_CENTER, inner.size.x - 16)
@@ -653,8 +666,11 @@ func _draw_ach() -> void:                                                   # г
 		_box(Rect2(px + 10, py + 10, 374, 576), DEEP, Color(0, 0, 0, 0), 0, 8); _box(Rect2(px, py, 374, 576), Color(0.024, 0.039, 0.094, 0.9), ORANGE, 3, 8)
 		_txt(f_t8, Vector2(px + 28, py + 40), "ГРАМОТА %d / %d" % [sel + 1, items.size()], 20, STEEL)
 		var st2 := String(it2.get("st", "lock")); var has2 := st2 in ["got", "new"]
-		draw_circle(Vector2(px + 28 + 48, py + 70 + 48), 56, Color(ORANGE.r, ORANGE.g, ORANGE.b, 0.25)); draw_circle(Vector2(px + 28 + 48, py + 70 + 48), 48, ORANGE if has2 else Color("24335E"))
-		if has2: _star(Vector2(px + 76, py + 118), 26, INK)
+		if st2 != "hidden" and _ach_icon(String(it2.get("id", "")), Vector2(px + 76, py + 118), 120.0, not has2): pass
+		else:
+			draw_circle(Vector2(px + 28 + 48, py + 70 + 48), 56, Color(ORANGE.r, ORANGE.g, ORANGE.b, 0.25)); draw_circle(Vector2(px + 28 + 48, py + 70 + 48), 48, ORANGE if has2 else Color("24335E"))
+		if st2 != "hidden" and ach_tex.get(String(it2.get("id", ""))) != null: pass
+		elif has2: _star(Vector2(px + 76, py + 118), 26, INK)
 		else: _txt(f_t8, Vector2(px + 28, py + 118), "?", 44, Color("6476A6"), HORIZONTAL_ALIGNMENT_CENTER, 96.0)
 		var tt := String(it2.get("title", "")) if st2 != "hidden" else "???"
 		var yy := py + 196.0
@@ -712,7 +728,8 @@ func _draw_results() -> void:                                                  #
 		_txt(f_t8, Vector2(cx, ay + 10), "НОВЫЕ ДОСТИЖЕНИЯ", 22, STEEL); ay += 34.0
 		for a in na.slice(0, 3):                                                       # три компактные плашки; остальные — строкой «и ещё N», чтобы не налезать на кнопки
 			_box(Rect2(cx, ay, cw, 50), Color(0.024, 0.039, 0.094, 0.75), Color("3B4C7E"), 2, 8)
-			draw_circle(Vector2(cx + 30, ay + 25), 17, ORANGE); _star(Vector2(cx + 30, ay + 25), 9, INK)
+			if not _ach_icon(String(a.get("id", "")), Vector2(cx + 30, ay + 25), 44.0):
+				draw_circle(Vector2(cx + 30, ay + 25), 17, ORANGE); _star(Vector2(cx + 30, ay + 25), 9, INK)
 			_txt(f_t8, Vector2(cx + 62, ay + 19), String(a["name"]), 21, ICE)
 			_txt(f_t4, Vector2(cx + 62, ay + 40), String(a["cond"]), 15, SOFT, HORIZONTAL_ALIGNMENT_LEFT, cw - 76.0)
 			ay += 56.0

@@ -70,6 +70,14 @@ Subject:
 - `os_android` — Ржавое ведерко — an old rusty bucket with a small antenna and two tiny round lights (no robot character, no green droid shape).
 - `os_ios` — Владелец огрызка — a bitten pear core (round pear, NOT an apple shape, no leaf with a bite cut like a company logo), a small tag.
 
+### Новые (добавлены позже)
+- `will` — Воля к победе — a spaceship with all engines torn off crawling over the finish line on its hull, trailing smoke, a small golden laurel branch above it.
+- `timid` — Робкий гонщик — a small spaceship peeking out from behind a door frame with a hesitant pose, an exit sign with an arrow drawn as plain symbol (no text).
+- `connoisseur` — Ценитель — a wine-tasting style glass with a tiny spaceship inside, a film clapperboard and a music note around it (no text).
+- `graveyard` — Кладбище кораблей — a small hill of broken spaceship wrecks (four different hulls) with a lone flag stuck in the top, dusky sky.
+
+- `hacker` — Мамкин хацкер — a cartoon beginner "hacker": a hooded silhouette-less hoodie with sunglasses floating over a laptop with a skull-and-crossbones-free simple green screen of random symbols, a coffee mug and a sticky note (no text, no face).
+
 ### Накопительные
 - `record` — Личный рекорд — a stopwatch with a small star and a downward arrow (time got shorter).
 - `beat_dev` — Победил Разработчика — a small trophy standing on a tiny keyboard (developer), a broken old record ribbon.
