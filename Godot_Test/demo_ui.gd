@@ -1096,6 +1096,8 @@ func _update_results() -> void:
 	skin.res["ach"] = fin_info.get("ach", [])
 
 # ---------- Маркеры соперников: подписи одного размера независимо от расстояния ----------
+const MARKER_MAX_DIST := 10000.0                                               # дальше этого расстояния (м) подпись скрыта; последняя четверть — плавное затухание
+
 func _update_markers() -> void:
 	var cam: Camera3D = main.cam
 	var show := state in ["hud", "pause", "results"] and cam != null
@@ -1111,6 +1113,8 @@ func _update_markers() -> void:
 		var p: Vector3 = (b["rb"] as RigidBody3D).global_position + Vector3(0, 28, 0)
 		if cam.is_position_behind(p): l.visible = false; continue
 		var d := me.distance_to(p)
+		if d > MARKER_MAX_DIST: l.visible = false; continue                      # улетел далеко (например, со старта): подпись только мешает
+		l.modulate.a = clampf((MARKER_MAX_DIST - d) / (MARKER_MAX_DIST * 0.25), 0.0, 1.0)
 		var sp := cam.unproject_position(p) * sc
 		if sp.x < 0.0 or sp.y < 0.0 or sp.x > vs.x or sp.y > vs.y: l.visible = false; continue          # подпись только у кораблей в поле зрения
 		l.text = "%s  %s" % [b["name"], ("%d м" % int(d)) if d < 1000.0 else ("%.1f км" % (d / 1000.0))]
