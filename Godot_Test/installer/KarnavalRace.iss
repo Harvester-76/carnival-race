@@ -3,7 +3,7 @@
 
 #define AppName "Карнавальская Гонка"
 #define AppExe "KarnavalskayaGonka.exe"
-#define AppVer "0.1.0"
+#define AppVer "0.1.1"
 #define UserDataDir "Godot\app_userdata\Карнавальская Гонка"
 
 [Setup]
@@ -24,11 +24,11 @@ SetupIconFile=app_icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
 OutputDir=..\..\build
-OutputBaseFilename=KarnavalskayaGonka_Setup_0.1
+OutputBaseFilename=KarnavalskayaGonka_Setup_0.1.1
 InfoBeforeFile=info_before.txt
 DisableWelcomePage=no
 WizardImageFile=img\porthole_tall.bmp
-VersionInfoVersion=0.1.0.0
+VersionInfoVersion=0.1.1.0
 VersionInfoCompany=Harvester
 VersionInfoDescription=Установщик: {#AppName}
 VersionInfoProductName={#AppName}
