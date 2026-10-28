@@ -19,4 +19,6 @@ common/physics_ticks_per_second=120
 jolt_physics_3d/limits/max_linear_velocity=8000.0
 
 [rendering]
+
+textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
