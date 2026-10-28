@@ -640,6 +640,11 @@ func _draw_about() -> void:
 			_box(Rect2(vx, y + 5, vw, 38), Color("27A7E7"), Color(0, 0, 0, 0), 0, 8)
 			_tg_icon(Vector2(vx + 20, y + 24), 1.0, Color.WHITE, Color("27A7E7"))
 			_txt(f_t7, Vector2(vx + 42, y + 24), "Telegram", 20, Color.WHITE)
+		elif String(it.get("gh", "")) != "":                                       # одна ссылка: страница проекта на GitHub
+			var gw := f_t7.get_string_size("GitHub", HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 58.0; var gx := 940.0 - gw
+			_box(Rect2(gx, y + 5, gw, 38), Color("24292F"), Color(0, 0, 0, 0), 0, 8)
+			_box(Rect2(gx + 6, y + 10, 28, 28), Color.WHITE, Color(0, 0, 0, 0), 0, 14); _txt(f_t8, Vector2(gx + 6, y + 24), "</>", 14, Color("24292F"), HORIZONTAL_ALIGNMENT_CENTER, 28)
+			_txt(f_t7, Vector2(gx + 42, y + 24), "GitHub", 20, Color.WHITE)
 		y += 54.0
 	_hint_bar(1480.0, 756.0, hint)
 

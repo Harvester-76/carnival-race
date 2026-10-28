@@ -49,6 +49,7 @@ var about_link := 0
 var link_cur := {}                                                           # открытая в диалоге ссылка: {name, url, qr}
 func open_link(name: String, url: String, qr: String) -> void:               # ссылка в браузер открывается только кнопкой «Перейти» в диалоге
 	link_cur = {"name": name, "url": url, "qr": qr}; goto_page("link")
+const GITHUB_URL := "https://github.com/Harvester-76/carnival-race"
 const LINKS := ["https://vk.ru/re_cycle", "https://m.soundcloud.com/cored_bitch"]
 const ABOUT_TEXT := "Демо-прототип космической гонки по мотивам цикла Ольги Громыко «Космоолухи»: гонка на транспортных кораблях по каньону планеты Карнавал. Написан на Godot %s (физика Jolt) для обкатки управления, трассы и ботов. Одна трасса, двенадцать участников, пять уровней сложности и четыре корабля. Собран для показа идеи. Подробности — в разделе «Планы и режимы» ниже."
 const ACH := [
@@ -366,7 +367,7 @@ func _page_items() -> Array:
 		"project":
 			for ps in PROJECT_SECTIONS: it.append({"t": ps["t"], "body": ps["body"]})
 		"about":
-			it = [{"role": "Проект", "name": "Планы и режимы…", "d": "A — подробнее о проекте", "a": func(): goto_page("project")}, {"role": "Гейм-дизайн", "name": "Harvester", "tg": "https://t.me/another_test_subject", "d": "A — Telegram-канал", "a": func(): open_link("Telegram-канал Harvester", "https://t.me/another_test_subject", "tg")}, {"role": "Программист", "name": "Claude"},
+			it = [{"role": "Проект", "name": "Планы и режимы…", "d": "A — подробнее о проекте", "a": func(): goto_page("project")}, {"role": "Гейм-дизайн", "name": "Harvester", "tg": "https://t.me/another_test_subject", "d": "A — Telegram-канал", "a": func(): open_link("Telegram-канал Harvester", "https://t.me/another_test_subject", "tg")}, {"role": "Программист", "name": "Claude"}, {"role": "Исходники", "name": "GitHub", "gh": GITHUB_URL, "d": "A — страница проекта на GitHub", "a": func(): open_link("Проект на GitHub", GITHUB_URL, "github")},
 				{"role": "Музыка", "name": "Re:Cycle", "links": true, "lk": about_link, "d": "◀ ▶ выбрать ссылку, A открыть", "s": func(d): about_link = posmod(about_link + d, 2), "a": func(): open_link(["Re:Cycle — VK", "Re:Cycle — SoundCloud"][about_link], LINKS[about_link], ["vk_music", "soundcloud"][about_link])}]
 		"ach":
 			var got: Dictionary = main.cfg.get("ach", {})
@@ -590,7 +591,7 @@ func _sync_skin() -> void:                                                 # д�
 		"about":
 			var vi := Engine.get_version_info()
 			skin.mode = "about"; skin.card = {"version": "демо-прототип · версия 0.1", "about": ABOUT_TEXT % ("%d.%d" % [vi["major"], vi["minor"]])}
-			skin.hint = "Отзывы и баги: kolyanasd@gmail.com  ·  GitHub: скоро"
+			skin.hint = "Отзывы и баги: kolyanasd@gmail.com"
 			skin.hint_btns = [bt.call("pad", "◀▶", "Ссылка"), bt.call("A", "", "Открыть ссылку"), bt.call("B", "", "Назад")]
 		"link":
 			skin.mode = "linkdlg"; skin.hint = String(link_cur.get("url", ""))
