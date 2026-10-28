@@ -49,7 +49,7 @@ var about_link := 0
 var link_cur := {}                                                           # открытая в диалоге ссылка: {name, url, qr}
 func open_link(name: String, url: String, qr: String) -> void:               # ссылка в браузер открывается только кнопкой «Перейти» в диалоге
 	link_cur = {"name": name, "url": url, "qr": qr}; goto_page("link")
-const GITHUB_URL := "https://github.com/Harvester-76/kosmooluhi-karnaval-race"
+const GITHUB_URL := "https://github.com/Harvester-76/carnival-race"
 const LINKS := ["https://vk.ru/re_cycle", "https://m.soundcloud.com/cored_bitch"]
 const ABOUT_TEXT := "Демо-прототип космической гонки по мотивам цикла Ольги Громыко «Космоолухи»: гонка на транспортных кораблях по каньону планеты Карнавал. Написан на Godot %s (физика Jolt) для обкатки управления, трассы и ботов. Одна трасса, двенадцать участников, пять уровней сложности и четыре корабля. Собран для показа идеи. Подробности — в разделе «Планы и режимы» ниже."
 const ACH := [
