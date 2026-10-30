@@ -17,6 +17,10 @@ var hint_lbl: Label
 var dim: ColorRect
 var hud_root: Control
 var lbl_rank: Label
+var lbl_riv_a: Label                                                         # соперник впереди
+var lbl_riv_b: Label                                                         # соперник сзади
+var lbl_delta: Label                                                         # отрыв от темпа рекорда
+var lbl_info: Label                                                          # до финиша и до срезки
 var lbl_time: Label
 var lbl_speed: Label
 var lbl_alt: Label
@@ -30,6 +34,9 @@ var ov_sc := 1.0
 var prog_bar: ColorRect
 var prog_bg: ColorRect
 var dmg_ctl: Control
+var inst_ctl: Control                                                        # общий виджет внизу слева: спидометр + прибор положения
+var att_ctl: Control                                                         # прибор положения внизу по центру: горизонт, крен, вектор полёта, курс к трассе, управление
+var att_win: Control                                                         # окно горизонта (обрезает рисунок по рамке)
 var spd_ctl: Control                                                         # стрелочный спидометр слева внизу
 var alt_ctl: Control                                                         # шкала высоты слева
 var map_ctl: Control
@@ -161,19 +168,31 @@ func _build_hud() -> void:
 	prog_bg = ColorRect.new(); prog_bg.color = Color(0, 0, 0, 0.45); prog_bg.position = Vector2(-220, 72); prog_bg.size = Vector2(440, 8); tc.add_child(prog_bg)
 	prog_bar = ColorRect.new(); prog_bar.color = ORANGE; prog_bar.position = Vector2(-220, 72); prog_bar.size = Vector2(0, 8); tc.add_child(prog_bar)
 	lbl_lvl = _lbl("", 16, Color(1, 1, 1, 0.55), tc, Vector2(-220, 86))
+	lbl_riv_a = _lbl("", 20, Color(1.0, 0.72, 0.35), hud_root, Vector2(210.0, 30.0)); lbl_riv_b = _lbl("", 20, Color(0.6, 0.92, 1.0), hud_root, Vector2(210.0, 58.0))
+	lbl_delta = _lbl("", 24, CREAM, hud_root, Vector2(1576.0 - INFO_W, 18.0)); lbl_info = _lbl("", 18, Color(1, 1, 1, 0.9), hud_root, Vector2(1576.0 - INFO_W, 50.0))
+	for rl in [lbl_delta, lbl_info]: (rl as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT; (rl as Label).custom_minimum_size = Vector2(INFO_W, 0.0); (rl as Label).size = Vector2(INFO_W, 30.0)
 	var bl := Control.new(); bl.set_anchors_preset(Control.PRESET_BOTTOM_LEFT); bl.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bl)
 	lbl_speed = _lbl("0", 76, CREAM, bl, Vector2(28, -170))
 	lbl_alt = _lbl("", 22, Color(1, 1, 1, 0.85), bl, Vector2(34, -62))
 	lbl_speed.visible = false; lbl_alt.visible = false                          # скорость и высота теперь на спидометре и шкале высоты
-	spd_ctl = Control.new(); spd_ctl.position = Vector2(16.0, -16.0 - SPD_SZ); spd_ctl.size = Vector2(SPD_SZ, SPD_SZ); spd_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bl.add_child(spd_ctl)
+	inst_ctl = Control.new(); inst_ctl.position = Vector2(16.0, -16.0 - SPD_SZ); inst_ctl.size = Vector2(SPD_SZ + 4.0 + ATT_W, SPD_SZ); inst_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bl.add_child(inst_ctl)
+	inst_ctl.draw.connect(_draw_inst_bg)                                         # общая подложка: спидометр и прибор положения — один виджет
+	spd_ctl = Control.new(); spd_ctl.size = Vector2(SPD_SZ, SPD_SZ); spd_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; inst_ctl.add_child(spd_ctl)
 	spd_ctl.draw.connect(_draw_speed)
+	att_ctl = Control.new(); att_ctl.position = Vector2(SPD_SZ + 4.0, SPD_SZ - 4.0 - ATT_H); att_ctl.size = Vector2(ATT_W, ATT_H); att_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; inst_ctl.add_child(att_ctl)
+	att_ctl.draw.connect(_draw_att)
+	var att_mask := Panel.new(); att_mask.position = Vector2(8, 8); att_mask.size = Vector2(ATT_WW, ATT_WH); att_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE   # маска со скруглёнными углами: обрезает окно горизонта
+	var mk := StyleBoxFlat.new(); mk.bg_color = Color.WHITE; mk.set_corner_radius_all(int(ATT_RAD)); att_mask.add_theme_stylebox_override("panel", mk)
+	att_mask.clip_children = CanvasItem.CLIP_CHILDREN_ONLY; att_ctl.add_child(att_mask)
+	att_win = Control.new(); att_win.size = Vector2(ATT_WW, ATT_WH); att_win.mouse_filter = Control.MOUSE_FILTER_IGNORE; att_mask.add_child(att_win)
+	att_win.draw.connect(_draw_att_win)
 	var bc := Control.new(); bc.set_anchors_preset(Control.PRESET_TOP_RIGHT); bc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bc)
-	dmg_ctl = Control.new(); dmg_ctl.position = Vector2(-DMG_W - 24.0, 24.0); dmg_ctl.size = Vector2(DMG_W, DMG_H); dmg_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bc.add_child(dmg_ctl)
+	dmg_ctl = Control.new(); dmg_ctl.position = Vector2(-DMG_W - 24.0, 124.0); dmg_ctl.size = Vector2(DMG_W, DMG_H); dmg_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bc.add_child(dmg_ctl)
 	dmg_ctl.draw.connect(_draw_damage)
 	alt_ctl = Control.new(); alt_ctl.position = Vector2(20.0, 124.0); alt_ctl.size = Vector2(ALT_W, ALT_H); alt_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(alt_ctl)
 	alt_ctl.draw.connect(_draw_alt)
 	var br := Control.new(); br.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT); br.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(br)
-	map_ctl = Control.new(); map_ctl.position = Vector2(-292, -292); map_ctl.size = Vector2(268, 268); map_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; br.add_child(map_ctl)
+	map_ctl = Control.new(); map_ctl.position = Vector2(-24.0 - SPD_SZ, -16.0 - SPD_SZ); map_ctl.size = Vector2(SPD_SZ, SPD_SZ); map_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; br.add_child(map_ctl)
 	map_ctl.draw.connect(_draw_map)
 	var cc := Control.new(); cc.set_anchors_preset(Control.PRESET_CENTER); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(cc)
 	lbl_count = _lbl("", 200, ORANGE, cc, Vector2(-120, -170)); lbl_count.add_theme_constant_override("outline_size", 22)
@@ -293,6 +312,14 @@ func _draw_damage() -> void:                                                 # �
 		c.draw_colored_polygon(PackedVector2Array([tip + dir * 5.0, tip - dir * 8.0 + side * 6.0, tip - dir * 8.0 - side * 6.0]), vcol)
 	c.draw_circle(ctr, 3.0, Color(1, 1, 1, 0.9))
 
+const ATT_W := 420.0                                                         # прибор положения: окно горизонта слева, справа лента курса, крестик управления и числа
+const ATT_H := 150.0
+const ATT_WW := 210.0
+const ATT_WH := 134.0
+const ATT_RAD := 30.0                                                        # скругление углов окна горизонта, пикс.
+const ATT_PPD := 2.2                                                         # пикселей на градус на шкале тангажа
+const ATT_YEL := Color(1.0, 0.85, 0.1)
+const INFO_W := 360.0                                                        # ширина правого текстового блока над панелью здоровья (отрыв от рекорда, до финиша и срезки)
 const SPD_SZ := 320.0                                                        # спидометр: круглый циферблат со шкалой 270°, цветные зоны, стрелка и крупное значение
 const SPD_MAX := 2400.0                                                      # м/с на конце шкалы (потолок скорости корабля 2300)
 const SPD_ZONES := [[0.0, 0.35, Color(0.35, 0.9, 0.45)], [0.35, 0.65, Color(0.95, 0.8, 0.25)], [0.65, 0.85, Color(0.95, 0.55, 0.2)], [0.85, 1.0, Color(0.95, 0.25, 0.2)]]
@@ -375,6 +402,17 @@ func _draw_alt() -> void:                                                    # �
 	if ttg < 99.0: c.draw_string(f, Vector2(c.size.x - 6.0 - 36.0, by), "%.1f с" % ttg, HORIZONTAL_ALIGNMENT_RIGHT, 36, 14, cg)
 	c.draw_string(f, Vector2(6, by + 20.0), "%d м" % int(maxf(p.y - g, 0.0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, cg if ttg < 6.0 else Color(1, 1, 1, 0.95))
 
+func _draw_inst_bg() -> void:                                                # подложка виджета: круг спидометра, слитый с прямоугольником прибора положения вдоль нижнего края
+	var c := inst_ctl
+	var R := SPD_SZ * 0.5 - 4.0; var C := Vector2(SPD_SZ * 0.5, SPD_SZ * 0.5)
+	var r_bot := SPD_SZ - 4.0; var r_top := r_bot - ATT_H; var W := c.size.x
+	var pts := PackedVector2Array([Vector2(W, r_bot)])
+	var a_end := TAU + asin(clampf((r_top - C.y) / R, -1.0, 1.0))               # дуга от низа круга через левую и верхнюю точки до уровня верхнего края прямоугольника
+	var n := 64
+	for i in n + 1: var a := PI * 0.5 + (a_end - PI * 0.5) * float(i) / float(n); pts.append(C + Vector2(cos(a), sin(a)) * R)
+	pts.append(Vector2(W, r_top))
+	c.draw_colored_polygon(pts, Color(0, 0, 0, 0.45))
+
 func _draw_speed() -> void:
 	var c := spd_ctl; var f := lbl_speed.get_theme_font("font")
 	var v: float = main.ship.linear_velocity.length()
@@ -384,7 +422,6 @@ func _draw_speed() -> void:
 	var ctr := Vector2(BASE, BASE) * 0.5; var r := BASE * 0.5 - 20.0
 	var a0 := deg_to_rad(135.0); var sw := deg_to_rad(270.0)
 	var fr := clampf(v / SPD_MAX, 0.0, 1.0)
-	c.draw_circle(ctr, BASE * 0.5 - 4.0, Color(0, 0, 0, 0.45))
 	for z in SPD_ZONES:                                                          # цветная шкала: тусклая целиком, яркая до текущей скорости
 		var z0 := float(z[0]); var z1 := float(z[1]); var col: Color = z[2]
 		c.draw_arc(ctr, r, a0 + sw * z0, a0 + sw * z1, 24, Color(col.r, col.g, col.b, 0.28), 14.0, true)
@@ -410,6 +447,140 @@ func _draw_speed() -> void:
 	c.draw_string(f, ctr + Vector2(-60, 78), "м/с", HORIZONTAL_ALIGNMENT_CENTER, 120, 20, Color(1, 1, 1, 0.85))
 	c.draw_string(f, ctr + Vector2(-60, r + 8.0), "%d км/ч" % int(v * 3.6), HORIZONTAL_ALIGNMENT_CENTER, 120, 15, Color(1, 1, 1, 0.7))
 
+const RIV_W := 335.0                                                         # ширина блока соперников слева: дальше таймер и полоса прогресса
+func _riv_txt(mark: String, nm: String, gap: float, vp: float, l: Label) -> String:    # строка соперника; длинное имя сокращается с «…», чтобы строка влезла в RIV_W
+	var f := l.get_theme_font("font"); var fs := l.get_theme_font_size("font_size")
+	var rest := "  %s · %.1f с" % [_gap_txt(gap), gap / vp]
+	var shown := nm
+	while shown.length() > 3 and f.get_string_size("%s %s%s" % [mark, shown, rest], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > RIV_W:
+		shown = shown.substr(0, shown.length() - 1)
+	if shown != nm: shown = shown.rstrip(" ") + "…"
+	return "%s %s%s" % [mark, shown, rest]
+
+func _gap_txt(m: float) -> String:
+	return ("%d м" % int(m)) if m < 1000.0 else ("%.1f км" % (m / 1000.0))
+
+func _update_race_info() -> void:                                            # текст без рамки: соперники рядом, темп относительно рекорда, до финиша и срезки
+	var live: bool = main.racing and not main.p_fin and not main.p_dsq
+	if not live:
+		lbl_riv_a.text = ""; lbl_riv_b.text = ""; lbl_delta.text = ""; lbl_info.text = ""
+		return
+	var pp: float = main.p_prog
+	var vp := maxf(main.ship.linear_velocity.length(), 300.0)                    # оценка времени отрыва: расстояние делим на нашу скорость, не ниже 300 м/с
+	var a_gap := 1e12; var a_name := ""; var b_gap := 1e12; var b_name := ""
+	for b in main.bots:
+		if bool(b["fin"]): continue
+		var g: float = float(b["prog"]) - pp
+		if g > 0.0 and g < a_gap: a_gap = g; a_name = String(b["name"])
+		elif g <= 0.0 and -g < b_gap: b_gap = -g; b_name = String(b["name"])
+	lbl_riv_a.text = _riv_txt("▲", a_name, a_gap, vp, lbl_riv_a) if a_gap < 6000.0 else ""
+	lbl_riv_b.text = _riv_txt("▼", b_name, b_gap, vp, lbl_riv_b) if b_gap < 6000.0 else ""
+	var rec: Dictionary = main.cfg.get("rec", {}); var key := "%d:%d" % [main._lvl(), int(main.cfg.get("ship", 0))]
+	var personal: bool = rec.has(key)
+	var ref_t: float = float(rec[key]) if personal else DEV_RECORD
+	var frac := clampf(pp / maxf(main.race_len, 1.0), 0.0, 1.0)
+	if frac > 0.02 and main.race_t > 5.0:
+		var dl: float = main.race_t - ref_t * frac                               # темп рекорда считаем равномерным по дистанции
+		lbl_delta.text = "%s %+.1f с" % ["К РЕКОРДУ" if personal else "К РАЗРАБОТЧИКУ", dl]
+		lbl_delta.add_theme_color_override("font_color", Color(0.45, 0.95, 0.5) if dl <= 0.0 else Color(1.0, 0.45, 0.35))
+	else: lbl_delta.text = ""
+	var fin := maxf(main.race_len - pp, 0.0)
+	var txt := "До финиша %s" % _gap_txt(fin)
+	for fk in main.forks:
+		if pp < float(fk["out"]):
+			if pp >= float(fk["in"]): txt += "\nВ срезке, до выхода %s" % _gap_txt(float(fk["out"]) - pp)
+			else: txt += "\nСрезка через %s" % _gap_txt(float(fk["in"]) - pp)
+			break
+	lbl_info.text = txt
+
+func _att_data() -> Dictionary:                                              # углы корабля: тангаж и крен, снос (вектор скорости относительно носа), курс к трассе
+	var sh: RigidBody3D = main.ship
+	var b: Basis = sh.global_transform.basis.orthonormalized()
+	var f := -b.z
+	var d := {"pitch": rad_to_deg(asin(clampf(f.y, -1.0, 1.0))), "roll": rad_to_deg(atan2(-b.x.y, b.y.y)), "fpv": false, "az": 0.0, "el": 0.0, "dev": 0.0, "devv": 0.0, "dev_ok": false}
+	var v := sh.linear_velocity
+	if v.length() > 30.0:
+		var vl := b.inverse() * v                                                # скорость в осях корабля: x вправо, y вверх, нос по -z
+		d["fpv"] = true; d["az"] = rad_to_deg(atan2(vl.x, -vl.z)); d["el"] = rad_to_deg(atan2(vl.y, Vector2(vl.x, vl.z).length()))
+	if main.trk_pts.size() > 1:
+		var td: Vector2 = main._track_at(main.p_prog)[1]
+		var ta := td.angle()
+		d["dev"] = rad_to_deg(wrapf(Vector2(f.x, f.z).angle() - ta, -PI, PI)); d["dev_ok"] = true     # + : нос правее направления трассы
+		if v.length() > 30.0: d["devv"] = rad_to_deg(wrapf(Vector2(v.x, v.z).angle() - ta, -PI, PI))
+	return d
+
+func _draw_att_win() -> void:                                                # искусственный горизонт: небо/земля, шкала тангажа, шкала крена, вектор полёта, указатель скольжения
+	var w := att_win; var f := ThemeDB.fallback_font
+	var d := _att_data()
+	var pitch := float(d["pitch"]); var roll := float(d["roll"])
+	var C := w.size * 0.5
+	var py := pitch * ATT_PPD
+	w.draw_set_transform(C, -deg_to_rad(roll), Vector2.ONE)                      # горизонт поворачивается против крена
+	w.draw_rect(Rect2(-500, -900.0 + py, 1000, 900), Color(0.22, 0.46, 0.80, 0.92))
+	w.draw_rect(Rect2(-500, py, 1000, 900), Color(0.52, 0.34, 0.16, 0.95))
+	w.draw_line(Vector2(-500, py), Vector2(500, py), Color(1, 1, 1, 0.95), 2.0)
+	for a in range(-90, 91, 5):
+		if a == 0: continue
+		var yy := py - float(a) * ATT_PPD
+		if absf(yy) > 110.0: continue
+		var half := 36.0 if a % 10 == 0 else 16.0
+		w.draw_line(Vector2(-half, yy), Vector2(half, yy), Color(1, 1, 1, 0.85), 1.5)
+		if a % 10 == 0:
+			w.draw_string(f, Vector2(-half - 24.0, yy + 4.0), str(absi(a)), HORIZONTAL_ALIGNMENT_RIGHT, 20, 11, Color(1, 1, 1, 0.9))
+			w.draw_string(f, Vector2(half + 4.0, yy + 4.0), str(absi(a)), HORIZONTAL_ALIGNMENT_LEFT, 20, 11, Color(1, 1, 1, 0.9))
+	w.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var R := 58.0                                                                # шкала крена: дуга сверху, деления 10/20/30/45/60°, указатель едет в сторону крена
+	for deg in [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]:
+		var dir := Vector2(sin(deg_to_rad(float(deg))), -cos(deg_to_rad(float(deg))))
+		var ln := 10.0 if (deg % 30 == 0 or absi(deg) == 45) else 6.0
+		w.draw_line(C + dir * R, C + dir * (R - ln), Color(1, 1, 1, 0.9), 1.5)
+	var rr := clampf(roll, -75.0, 75.0)
+	var pd := Vector2(sin(deg_to_rad(rr)), -cos(deg_to_rad(rr))); var pn := Vector2(-pd.y, pd.x)
+	w.draw_colored_polygon(PackedVector2Array([C + pd * (R + 1.0), C + pd * (R - 11.0) + pn * 6.0, C + pd * (R - 11.0) - pn * 6.0]), ATT_YEL)
+	var slip := clampf(float(d["az"]) * 4.0, -24.0, 24.0)                        # указатель скольжения: трапеция под указателем крена, смещается при боковом сносе
+	var sc := C + pd * (R - 15.0) + Vector2(slip, 0.0)
+	w.draw_colored_polygon(PackedVector2Array([sc + Vector2(-8, 4), sc + Vector2(8, 4), sc + Vector2(5, -3), sc + Vector2(-5, -3)]), Color(1, 1, 1, 0.9))
+	if bool(d["fpv"]):                                                           # вектор полёта: куда корабль реально летит относительно носа
+		var fp := C + Vector2(clampf(float(d["az"]) * ATT_PPD, -90.0, 90.0), clampf(-float(d["el"]) * ATT_PPD, -60.0, 60.0))
+		w.draw_arc(fp, 6.0, 0.0, TAU, 20, Color(0.4, 1.0, 0.5), 2.2, true)
+		w.draw_line(fp + Vector2(6, 0), fp + Vector2(14, 0), Color(0.4, 1.0, 0.5), 2.2); w.draw_line(fp + Vector2(-6, 0), fp + Vector2(-14, 0), Color(0.4, 1.0, 0.5), 2.2); w.draw_line(fp + Vector2(0, -6), fp + Vector2(0, -12), Color(0.4, 1.0, 0.5), 2.2)
+	w.draw_line(C + Vector2(-40, 0), C + Vector2(-16, 0), ATT_YEL, 3.5); w.draw_line(C + Vector2(16, 0), C + Vector2(40, 0), ATT_YEL, 3.5)    # символ корабля
+	w.draw_line(C + Vector2(-16, 0), C + Vector2(-16, 7), ATT_YEL, 3.5); w.draw_line(C + Vector2(16, 0), C + Vector2(16, 7), ATT_YEL, 3.5); w.draw_circle(C, 2.5, ATT_YEL)
+
+func _draw_att() -> void:                                                    # рамка прибора, лента курса к трассе, крестик управления, числа
+	var c := att_ctl; var f := ThemeDB.fallback_font
+	var d := _att_data()
+	var bs := StyleBoxFlat.new(); bs.bg_color = Color(0, 0, 0, 0); bs.set_border_width_all(2); bs.border_color = Color(1, 1, 1, 0.55); bs.set_corner_radius_all(int(ATT_RAD))
+	c.draw_style_box(bs, Rect2(8, 8, ATT_WW, ATT_WH))                           # рамка окна горизонта со скруглёнными углами
+	var sx := 226.0; var sw := 186.0                                             # лента курса: центр — направление трассы, ±60°
+	c.draw_rect(Rect2(sx, 8, sw, 34), Color(0, 0, 0, 0.35)); c.draw_rect(Rect2(sx, 8, sw, 34), Color(1, 1, 1, 0.3), false, 1.0)
+	var kd := sw / 120.0; var cx := sx + sw * 0.5
+	for a in range(-60, 61, 15):
+		var xx := cx + float(a) * kd
+		c.draw_line(Vector2(xx, 42), Vector2(xx, 36 if a != 0 else 30), Color(1, 1, 1, 0.8), 1.5)
+		if a % 30 == 0: c.draw_string(f, Vector2(xx - 15.0, 26), str(a), HORIZONTAL_ALIGNMENT_CENTER, 30, 11, Color(1, 1, 1, 0.75))
+	c.draw_string(f, Vector2(sx, 17), "КУРС К ТРАССЕ", HORIZONTAL_ALIGNMENT_CENTER, sw, 10, Color(1, 1, 1, 0.6))
+	if bool(d["dev_ok"]):
+		var dn := clampf(float(d["dev"]), -62.0, 62.0)
+		c.draw_colored_polygon(PackedVector2Array([Vector2(cx + dn * kd, 43), Vector2(cx + dn * kd - 6, 51), Vector2(cx + dn * kd + 6, 51)]), ATT_YEL)     # нос
+		if bool(d["fpv"]):
+			var dv := clampf(float(d["devv"]), -62.0, 62.0)
+			c.draw_colored_polygon(PackedVector2Array([Vector2(cx + dv * kd, 30), Vector2(cx + dv * kd - 5, 36), Vector2(cx + dv * kd, 42), Vector2(cx + dv * kd + 5, 36)]), Color(0.4, 1.0, 0.5))   # куда летим
+	var ox := 232.0; var oy := 60.0; var os := 80.0                              # крестик управления: стик тангажа и крена (точка), педали рыскания (полоса)
+	c.draw_rect(Rect2(ox, oy, os, os), Color(0, 0, 0, 0.35)); c.draw_rect(Rect2(ox, oy, os, os), Color(1, 1, 1, 0.3), false, 1.0)
+	c.draw_line(Vector2(ox + os * 0.5, oy), Vector2(ox + os * 0.5, oy + os), Color(1, 1, 1, 0.25), 1.0); c.draw_line(Vector2(ox, oy + os * 0.5), Vector2(ox + os, oy + os * 0.5), Color(1, 1, 1, 0.25), 1.0)
+	var g: Vector3 = (main.last_ctrl.get("gyro", Vector3.ZERO) as Vector3)
+	var dot := Vector2(ox + os * 0.5 - clampf(g.z, -1.0, 1.0) * os * 0.45, oy + os * 0.5 + clampf(g.x, -1.0, 1.0) * os * 0.45)   # влево при крене влево, вниз при носе вниз
+	c.draw_circle(dot, 5.0, Color(0.4, 1.0, 0.5))
+	c.draw_rect(Rect2(ox, oy + os + 4.0, os, 6), Color(1, 1, 1, 0.18))
+	c.draw_rect(Rect2(ox + os * 0.5 - clampf(g.y, -1.0, 1.0) * os * 0.5 - (0.0 if g.y < 0.0 else 0.0), oy + os + 4.0, 3, 6), Color(0.4, 1.0, 0.5))
+	c.draw_string(f, Vector2(ox, oy - 2.0), "", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1, 0.5))
+	var tx := 326.0                                                              # числа: тангаж, крен, снос
+	var rows := [["ТАНГАЖ", "%+d°" % int(round(float(d["pitch"])))], ["КРЕН", "%+d°" % int(round(float(d["roll"])))], ["СНОС", "%+d°" % int(round(float(d["az"])))]]
+	for i in rows.size():
+		c.draw_string(f, Vector2(tx, 70.0 + 28.0 * i), rows[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.6))
+		c.draw_string(f, Vector2(tx, 86.0 + 28.0 * i), rows[i][1], HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 1, 1, 0.95))
+
 func _map_setup() -> void:
 	var lo := Vector2(1e12, 1e12); var hi := Vector2(-1e12, -1e12)
 	for p in main.trk_pts: lo = lo.min(p); hi = hi.max(p)
@@ -423,7 +594,8 @@ func _mp(p: Vector2) -> Vector2:
 func _draw_map() -> void:
 	var c := map_ctl
 	if map_b.size == Vector2.ZERO: _map_setup()
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0, 0, 0, 0.4))
+	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * (c.size.x / 268.0))      # карта нарисована в координатах 268×268 и растягивается до размера виджета спидометра
+	c.draw_rect(Rect2(Vector2.ZERO, Vector2(268, 268)), Color(0, 0, 0, 0.4))
 	var pts := PackedVector2Array()
 	var step := 3
 	for i in range(0, main.trk_pts.size(), step): pts.append(_mp(main.trk_pts[i]))
@@ -1384,8 +1556,9 @@ func _process(_dt: float) -> void:
 	lbl_speed.text = "%d м/с" % int(v)
 	lbl_alt.text = "высота %d м   ·   %d км/ч" % [int(main.ship.global_position.y), int(v * 3.6)]
 	lbl_lvl.text = "Уровень: " + main.LEVEL_NAMES[main._lvl()]
+	_update_race_info()
 	prog_bar.size.x = 440.0 * clampf(float(main.p_prog) / main.race_len, 0.0, 1.0) if main.race_len < 1e11 else 0.0
-	dmg_ctl.queue_redraw(); alt_ctl.queue_redraw(); spd_ctl.queue_redraw(); map_ctl.queue_redraw()
+	dmg_ctl.queue_redraw(); alt_ctl.queue_redraw(); inst_ctl.queue_redraw(); spd_ctl.queue_redraw(); att_ctl.queue_redraw(); att_win.queue_redraw(); map_ctl.queue_redraw()
 	# обратный отсчёт
 	if state in ["hud", "pause"]: hud_root.visible = not main.in_cutscene()
 	lbl_skip.visible = state == "hud" and main.in_cutscene()
