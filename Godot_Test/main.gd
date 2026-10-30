@@ -152,6 +152,7 @@ var hull_bite_shader: Shader
 var flame_shader: Shader
 var glow_shader: Shader
 var core_shader: Shader
+var blade_shader: Shader                                                    # свет внутри мотора на стенках лопастей (оверлей поверх корпуса мотора)
 var engines := {}            # имя -> {kind, mi, flame, fmat, pos, mats}
 var kind_total := {"main": 0, "lift": 0, "shunt": 0, "nose": 0}
 var hold_alt := START_ALT
@@ -971,26 +972,80 @@ void fragment(){
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never;
 uniform float power = 0.0;
 void fragment(){
-  float f = 0.85 + 0.15 * sin(TIME * 40.0);
-  ALBEDO = vec3(0.35, 0.65, 1.0) * (0.4 + power * 2.5) * f;
-  ALPHA = clamp(0.12 + power * 0.8, 0.0, 1.0);
+  // плоский мерцающий диск у среза мотора, как было раньше, но чуть прозрачнее прежнего: поверх него светятся лопасти (blade_shader)
+  float f = 0.6 + 0.34 * sin(TIME * 40.0) + 0.26 * sin(TIME * 23.7 + 1.3) + 0.2 * sin(TIME * 67.0 + 0.4);       // сильное неровное мерцание: три несоизмеримые частоты, яркость гуляет от почти нуля до ~1,4
+  f = max(f, 0.05);
+  f *= f * 0.6 + 0.7;                                                                                   // провалы глубже, пики резче
+  vec3 col = mix(vec3(0.02, 0.2, 1.0), vec3(0.35, 0.65, 1.0), clamp(power * 1.4, 0.0, 1.0));   // в покое мерцает синим, с тягой светлеет к голубому
+  ALBEDO = col * (0.4 + power * 2.5) * f;
+  ALPHA = clamp(0.1 + power * 0.6, 0.0, 1.0);
+}"""
+	blade_shader = Shader.new()
+	blade_shader.code = """shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never;
+uniform float power = 0.0;
+instance uniform vec3 ctr = vec3(0.0);
+instance uniform vec3 axis = vec3(0.0, 0.0, 1.0);
+instance uniform float rad_g = 0.0;
+instance uniform float t_lo = 0.0;
+instance uniform float t_hi = 1.0;
+varying vec3 lp;
+varying vec3 ln;
+void vertex(){ lp = VERTEX; ln = NORMAL; }
+void fragment(){
+  // свет ядра на стенках и дне лопастей, как настоящее освещение: сильнее у ядра, по мере удаления слабеет и холоднеет, грани, повёрнутые от ядра, остаются тёмными
+  if (rad_g < 0.0001) discard;
+  vec3 a = normalize(axis);
+  vec3 d = lp - ctr;
+  float t = dot(d, a);
+  float r = length(d - a * t) / rad_g;
+  vec3 src = ctr + a * (t_lo * 0.35);                                                // условный источник света в ядре
+  vec3 toL = src - lp;
+  float dist = length(toL) / rad_g;
+  float lam = clamp(dot(normalize(ln), normalize(toL)), 0.0, 1.0);
+  float ring = smoothstep(0.5, 0.7, r) * (1.0 - smoothstep(1.3, 1.45, r));        // кольцо лопастей вокруг ядра, наружные стенки корпуса сюда не попадают
+  float atten = 1.0 / (1.0 + 3.0 * dist * dist);
+  float fade = 1.0 - smoothstep(0.6, 1.5, dist);                                     // у внешнего конца свет сходит на нет
+  vec3 rdir = normalize(d - a * t + vec3(0.0001));
+  float outw = 1.0 - smoothstep(0.15, 0.55, dot(normalize(ln), rdir));               // наружные стенки корпуса мотора не светим
+  float k = pow(lam, 0.7) * atten * fade * ring * 3.0;
+  float amb = atten * fade * ring * outw * 1.7;                                      // грани в тени ядра (прожилки между лопастями) тоже светятся, но глубоким холодным синим
+  vec3 c = mix(vec3(0.60, 0.95, 1.0), vec3(0.0, 0.20, 0.95), smoothstep(0.1, 1.1, dist));   // у ядра горячий голубой, дальше холодный синий
+  float flick = 0.85 + 0.07 * sin(TIME * (2.0 + power * 20.0)) + 0.08 * sin(TIME * 41.0 + 0.7) + 0.05 * sin(TIME * 23.7 + 1.3);      // свет на лопастях заметно дрожит вместе с диском
+  ALBEDO = (c * k + vec3(0.0, 0.14, 0.95) * amb) * (1.8 + power * 3.5) * flick;
+  ALPHA = 1.0;
 }"""
 	core_shader = Shader.new()
 	core_shader.code = """shader_type spatial;
 render_mode unshaded, cull_disabled;
 uniform float power = 0.0;
+instance uniform vec3 ctr = vec3(0.0);
+instance uniform vec3 axis = vec3(0.0, 0.0, 1.0);
+instance uniform float rad = 0.0;
 varying vec3 lp;
 void vertex(){ lp = VERTEX; }
 void fragment(){
-  // светящееся плазменное ядро, а не крашеный шар: без бликов, середина горячее, к краю темнеет, внутри медленно «переливается»
+  // гладкий яркий голубой диск (как дефлектор на кадрах из кино): плоский рисунок вокруг оси мотора, а не объёмный шар; лучи рисуют лопасти, а не само ядро;
+  // яркость выше 1, поэтому свечение (glow) даёт ореол вокруг диска; рисунок неподвижный, только общее лёгкое «дыхание»
   float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
-  float core = pow(nv, 2.6);
-  float sw = 0.5 + 0.12 * cos(nv * 11.0);                        // неподвижные мягкие кольца вокруг центра: без бегущих волн
-  float flick = 0.93 + 0.07 * sin(TIME * (2.5 + power * 22.0));   // дыхание ядра целиком (ничего не «течёт»)
-  float heat = clamp(core * (0.55 + 0.35 * sw) + power * 0.55, 0.0, 1.0);
-  vec3 deep = vec3(0.01, 0.05, 0.38); vec3 hot = vec3(0.6, 0.88, 1.0);
-  vec3 c = mix(deep, hot, heat * heat * (3.0 - 2.0 * heat));
-  ALBEDO = c * (0.3 + core * 0.7 + power * 2.6) * flick;
+  float r = clamp(acos(nv) / 1.5708, 0.0, 1.0);                     // запасной вариант без геометрии: радиус по углу к взгляду
+  float ang = 0.0;
+  if (rad > 0.0001) {
+    vec3 a = normalize(axis);
+    vec3 d = lp - ctr;
+    vec3 pr = d - a * dot(d, a);
+    r = clamp(length(pr) / rad, 0.0, 1.0);
+    vec3 t1 = normalize(abs(a.y) < 0.9 ? cross(a, vec3(0.0, 1.0, 0.0)) : cross(a, vec3(1.0, 0.0, 0.0)));
+    vec3 t2 = cross(a, t1);
+    ang = atan(dot(pr, t2), dot(pr, t1));
+  }
+  float flick = 0.95 + 0.05 * sin(TIME * (2.0 + power * 20.0));
+  vec3 deep = vec3(0.30, 0.03, 0.85); vec3 mid = vec3(0.09, 0.18, 1.0); vec3 hot = vec3(0.40, 0.70, 1.0);        // край индиго (синий с заметной фиолетовой примесью)
+  float s1 = smoothstep(0.1, 0.65, r);                               // центр горячий голубой -> середина яркий голубой
+  float s2 = smoothstep(0.55, 1.0, r);                              // к краю глубокий синий (цвет остаётся насыщенным, потому что и яркость к краю падает)
+  vec3 c = mix(hot, mid, s1);
+  c = mix(c, deep, s2);
+  ALBEDO = c * (1.3 + power * 1.5) * (1.0 - 0.4 * s2) * flick;
 }"""
 
 func _build_world() -> void:
@@ -1303,6 +1358,7 @@ func _spawn_bots() -> void:                                                  # �
 	bot_tex = {"alb": load("res://ship/tex/hull_albedo_4096.png"), "rgh": load("res://ship/tex/hull_roughness_4096.png"), "mtl": load("res://ship/tex/hull_metallic_4096.png"), "dec": load("res://ship/tex/decal_third_chance.png")}
 	var glow := ShaderMaterial.new(); glow.shader = glow_shader; glow.set_shader_parameter("power", 0.6)
 	var core := ShaderMaterial.new(); core.shader = core_shader; core.set_shader_parameter("power", 0.6)
+	var blade := ShaderMaterial.new(); blade.shader = blade_shader; blade.set_shader_parameter("power", 0.6)
 	for i in N_BOTS:
 		var slot: Vector2i = slots[i + off]
 		var rb := RigidBody3D.new(); rb.name = "Bot%d" % i; rb.mass = MASS; rb.gravity_scale = 1.0
@@ -1331,7 +1387,7 @@ func _spawn_bots() -> void:                                                  # �
 				var m := mi.mesh.surface_get_material(k)
 				if m == null: continue
 				if m.resource_name == "MAT_Engine_Glow": mi.set_surface_override_material(k, glow)
-				elif m.resource_name == "MAT_Engine_Core": mi.set_surface_override_material(k, core)
+				elif m.resource_name == "MAT_Engine_Core": mi.set_surface_override_material(k, core); _core_instance_params(mi, k); mi.material_overlay = blade
 			if nm.begins_with("SM_Glass"): mi.material_override = _glass_mat()
 		var bparts := {}; var beng := {}; var btot := {"main": 0, "lift": 0, "shunt": 0}
 		for n in rb.get_children():
@@ -1850,6 +1906,46 @@ void fragment(){ ALBEDO=vec3(0.06,0.15,0.25); ROUGHNESS=0.04; SPECULAR=0.6; ALPH
 		mat_glass = ShaderMaterial.new(); mat_glass.shader = sh
 	return mat_glass
 
+var core_geo_cache := {}                                                   # меш + поверхность -> [центр, ось, радиус] светящегося ядра (в осях меша)
+func _core_instance_params(mi: MeshInstance3D, surf: int) -> void:         # рисунок ядра и света лопастей строится вокруг оси мотора: центр, направление наружу и радиусы берём из геометрии
+	var key := "%d:%d" % [mi.mesh.get_instance_id(), surf]
+	if not core_geo_cache.has(key):
+		var cv: PackedVector3Array = mi.mesh.surface_get_arrays(surf)[Mesh.ARRAY_VERTEX]
+		var c := Vector3.ZERO; var ax := Vector3(0, 0, 1)
+		var rad_g := 0.0
+		var gi := -1                                                       # ось и центр берём по диску MAT_Engine_Glow: он плоский и симметричный, нормаль диска точно вдоль оси (у купола ядра среднее по нормалям уходит в сторону)
+		for si in mi.mesh.get_surface_count():
+			var gm := mi.mesh.surface_get_material(si)
+			if gm != null and gm.resource_name == "MAT_Engine_Glow": gi = si; break
+		if gi >= 0:
+			var ga := mi.mesh.surface_get_arrays(gi)
+			var gv: PackedVector3Array = ga[Mesh.ARRAY_VERTEX]; var gn: PackedVector3Array = ga[Mesh.ARRAY_NORMAL]
+			var nav := Vector3.ZERO
+			for k in gv.size(): c += gv[k]; nav += gn[k]
+			c /= float(maxi(gv.size(), 1))
+			if nav.length() > 0.01:
+				ax = nav.normalized()
+				if ax.dot(c - mi.mesh.get_aabb().get_center()) < 0.0: ax = -ax          # наружу: от середины мотора к диску
+			for v in gv: rad_g = maxf(rad_g, (v - c - ax * (v - c).dot(ax)).length())
+		else:
+			for v in cv: c += v
+			c /= float(maxi(cv.size(), 1))
+		var rad := 0.0; var t_lo := -1e9                                    # радиус ядра и где оно кончается по оси
+		for v in cv:
+			rad = maxf(rad, (v - c - ax * (v - c).dot(ax)).length()); t_lo = maxf(t_lo, (v - c).dot(ax))
+		var ts := []                                                       # где кончаются лопасти: 95-й процентиль координат вершин корпуса в кольце лопастей
+		for si in mi.mesh.get_surface_count():
+			var bm := mi.mesh.surface_get_material(si)
+			if bm == null or bm.resource_name == "MAT_Engine_Glow" or bm.resource_name == "MAT_Engine_Core": continue
+			for v in (mi.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+				var tt := (v - c).dot(ax); var rr := (v - c - ax * tt).length()
+				if tt > t_lo and rr > rad_g * 0.85 and rr < rad_g * 1.45: ts.append(tt)
+		ts.sort()
+		var t_hi: float = float(ts[int(float(ts.size() - 1) * 0.95)]) if ts.size() > 8 else t_lo + rad_g * 0.8
+		core_geo_cache[key] = [c, ax, rad, rad_g, t_lo, maxf(t_hi, t_lo + 0.05)]
+	var g: Array = core_geo_cache[key]
+	mi.set_instance_shader_parameter("ctr", g[0]); mi.set_instance_shader_parameter("axis", g[1]); mi.set_instance_shader_parameter("rad", g[2]); mi.set_instance_shader_parameter("rad_g", g[3]); mi.set_instance_shader_parameter("t_lo", g[4]); mi.set_instance_shader_parameter("t_hi", g[5])
+
 func _setup_engine(mi: MeshInstance3D) -> void:
 	var nm := String(mi.name)
 	var kind := "shunt"
@@ -1882,7 +1978,8 @@ func _setup_engine(mi: MeshInstance3D) -> void:
 		if m.resource_name == "MAT_Engine_Glow":
 			var sm := ShaderMaterial.new(); sm.shader = glow_shader; mi.set_surface_override_material(i, sm); mats.append(sm)
 		elif m.resource_name == "MAT_Engine_Core":
-			var sm := ShaderMaterial.new(); sm.shader = core_shader; mi.set_surface_override_material(i, sm); mats.append(sm)
+			var sm := ShaderMaterial.new(); sm.shader = core_shader; mi.set_surface_override_material(i, sm); mats.append(sm); _core_instance_params(mi, i)
+			var bl := ShaderMaterial.new(); bl.shader = blade_shader; mi.material_overlay = bl; mats.append(bl)
 	var pivot := Node3D.new(); pivot.position = noz; mi.add_child(pivot)
 	var cone := CylinderMesh.new(); cone.top_radius = 0.0; cone.bottom_radius = 1.0; cone.height = 1.0
 	cone.radial_segments = 24; cone.rings = 1; cone.cap_top = false; cone.cap_bottom = false
@@ -2571,6 +2668,7 @@ func _fx_tex() -> Texture2D:
 # Мотор «выключен»: пластина свечения становится полностью прозрачной, ядро получает материал основной части мотора
 func _dead_engine_look(mi: MeshInstance3D) -> void:
 	if mi.mesh == null or evo_mode: return
+	mi.material_overlay = null                                                # мёртвый мотор не светится
 	var body: Material = null
 	for i in mi.mesh.get_surface_count():
 		var m := mi.mesh.surface_get_material(i)
