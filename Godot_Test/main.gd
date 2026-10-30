@@ -1024,6 +1024,16 @@ instance uniform vec3 axis = vec3(0.0, 0.0, 1.0);
 instance uniform float rad = 0.0;
 varying vec3 lp;
 void vertex(){ lp = VERTEX; }
+float h31(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vnoise(vec3 x){
+  vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+float ember(vec3 p, float rate){                                                    // «тлеющий уголёк»: два случайных поля плавно перетекают друг в друга на месте, без бегущих волн
+  float ti = TIME * rate; float a = floor(ti); float b = smoothstep(0.0, 1.0, fract(ti));
+  return mix(vnoise(p + a * vec3(7.1, 3.3, 5.7)), vnoise(p + (a + 1.0) * vec3(7.1, 3.3, 5.7)), b);
+}
 void fragment(){
   // гладкий яркий голубой диск (как дефлектор на кадрах из кино): плоский рисунок вокруг оси мотора, а не объёмный шар; лучи рисуют лопасти, а не само ядро;
   // яркость выше 1, поэтому свечение (glow) даёт ореол вокруг диска; рисунок неподвижный, только общее лёгкое «дыхание»
@@ -1045,7 +1055,12 @@ void fragment(){
   float s2 = smoothstep(0.55, 1.0, r);                              // к краю глубокий синий (цвет остаётся насыщенным, потому что и яркость к краю падает)
   vec3 c = mix(hot, mid, s1);
   c = mix(c, deep, s2);
-  ALBEDO = c * (1.3 + power * 1.5) * (1.0 - 0.4 * s2) * flick;
+  vec3 q = (lp - ctr) / max(rad, 0.001) * 2.2;
+  float e = ember(q, 0.5) * 0.6 + ember(q * 2.4 + 11.0, 0.9) * 0.4;                 // пятна жара: медленные, на месте, угасают и разгораются
+  float zone = 1.0 - smoothstep(0.3, 0.62, r);                                      // тление только в самой центральной области ядра, дальше прежний градиент без изменений
+  float m = mix(1.0, 0.72 + 0.56 * smoothstep(0.2, 0.8, e), zone);
+  c = mix(c, vec3(0.45, 0.78, 1.0), clamp((m - 1.0) * 0.9, 0.0, 0.3));              // в разгоревшихся пятнах чуть светлее и горячее
+  ALBEDO = c * (1.3 + power * 1.5) * (1.0 - 0.4 * s2) * flick * m;
 }"""
 
 func _build_world() -> void:
