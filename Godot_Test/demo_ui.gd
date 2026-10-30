@@ -30,6 +30,8 @@ var ov_sc := 1.0
 var prog_bar: ColorRect
 var prog_bg: ColorRect
 var dmg_ctl: Control
+var spd_ctl: Control                                                         # стрелочный спидометр слева внизу
+var alt_ctl: Control                                                         # шкала высоты слева
 var map_ctl: Control
 var res_panel: Control
 var res_title: Label
@@ -162,9 +164,14 @@ func _build_hud() -> void:
 	var bl := Control.new(); bl.set_anchors_preset(Control.PRESET_BOTTOM_LEFT); bl.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bl)
 	lbl_speed = _lbl("0", 76, CREAM, bl, Vector2(28, -170))
 	lbl_alt = _lbl("", 22, Color(1, 1, 1, 0.85), bl, Vector2(34, -62))
+	lbl_speed.visible = false; lbl_alt.visible = false                          # скорость и высота теперь на спидометре и шкале высоты
+	spd_ctl = Control.new(); spd_ctl.position = Vector2(16.0, -16.0 - SPD_SZ); spd_ctl.size = Vector2(SPD_SZ, SPD_SZ); spd_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bl.add_child(spd_ctl)
+	spd_ctl.draw.connect(_draw_speed)
 	var bc := Control.new(); bc.set_anchors_preset(Control.PRESET_TOP_RIGHT); bc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bc)
 	dmg_ctl = Control.new(); dmg_ctl.position = Vector2(-DMG_W - 24.0, 24.0); dmg_ctl.size = Vector2(DMG_W, DMG_H); dmg_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bc.add_child(dmg_ctl)
 	dmg_ctl.draw.connect(_draw_damage)
+	alt_ctl = Control.new(); alt_ctl.position = Vector2(20.0, 124.0); alt_ctl.size = Vector2(ALT_W, ALT_H); alt_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(alt_ctl)
+	alt_ctl.draw.connect(_draw_alt)
 	var br := Control.new(); br.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT); br.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(br)
 	map_ctl = Control.new(); map_ctl.position = Vector2(-292, -292); map_ctl.size = Vector2(268, 268); map_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; br.add_child(map_ctl)
 	map_ctl.draw.connect(_draw_map)
@@ -285,6 +292,123 @@ func _draw_damage() -> void:                                                 # �
 		var side := Vector2(-dir.y, dir.x)
 		c.draw_colored_polygon(PackedVector2Array([tip + dir * 5.0, tip - dir * 8.0 + side * 6.0, tip - dir * 8.0 - side * 6.0]), vcol)
 	c.draw_circle(ctr, 3.0, Color(1, 1, 1, 0.9))
+
+const SPD_SZ := 320.0                                                        # спидометр: круглый циферблат со шкалой 270°, цветные зоны, стрелка и крупное значение
+const SPD_MAX := 2400.0                                                      # м/с на конце шкалы (потолок скорости корабля 2300)
+const SPD_ZONES := [[0.0, 0.35, Color(0.35, 0.9, 0.45)], [0.35, 0.65, Color(0.95, 0.8, 0.25)], [0.65, 0.85, Color(0.95, 0.55, 0.2)], [0.85, 1.0, Color(0.95, 0.25, 0.2)]]
+const ALT_W := 110.0                                                         # шкала высоты: лента с цветными зонами слева, окно ±ALT_SPAN/2 вокруг корабля
+const ALT_H := 420.0
+const ALT_SPAN := 2000.0                                                     # м высоты в окне ленты
+const ALT_WARN_BAND := 300.0                                                 # м под потолком, где зона предупреждения (боты тоже держатся ниже этого)
+const ALT_GROUND_BAND := 250.0                                               # м над землёй, где зона предупреждения у земли
+const ALT_GROUND_RED := 80.0                                                 # м над землёй, ближе которых красная зона
+const ALT_VS_REF := 300.0                                                    # м/с вертикальной скорости, при которых стрелка полной длины
+
+func _alt_ground_time(p: Vector3, v: Vector3) -> float:                      # через сколько секунд при таком движении корабль окажется у земли (до 6 с), иначе 99
+	for k in 12:
+		var t := 0.5 * float(k + 1)
+		var q := p + v * t
+		if q.y - float(main.height(q.x, q.z)) < 20.0: return t
+	return 99.0
+
+func _alt_tc(t: float) -> Color:                                             # цвет по времени до границы: красный < 3 с, янтарный < 6 с, иначе спокойный
+	if t < 3.0: return Color(0.95, 0.25, 0.2)
+	if t < 6.0: return Color(0.95, 0.8, 0.25)
+	return Color(1, 1, 1, 0.8)
+
+func _draw_alt() -> void:                                                    # шкала высоты: потолок (граница дисквалификации), коридор, земля под кораблём и впереди, скорость сближения
+	var c := alt_ctl; var f := ThemeDB.fallback_font
+	var p: Vector3 = main.ship.global_position; var v: Vector3 = main.ship.linear_velocity
+	var rim: float = main.RIM_Y
+	var g: float = float(main.height(p.x, p.z))                                  # земля под кораблём
+	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0, 0, 0, 0.45))
+	var hd := 44.0                                                               # плашки сверху (потолок) и снизу (земля)
+	var tx := 36.0; var tw := 22.0; var ty0 := hd + 4.0; var th := c.size.y - 2.0 * hd - 8.0
+	var k := th / ALT_SPAN
+	var ymid := ty0 + th * 0.5
+	var Y := func(a: float) -> float: return ymid - (a - p.y) * k                # высота -> y на ленте
+	var clip := func(r: Rect2) -> Rect2: return r.intersection(Rect2(tx, ty0, tw, th))
+	c.draw_rect(Rect2(tx, ty0, tw, th), Color(0.35, 0.9, 0.45, 0.16))             # коридор: спокойная зелёная зона
+	var up_y: float = Y.call(rim); var up_w: float = Y.call(rim - ALT_WARN_BAND)
+	c.draw_rect(clip.call(Rect2(tx, ty0 - 2000.0, tw, up_w - (ty0 - 2000.0))), Color(0.95, 0.8, 0.25, 0.45))     # предупреждение под потолком (рисуем сверху вниз; всё обрежется)
+	c.draw_rect(clip.call(Rect2(tx, ty0 - 4000.0, tw, up_y - (ty0 - 4000.0))), Color(0.9, 0.2, 0.15, 0.7))        # за потолком: запретная зона (отсчёт 8 с до дисквалификации)
+	var g_y: float = Y.call(g)
+	c.draw_rect(clip.call(Rect2(tx, Y.call(g + ALT_GROUND_BAND), tw, Y.call(g) - Y.call(g + ALT_GROUND_BAND))), Color(0.95, 0.8, 0.25, 0.45))   # у земли: янтарная полоса
+	c.draw_rect(clip.call(Rect2(tx, Y.call(g + ALT_GROUND_RED), tw, Y.call(g) - Y.call(g + ALT_GROUND_RED))), Color(0.9, 0.2, 0.15, 0.7))                                      # ещё ближе: красная
+	c.draw_rect(clip.call(Rect2(tx, g_y, tw, ty0 + th * 2.0)), Color(0.45, 0.3, 0.15, 0.9))                                                                                   # земля
+	for a in range(int(floor((p.y - ALT_SPAN * 0.5) / 100.0)) * 100, int(p.y + ALT_SPAN * 0.5) + 100, 100):     # шкала: деления через 100 м, подписи через 500 м
+		var yy: float = Y.call(float(a))
+		if yy < ty0 or yy > ty0 + th: continue
+		var major := a % 500 == 0
+		c.draw_line(Vector2(tx - (8.0 if major else 4.0), yy), Vector2(tx, yy), Color(1, 1, 1, 0.8 if major else 0.45), 1.0)
+		if major and yy > ty0 + 8.0 and yy < ty0 + th - 8.0: c.draw_string(f, Vector2(0, yy + 4), str(a), HORIZONTAL_ALIGNMENT_RIGHT, tx - 8.0, 11, Color(1, 1, 1, 0.8))
+	c.draw_rect(Rect2(tx, ty0, tw, th), Color(1, 1, 1, 0.35), false, 1.0)
+	var rl: float = Y.call(rim)                                                  # линия потолка
+	if rl >= ty0 and rl <= ty0 + th: c.draw_line(Vector2(tx - 6.0, rl), Vector2(tx + tw + 18.0, rl), Color(0.95, 0.25, 0.2), 2.5)
+	for tt in [1.0, 2.0, 3.0]:                                                   # земля впереди (через 1, 2, 3 с полёта): метки справа от ленты
+		var q: Vector3 = p + v * float(tt)
+		var gy: float = Y.call(float(main.height(q.x, q.z)))
+		if gy >= ty0 and gy <= ty0 + th: c.draw_line(Vector2(tx + tw + 2.0, gy), Vector2(tx + tw + 10.0 + 4.0 * (3.0 - float(tt)), gy), Color(0.75, 0.55, 0.3, 0.95), 2.0)
+	# маркер корабля и стрелка вертикальной скорости
+	var vy := v.y
+	c.draw_line(Vector2(tx - 6.0, ymid), Vector2(tx + tw + 6.0, ymid), Color(1, 1, 1, 0.95), 2.5)
+	c.draw_colored_polygon(PackedVector2Array([Vector2(tx + tw + 6.0, ymid), Vector2(tx + tw + 18.0, ymid - 7.0), Vector2(tx + tw + 18.0, ymid + 7.0)]), Color(1, 1, 1, 0.95))
+	var ttc := (rim - p.y) / vy if vy > 1.0 else 99.0                            # до потолка
+	var ttg := _alt_ground_time(p, v)                                            # до земли
+	if absf(vy) > 3.0:
+		var al := clampf(absf(vy) / ALT_VS_REF, 0.05, 1.0) * 110.0 * signf(vy)
+		var ac := _alt_tc(ttc) if vy > 0.0 else _alt_tc(ttg)
+		var ax := tx + tw * 0.5
+		c.draw_line(Vector2(ax, ymid), Vector2(ax, ymid - al), Color(0, 0, 0, 0.55), 7.0); c.draw_line(Vector2(ax, ymid), Vector2(ax, ymid - al), ac, 4.0)
+		var d := Vector2(0, -signf(vy))
+		c.draw_colored_polygon(PackedVector2Array([Vector2(ax, ymid - al) + d * 8.0, Vector2(ax - 8.0, ymid - al), Vector2(ax + 8.0, ymid - al)]), ac)
+	c.draw_string(f, Vector2(tx + tw + 20.0, ymid + 5.0), "%+d" % int(round(vy)), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, 0.9))
+	# плашки: сверху расстояние и время до потолка, снизу до земли
+	var cu := _alt_tc(ttc)
+	c.draw_string(f, Vector2(6, 16), "ПОТОЛОК", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.7))
+	if ttc < 10.0: c.draw_string(f, Vector2(c.size.x - 6.0 - 36.0, 16), "%.0f с" % ttc, HORIZONTAL_ALIGNMENT_RIGHT, 36, 14, cu)
+	if p.y > rim: c.draw_string(f, Vector2(6, 36), "ЗА ПОТОЛКОМ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.95, 0.25, 0.2))
+	else: c.draw_string(f, Vector2(6, 36), "%d м" % int(rim - p.y), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.95))
+	var cg := _alt_tc(ttg)
+	var by := c.size.y - hd + 14.0
+	c.draw_string(f, Vector2(6, by), "ЗЕМЛЯ", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.7))
+	if ttg < 99.0: c.draw_string(f, Vector2(c.size.x - 6.0 - 36.0, by), "%.1f с" % ttg, HORIZONTAL_ALIGNMENT_RIGHT, 36, 14, cg)
+	c.draw_string(f, Vector2(6, by + 20.0), "%d м" % int(maxf(p.y - g, 0.0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, cg if ttg < 6.0 else Color(1, 1, 1, 0.95))
+
+func _draw_speed() -> void:
+	var c := spd_ctl; var f := lbl_speed.get_theme_font("font")
+	var v: float = main.ship.linear_velocity.length()
+	const BASE := 250.0                                                          # циферблат нарисован в координатах 250×250 и растягивается до размера SPD_SZ
+	var kz := c.size.x / BASE
+	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2(kz, kz))
+	var ctr := Vector2(BASE, BASE) * 0.5; var r := BASE * 0.5 - 20.0
+	var a0 := deg_to_rad(135.0); var sw := deg_to_rad(270.0)
+	var fr := clampf(v / SPD_MAX, 0.0, 1.0)
+	c.draw_circle(ctr, BASE * 0.5 - 4.0, Color(0, 0, 0, 0.45))
+	for z in SPD_ZONES:                                                          # цветная шкала: тусклая целиком, яркая до текущей скорости
+		var z0 := float(z[0]); var z1 := float(z[1]); var col: Color = z[2]
+		c.draw_arc(ctr, r, a0 + sw * z0, a0 + sw * z1, 24, Color(col.r, col.g, col.b, 0.28), 14.0, true)
+		if fr > z0: c.draw_arc(ctr, r, a0 + sw * z0, a0 + sw * minf(z1, fr), 24, Color(col.r, col.g, col.b, 0.95), 14.0, true)
+	for i in range(0, int(SPD_MAX / 200.0) + 1):                                 # деления через 200 м/с, подписи через 500
+		var sp := float(i) * 200.0
+		var a := a0 + sw * sp / SPD_MAX; var d := Vector2(cos(a), sin(a))
+		c.draw_line(ctr + d * (r - 11.0), ctr + d * (r - 17.0), Color(1, 1, 1, 0.6), 1.5)
+	for sp in range(0, int(SPD_MAX) + 1, 500):
+		var a := a0 + sw * float(sp) / SPD_MAX; var d := Vector2(cos(a), sin(a))
+		c.draw_line(ctr + d * (r - 9.0), ctr + d * (r - 22.0), Color(1, 1, 1, 0.9), 2.5)
+	var an := a0 + sw * fr; var dn := Vector2(cos(an), sin(an))
+	c.draw_line(ctr - dn * 10.0, ctr + dn * (r - 6.0), Color(0, 0, 0, 0.6), 7.0, true)
+	c.draw_line(ctr - dn * 10.0, ctr + dn * (r - 6.0), Color(1, 1, 1, 0.95), 3.5, true)
+	c.draw_circle(ctr, 7.0, Color(0.15, 0.15, 0.15, 0.95)); c.draw_circle(ctr, 4.0, Color(1, 1, 1, 0.9))
+	for sp in range(0, int(SPD_MAX) + 1, 500):                                   # подписи рисуем поверх стрелки, с обводкой, чтобы читались под ней
+		var a2 := a0 + sw * float(sp) / SPD_MAX; var d2 := Vector2(cos(a2), sin(a2))
+		var lp := ctr + d2 * (r - 36.0) + Vector2(-20, 5)
+		c.draw_string_outline(f, lp, str(sp), HORIZONTAL_ALIGNMENT_CENTER, 40, 14, 4, Color(0, 0, 0, 0.85)); c.draw_string(f, lp, str(sp), HORIZONTAL_ALIGNMENT_CENTER, 40, 14, Color(1, 1, 1, 0.9))
+	var txt := "%d" % int(v)                                                        # крупное значение скорости, как раньше
+	c.draw_string_outline(f, ctr + Vector2(-70, 52), txt, HORIZONTAL_ALIGNMENT_CENTER, 140, 58, 8, Color(0, 0, 0, 0.9))
+	c.draw_string(f, ctr + Vector2(-70, 52), txt, HORIZONTAL_ALIGNMENT_CENTER, 140, 58, CREAM)
+	c.draw_string(f, ctr + Vector2(-60, 78), "м/с", HORIZONTAL_ALIGNMENT_CENTER, 120, 20, Color(1, 1, 1, 0.85))
+	c.draw_string(f, ctr + Vector2(-60, r + 8.0), "%d км/ч" % int(v * 3.6), HORIZONTAL_ALIGNMENT_CENTER, 120, 15, Color(1, 1, 1, 0.7))
 
 func _map_setup() -> void:
 	var lo := Vector2(1e12, 1e12); var hi := Vector2(-1e12, -1e12)
@@ -1261,7 +1385,7 @@ func _process(_dt: float) -> void:
 	lbl_alt.text = "высота %d м   ·   %d км/ч" % [int(main.ship.global_position.y), int(v * 3.6)]
 	lbl_lvl.text = "Уровень: " + main.LEVEL_NAMES[main._lvl()]
 	prog_bar.size.x = 440.0 * clampf(float(main.p_prog) / main.race_len, 0.0, 1.0) if main.race_len < 1e11 else 0.0
-	dmg_ctl.queue_redraw(); map_ctl.queue_redraw()
+	dmg_ctl.queue_redraw(); alt_ctl.queue_redraw(); spd_ctl.queue_redraw(); map_ctl.queue_redraw()
 	# обратный отсчёт
 	if state in ["hud", "pause"]: hud_root.visible = not main.in_cutscene()
 	lbl_skip.visible = state == "hud" and main.in_cutscene()
