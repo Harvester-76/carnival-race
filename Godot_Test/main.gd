@@ -153,6 +153,12 @@ var flame_shader: Shader
 var glow_shader: Shader
 var core_shader: Shader
 var marker_core_shader: Shader
+var lens_shader: Shader                                                     # линза прожектора: светится, когда огни включены
+var lens_halo_mat: ShaderMaterial
+var lights_on := true                                                       # прожекторы и габариты игрока (кнопка «lights»)
+var lamp_mats: Array = []                                                   # материалы игрока с габаритами и линзами: [материал, имя параметра]
+var lens_halos := {}                                                        # часть -> ореол линзы
+var spot_lights := {}                                                       # часть -> SpotLight3D
 var halo_shader: Shader                                                     # ореол маршевых моторов бота при форсаже: виден издалека искоркой, вблизи скрыт
 var halo_mat: ShaderMaterial
 var marker_shader: Shader                                                  # ореол габаритных огней на концах крыльев: вблизи исчезает, вдали растёт («боке»), чтобы огни были видны издалека
@@ -218,9 +224,9 @@ const KEYBIND := [
 	["sh_fwd", "Маневровые: вперёд", KEY_I], ["sh_back", "Маневровые: назад", KEY_K], ["sh_left", "Маневровые: влево", KEY_J], ["sh_right", "Маневровые: вправо", KEY_L],
 	["boost", "Усиление маневровых", KEY_SHIFT],
 	["look_left", "Взгляд влево (из кабины)", KEY_N], ["look_right", "Взгляд вправо (из кабины)", KEY_M], ["look_up", "Взгляд вверх (из кабины)", KEY_B], ["look_down", "Взгляд вниз (из кабины)", KEY_COMMA],
-	["cam", "Камера", KEY_V], ["assist", "Стабилизация вращения", KEY_T], ["grav", "Гравитация", KEY_G], ["interior", "Интерьер", KEY_H],
+	["cam", "Камера", KEY_V], ["assist", "Стабилизация вращения", KEY_T], ["grav", "Гравитация", KEY_G], ["interior", "Интерьер", KEY_H], ["lights", "Прожекторы и габариты", KEY_P],
 	["detach", "Оторвать деталь", KEY_X], ["boom", "Оторвать всё", KEY_Z], ["reset", "Сброс на старт", KEY_R], ["unstick", "Вернуть на трассу (+20 с)", KEY_Y]]
-const KEY_ACTIONS := ["cam", "assist", "grav", "interior", "detach", "boom", "reset", "unstick"]   # из них часть идёт через InputMap
+const KEY_ACTIONS := ["cam", "assist", "grav", "interior", "lights", "detach", "boom", "reset", "unstick"]   # из них часть идёт через InputMap
 var keys := {}                                                # id -> physical keycode
 # кнопки/оси геймпада: [id, название, привязка по умолчанию, вид: "m" = стик/курок/кнопка, "b" = только кнопка]
 const PADBIND := [
@@ -230,7 +236,7 @@ const PADBIND := [
 	["thr", "Газ (тяговые)", {"t": "a", "i": JOY_AXIS_TRIGGER_RIGHT, "s": 1}, "m"], ["boost", "Усиление маневровых", {"t": "a", "i": JOY_AXIS_TRIGGER_LEFT, "s": 1}, "m"],
 	["lift_up", "Взлётные: форсаж", {"t": "b", "i": JOY_BUTTON_DPAD_UP, "s": 1}, "m"], ["lift_down", "Взлётные: замедление", {"t": "b", "i": JOY_BUTTON_DPAD_DOWN, "s": 1}, "m"],
 	["assist", "Стабилизация вращения", {"t": "b", "i": JOY_BUTTON_A, "s": 1}, "b"], ["detach", "Оторвать деталь", {"t": "b", "i": JOY_BUTTON_X, "s": 1}, "b"],
-	["cam", "Камера", {"t": "b", "i": JOY_BUTTON_RIGHT_STICK, "s": 1}, "b"], ["interior", "Интерьер", {"t": "b", "i": JOY_BUTTON_BACK, "s": 1}, "b"],
+	["cam", "Камера", {"t": "b", "i": JOY_BUTTON_RIGHT_STICK, "s": 1}, "b"], ["interior", "Интерьер", {"t": "b", "i": JOY_BUTTON_BACK, "s": 1}, "b"], ["lights", "Прожекторы и габариты", {"t": "b", "i": JOY_BUTTON_DPAD_LEFT, "s": 1}, "b"],
 	["scheme", "Схема геймпада 1/2", {"t": "b", "i": JOY_BUTTON_Y, "s": 1}, "b"]]
 const PAD_BTN_NAMES := ["A", "B", "X", "Y", "Back", "Guide", "Start", "L3", "R3", "LB", "RB", "D-pad ↑", "D-pad ↓", "D-pad ←", "D-pad →"]
 var pad := {}                                                 # id -> {t: "a"|"b", i: индекс, s: знак}
@@ -859,11 +865,11 @@ func _ready() -> void:
 
 func _setup_input() -> void:
 	if InputMap.has_action("cam"): return                     # после перезагрузки сцены действия уже есть
-	var m := {"cam": keys["cam"], "grav": keys["grav"], "assist": keys["assist"], "detach": keys["detach"], "boom": keys["boom"], "reset": keys["reset"], "unstick": keys["unstick"], "interior": keys["interior"], "scheme": KEY_F2, "menu": KEY_F3, "tech": KEY_F4, "mark": KEY_F5, "help": KEY_F1}
+	var m := {"cam": keys["cam"], "grav": keys["grav"], "assist": keys["assist"], "detach": keys["detach"], "boom": keys["boom"], "reset": keys["reset"], "unstick": keys["unstick"], "interior": keys["interior"], "lights": keys["lights"], "scheme": KEY_F2, "menu": KEY_F3, "tech": KEY_F4, "mark": KEY_F5, "help": KEY_F1}
 	for a in m:
 		InputMap.add_action(a)
 		var ev := InputEventKey.new(); ev.physical_keycode = m[a]; InputMap.action_add_event(a, ev)
-	var jb := {"cam": JOY_BUTTON_RIGHT_STICK, "scheme": JOY_BUTTON_Y, "assist": JOY_BUTTON_A, "detach": JOY_BUTTON_X, "interior": JOY_BUTTON_BACK, "menu": JOY_BUTTON_LEFT_STICK, "mark": JOY_BUTTON_B}
+	var jb := {"cam": JOY_BUTTON_RIGHT_STICK, "scheme": JOY_BUTTON_Y, "assist": JOY_BUTTON_A, "detach": JOY_BUTTON_X, "interior": JOY_BUTTON_BACK, "lights": JOY_BUTTON_DPAD_LEFT, "menu": JOY_BUTTON_LEFT_STICK, "mark": JOY_BUTTON_B}
 	for a in jb:
 		var ev := InputEventJoypadButton.new(); ev.button_index = jb[a]; InputMap.action_add_event(a, ev)
 	apply_pad()
@@ -1006,8 +1012,12 @@ void fragment(){
 	marker_shader.code = """shader_type spatial;
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never, fog_disabled;
 instance uniform vec3 mctr = vec3(0.0);
+instance uniform float lit = 1.0;                                                   // огни включены
 instance uniform float big = 0.0;                                                   // 1 = корабль игрока: большой яркий ореол и вблизи
-uniform vec3 col = vec3(1.0, 0.10, 0.01);
+uniform vec3 cold_c = vec3(0.95, 0.03, 0.07);
+uniform vec3 hot_c = vec3(1.0, 0.34, 0.12);
+uniform float on = 1.0;                                                            // включены ли огни (обычный параметр материала: у крыльев несколько шейдеров с instance-параметрами)
+uniform float gain = 1.0;                                                           // общий множитель яркости (у ореолов прожекторов очень мал)
 varying float dist;
 varying vec3 cview;
 varying float rad;
@@ -1027,22 +1037,33 @@ void fragment(){
   float e = 1.0 - smoothstep(0.0, 1.0, d);
   float a = exp(-d * d * 1.2) * e * e;                                       // плавно к нулю с нулевой производной на краю шара
   float far = smoothstep(100.0, 700.0, dist);
-  vec3 hot = vec3(1.0, 0.34, 0.12);
-  vec3 cold = vec3(0.95, 0.03, 0.07);
+  vec3 hot = hot_c;
+  vec3 cold = cold_c;
   vec3 hc = mix(cold, hot, pow(exp(-d * d * 45.0), 0.6));
-  ALBEDO = hc * a * mix(mix(0.55, 0.9, far), 1.0, big) * 2.0;
+  ALBEDO = hc * a * mix(mix(0.55, 0.9, far), 1.0, big) * 2.0 * lit * on * gain;
   ALPHA = 1.0;
 }"""
 	marker_core_shader = Shader.new()
 	marker_core_shader.code = """shader_type spatial;
 render_mode unshaded;
+uniform float lit = 1.0;
 void fragment(){
   // сама лампа: горячий жёлто-белый центр, к краю красный; яркость выше 1, поэтому светится (bloom), а не выглядит покрашенной
   float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
   float h = pow(nv, 2.5);
   vec3 c = mix(vec3(1.0, 0.10, 0.03), vec3(1.0, 0.80, 0.50), h);
-  ALBEDO = c * (2.2 + 4.0 * h);
+  ALBEDO = c * mix(0.45, 2.2 + 4.0 * h, lit);
 }"""
+	lens_shader = Shader.new()
+	lens_shader.code = """shader_type spatial;
+uniform float lit = 1.0;
+void fragment(){
+  ALBEDO = vec3(0.22, 0.21, 0.18); ROUGHNESS = 0.15; METALLIC = 0.2;
+  float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+  EMISSION = vec3(1.0, 0.93, 0.78) * lit * (3.0 + 4.0 * pow(nv, 2.0));
+}"""
+	lens_halo_mat = ShaderMaterial.new(); lens_halo_mat.shader = marker_shader
+	lens_halo_mat.set_shader_parameter("gain", 0.12); lens_halo_mat.set_shader_parameter("cold_c", Vector3(1.0, 0.80, 0.45)); lens_halo_mat.set_shader_parameter("hot_c", Vector3(1.0, 0.97, 0.88))
 	halo_shader = Shader.new()
 	halo_shader.code = """shader_type spatial;
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never, fog_disabled;
@@ -1485,7 +1506,7 @@ func _spawn_bots() -> void:                                                  # �
 				if m.resource_name == "MAT_Engine_Glow": mi.set_surface_override_material(k, glow)
 				elif m.resource_name == "MAT_Engine_Core": mi.set_surface_override_material(k, core); _core_instance_params(mi, k); mi.material_overlay = blade
 			if nm.begins_with("SM_Glass"): mi.material_override = _glass_mat()
-		var bparts := {}; var beng := {}; var bhalos := {}; var btot := {"main": 0, "lift": 0, "shunt": 0}
+		var bparts := {}; var beng := {}; var bhalos := {}; var blamps := {}; var btot := {"main": 0, "lift": 0, "shunt": 0}
 		for n in rb.get_children():
 			if n is not MeshInstance3D or n.is_queued_for_deletion(): continue
 			var nm2 := String(n.name)
@@ -1494,6 +1515,9 @@ func _spawn_bots() -> void:                                                  # �
 				if nm2.begins_with(p): det2 = true
 			if not det2: continue
 			bparts[nm2] = n
+			if nm2.begins_with("SM_Spotlight_"):
+				var blh := _make_lens_halo(rb, n as MeshInstance3D, false)
+				if blh != null: blamps[nm2] = blh
 			if nm2.begins_with("SM_Engine_"):
 				var kd := "shunt"
 				if nm2.contains("Traction"): kd = "main"
@@ -1512,7 +1536,7 @@ func _spawn_bots() -> void:                                                  # �
 		add_child(rb)
 		rb.global_transform = Transform3D(Basis.IDENTITY, _grid_pos(slot, cols))
 		var gg := _bot_genes(i)
-		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "ptot": bparts.size(), "eng": beng, "halos": bhalos, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
+		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "ptot": bparts.size(), "eng": beng, "halos": bhalos, "lamps": blamps, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
 
 func _bot_genes(i: int) -> Dictionary:
 	var lst: Array = []
@@ -1892,6 +1916,7 @@ func _bot_detach(b: Dictionary, nm: String, dir: Vector3) -> void:
 	if not bparts.has(nm): return
 	var rb: RigidBody3D = b["rb"]
 	var mi: MeshInstance3D = bparts[nm]; bparts.erase(nm)
+	if (b["lamps"] as Dictionary).has(nm): (b["lamps"][nm] as Node).queue_free(); (b["lamps"] as Dictionary).erase(nm)
 	if nm.begins_with("SM_Wing_"):
 		var tag := nm.substr(nm.length() - 2)
 		var top := nm.begins_with("SM_Wing_Top")
@@ -1944,6 +1969,7 @@ func _build_ship() -> void:
 		var li: int = SHIP_LIVERY[ship_id]
 		if ResourceLoader.exists("res://ship/tex/livery_%d_albedo.png" % li):
 			hull_tex["alb"] = load("res://ship/tex/livery_%d_albedo.png" % li); hull_tex["dec"] = load("res://ship/tex/livery_%d_decal.png" % li); hull_tex["two_sided"] = true
+	lamp_mats.clear(); lens_halos.clear(); spot_lights.clear()
 	for n in ship.get_children():
 		if n is not MeshInstance3D or n.is_queued_for_deletion(): continue       # вырезанные при подрезке корпуса окна ещё числятся детьми до конца кадра: в части разрушения их брать нельзя
 		var mi := n as MeshInstance3D
@@ -1969,9 +1995,16 @@ func _build_ship() -> void:
 			var cs := CollisionShape3D.new(); cs.shape = shp; cs.transform = Transform3D(n.transform.basis.orthonormalized(), n.position); cs.name = "COL_" + nm
 			ship.add_child(cs); shapes[nm] = cs
 		if nm.begins_with("SM_Glass"): mi.material_override = _glass_mat()
+		if nm.begins_with("SM_Spotlight_"):
+			var lh := _make_lens_halo(ship, mi, true)
+			if lh != null: lens_halos[nm] = lh
+			if nm.begins_with("SM_Spotlight_Top"):
+				var sl := _make_spot(mi)
+				if sl != null: spot_lights[nm] = sl
 		if nm.begins_with("SM_Engine_"): _setup_engine(mi)
 	health_w0 = 0.0
 	for pn in parts: health_w0 += part_weight(String(pn))
+	_apply_lights()
 	var hc := CollisionShape3D.new(); hc.shape = hull_shape; ship.add_child(hc)
 	var aabb := AABB()
 	if ship.has_node("SM_Hull_Body"): aabb = (ship.get_node("SM_Hull_Body") as MeshInstance3D).get_aabb()
@@ -1993,11 +2026,17 @@ func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0, is_pla
 	for i in mi.mesh.get_surface_count():
 		var m := mi.mesh.surface_get_material(i)
 		if m == null: continue
+		if m.resource_name == "MAT_Lamp_Lens":                  # линза прожектора
+			var lm := ShaderMaterial.new(); lm.shader = lens_shader; mi.set_surface_override_material(i, lm)
+			if is_player: lamp_mats.append([lm, "lit"])
+			continue
 		if m.resource_name == "MAT_Marker_Red":                 # сама лампа габаритного огня: светится, а не крашена
 			var rm := ShaderMaterial.new(); rm.shader = marker_core_shader; mi.set_surface_override_material(i, rm)
+			if is_player: lamp_mats.append([rm, "lit"])
 			continue
 		if m.resource_name == "MAT_Marker_Glow":                # габаритный огонь: ореол зависит от расстояния до камеры
 			var gm := ShaderMaterial.new(); gm.shader = marker_shader; mi.set_surface_override_material(i, gm); _marker_instance_params(mi, i, is_player)
+			if is_player: lamp_mats.append([gm, "on"])
 			continue
 		if m.resource_name == "Material":                       # обшивка: свои текстуры + шестигранники по формуле
 			var sm := ShaderMaterial.new(); sm.shader = hull_shader
@@ -2018,6 +2057,45 @@ func _marker_instance_params(mi: MeshInstance3D, surf: int, is_player := false) 
 		for v in vs: c += v
 		marker_geo_cache[key] = c / float(maxi(vs.size(), 1))
 	mi.set_instance_shader_parameter("mctr", marker_geo_cache[key]); mi.set_instance_shader_parameter("big", 1.0 if is_player else 0.0)      # у корабля игрока ореолы большие и яркие на любой дистанции
+
+func _lens_info(mi: MeshInstance3D) -> Dictionary:                         # центр линзы и направление луча в осях меша (низ: вниз, верх: вперёд)
+	for si in mi.mesh.get_surface_count():
+		var cm := mi.mesh.surface_get_material(si)
+		if cm != null and cm.resource_name == "MAT_Lamp_Lens":
+			var vs: PackedVector3Array = mi.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]
+			var c := Vector3.ZERO
+			for v in vs: c += v
+			return {"c": c / float(maxi(vs.size(), 1)), "dir": Vector3.DOWN if String(mi.name).begins_with("SM_Spotlight_Belly") else Vector3.FORWARD}
+	return {}
+
+func _make_lens_halo(parent: Node3D, mi: MeshInstance3D, player: bool) -> MeshInstance3D:   # мягкий ореол линзы, виден издалека и вблизи
+	var li := _lens_info(mi)
+	if li.is_empty(): return null
+	var hm := MeshInstance3D.new(); var sp := SphereMesh.new(); sp.radius = 0.9; sp.height = 1.8; sp.radial_segments = 12; sp.rings = 6
+	hm.mesh = sp; hm.material_override = lens_halo_mat; hm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	hm.position = mi.transform * ((li["c"] as Vector3) + (li["dir"] as Vector3) * 0.35)
+	parent.add_child(hm)
+	hm.set_instance_shader_parameter("mctr", Vector3.ZERO); hm.set_instance_shader_parameter("big", 0.35 if player else 0.0)
+	return hm
+
+func _make_spot(mi: MeshInstance3D) -> SpotLight3D:                        # настоящий свет: прожектор над носом смотрит вперёд
+	var li := _lens_info(mi)
+	if li.is_empty(): return null
+	var sl := SpotLight3D.new()
+	sl.light_color = Color(1.0, 0.93, 0.78); sl.light_energy = 4.0; sl.spot_range = 700.0; sl.spot_angle = 20.0; sl.spot_angle_attenuation = 0.8; sl.shadow_enabled = false
+	sl.position = mi.transform * ((li["c"] as Vector3) + (li["dir"] as Vector3) * 0.5); sl.rotation_degrees = Vector3(-2.0, 0.0, 0.0)
+	ship.add_child(sl)
+	return sl
+
+func _apply_lights() -> void:
+	var v := 1.0 if lights_on else 0.0
+	for lmt in lamp_mats: (lmt[0] as ShaderMaterial).set_shader_parameter(lmt[1], v)
+	for h in lens_halos.values(): if is_instance_valid(h): (h as MeshInstance3D).set_instance_shader_parameter("lit", v)
+	for sl in spot_lights.values(): if is_instance_valid(sl): (sl as SpotLight3D).visible = lights_on
+
+func _lamp_lost(nm: String) -> void:
+	if lens_halos.has(nm): (lens_halos[nm] as Node).queue_free(); lens_halos.erase(nm)
+	if spot_lights.has(nm): (spot_lights[nm] as Node).queue_free(); spot_lights.erase(nm)
 
 func _engine_disc_center(mi: MeshInstance3D) -> Variant:                    # центр диска сопла в осях меша (из кеша ядра), null если не найден
 	for si in mi.mesh.get_surface_count():
@@ -2898,6 +2976,7 @@ func _detach(nm: String, dir: Vector3 = Vector3.ZERO) -> void:
 	if ship_sfx != null: ship_sfx.part_lost(nm)
 	_log_event("DETACH " + nm)
 	var mi: MeshInstance3D = parts[nm]; parts.erase(nm)
+	_lamp_lost(nm)
 	if nm.begins_with("SM_Wing_"):                      # вместе с верхним крылом отлетают его маневровый и верхний прожектор, с нижним — его маневровый
 		var tag := nm.substr(nm.length() - 2)
 		var top := nm.begins_with("SM_Wing_Top")
@@ -3123,6 +3202,7 @@ func _process(dt: float) -> void:
 	if live and Input.is_action_just_pressed("reset"): reload_title = "Сброс на старт"; _reset()
 	if live and Input.is_action_just_pressed("unstick"): _unstick()
 	if live and in_cutscene() and Input.is_action_just_pressed("ui_accept"): skip_intro()
+	if live and Input.is_action_just_pressed("lights"): lights_on = not lights_on; _apply_lights()
 	if live and Input.is_action_just_pressed("interior"):
 		interior_vis = not interior_vis; _apply_interior()
 	if start_t > 0.0:
