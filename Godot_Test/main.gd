@@ -302,7 +302,7 @@ const MENU_NUM := {}
 const LEVEL_NAMES := ["Турист", "Дальнобойщик", "Любимец букмекеров", "Ветеран", "Киборг"]
 const LEVEL_TAGS := ["Случайно попал на трассу", "Честный работяга с опытом дальних перелётов", "Ставки один к трём!", "Видел всякое", "Ощущает корабль, как продолжение своего тела"]
 # гашение «неносовой» инерции: [вбок, вверх-вниз, усиление при тяге главных], 1/с; Ветеран = как раньше; Киборг = как Ветеран, но без помощи
-const LEVEL_SLIP := [[4.0, 4.0, 2.0], [2.5, 2.5, 1.5], [1.2, 1.2, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+const LEVEL_SLIP := [[4.0, 4.0, 2.0], [0.25, 0.25, 1.0], [0.05, 0.05, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]     # Дальнобойщик = прежний Любимец (на полной тяге τ = 2 с), Любимец в 5 раз слабее (τ = 10 с); было 2.5 и 1.2
 const LEVEL_DAMP := [3.0, 2.0, 1.0, 1.0, 1.0]           # множитель гашения вращения стабилизацией: Турист и Дальнобойщик быстрее останавливают вращение
 const LEVEL_ROLL := [2.5, 1.5, 0.0, 0.0, 0.0]            # самовыравнивание по крену (Салага, Ученик), 1/с
 var prev_lvl := -1
@@ -1682,8 +1682,11 @@ func _bots_adapt_ok() -> bool:
 
 func _rubber(b: Dictionary) -> float:                                      # множитель скорости: >1 бот отстаёт от игрока, <1 бот впереди игрока
 	if not _bots_adapt_ok() or not racing or p_fin or p_dsq or P("bot_virtual") < 0.5: return 1.0
-	var g := clampf((p_prog - float(b["prog"])) / maxf(P("rubber_r"), 1.0), -1.0, 1.0)
-	return 1.0 + (P("rubber_up") * g if g > 0.0 else P("rubber_dn") * g)
+	var gap := p_prog - float(b["prog"])
+	if gap > 0.0:                                                              # бот позади игрока: догон зависит от отрыва в секундах (при нашей скорости), а не в метрах: на скорости 2000 м/с минута отрыва это 120 км
+		var vp := maxf(ship.linear_velocity.length(), 500.0)
+		return 1.0 + P("rubber_up") * clampf(gap / (vp * maxf(P("rubber_t"), 1.0)), 0.0, 1.0)
+	return 1.0 + P("rubber_dn") * clampf(gap / maxf(P("rubber_r"), 1.0), -1.0, 0.0)
 
 func _bot_launch(b: Dictionary, bi: int) -> float:                         # ген старта 0..1 у каждого бота (сильные бонус) × затухание за bot_launch_t секунд
 	var tl := P("bot_launch_t")
@@ -1697,6 +1700,9 @@ func _bot_virtual(b: Dictionary, dt: float, pth: int) -> void:
 	var cut := pth > 0 and pth <= branches.size()
 	var sc := float((branches[pth - 1] as Dictionary)["sc"]) if cut else 1.0
 	var v := maxf(float(b["v_ema"]), 300.0) * _rubber(b) * (0.8 if cut else 1.0)
+	if _bots_adapt_ok() and racing and not p_fin and not p_dsq:                  # игрок оторвался дальше rubber_t секунд: бот едет почти с его скоростью, отрыв больше не растёт
+		var vpl := maxf(ship.linear_velocity.length(), 500.0)
+		if (p_prog - float(b["prog"])) > vpl * P("rubber_t"): v = maxf(v, vpl * P("rubber_floor"))
 	b["v_virt"] = v
 	var vs := float(b["vs"]) + v * dt / maxf(sc, 0.3)
 	b["vs"] = vs
