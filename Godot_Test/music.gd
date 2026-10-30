@@ -1,7 +1,7 @@
 extends Node
 # Музыка: плейлисты меню и гонки, вступление Retribution (точка старта кораблей — 27.465 с от начала трека), результаты.
 const DIR := "res://music/"
-const MENU := ["tuman.mp3", "radium.mp3"]
+const MENU := ["tuman.mp3", "radium.mp3", "marble_and_coal.mp3"]
 const RACE := ["avenger.mp3", "globacide.mp3"]
 const INTRO := "retribution.mp3"
 const RESULTS := "results.mp3"
