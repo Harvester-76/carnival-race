@@ -1,0 +1,46 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-30T16:40:00Z"},
+  "title": "Карнавальская гонка — HUD",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1600, "h": 1040, "title": "1. Токены стиля HUD"},
+    "Layout.dc.html": {"x": 1680, "y": 0, "w": 1600, "h": 1040, "title": "2. Сетка и раскладка 1600×900"},
+    "Spec.dc.html": {"x": 3360, "y": 0, "w": 1600, "h": 2200, "title": "3. Спецификация реализации"},
+    "Decisions.dc.html": {"x": 5040, "y": 0, "w": 1200, "h": 1700, "title": "4. Решения и спорные места"},
+    "Hud.dc.html": {"x": 0, "y": 2600, "w": 1600, "h": 900, "title": "Состояние 1 — спокойный полёт"},
+    "State2.dc.html": {"x": 1680, "y": 2600, "w": 1600, "h": 900, "title": "Состояние 2 — у потолка, угроза сверху"},
+    "State3.dc.html": {"x": 3360, "y": 2600, "w": 1600, "h": 900, "title": "Состояние 3 — у земли, повреждения"},
+    "State4.dc.html": {"x": 5040, "y": 2600, "w": 1600, "h": 900, "title": "Состояние 4 — правое крыло, 2100 м/с"},
+    "State5.dc.html": {"x": 6720, "y": 2600, "w": 1600, "h": 900, "title": "Состояние 5 — выше потолка, удар в нос"},
+    "WTopLeft.dc.html": {"x": 0, "y": 3760, "w": 460, "h": 96, "title": "Позиция + соперники"},
+    "WTimer.dc.html": {"x": 540, "y": 3760, "w": 360, "h": 96, "title": "Время и прогресс"},
+    "WPace.dc.html": {"x": 980, "y": 3760, "w": 280, "h": 96, "title": "Темп и срезка"},
+    "WAltitude.dc.html": {"x": 1340, "y": 3760, "w": 128, "h": 452, "title": "Шкала высоты"},
+    "WSpeed.dc.html": {"x": 1548, "y": 3760, "w": 280, "h": 280, "title": "Спидометр"},
+    "WAttitude.dc.html": {"x": 1908, "y": 3760, "w": 216, "h": 200, "title": "Прибор положения"},
+    "WHealth.dc.html": {"x": 2204, "y": 3760, "w": 280, "h": 320, "title": "Здоровье и удары"},
+    "WMap.dc.html": {"x": 2564, "y": 3760, "w": 280, "h": 280, "title": "Карта трассы"},
+    "SheetTop.dc.html": {"x": 0, "y": 4560, "w": 1600, "h": 860, "title": "Верхняя полоса: состояния"},
+    "SheetAltitude.dc.html": {"x": 1680, "y": 4560, "w": 1100, "h": 760, "title": "Шкала высоты: состояния"},
+    "SheetFlight.dc.html": {"x": 2860, "y": 4560, "w": 1600, "h": 800, "title": "Скорость и положение: состояния"},
+    "SheetHealth.dc.html": {"x": 4540, "y": 4560, "w": 1600, "h": 900, "title": "Здоровье: состояния"},
+    "SheetWorld.dc.html": {"x": 6220, "y": 4560, "w": 1600, "h": 1080, "title": "Подписи, сообщения, карта"},
+    "Modes.dc.html": {"x": 0, "y": 5860, "w": 1720, "h": 1100, "title": "Режимы HUD"}
+  },
+  "order": [
+    "Main.dc.html", "Layout.dc.html", "Spec.dc.html", "Decisions.dc.html",
+    "Hud.dc.html", "State2.dc.html", "State3.dc.html", "State4.dc.html", "State5.dc.html",
+    "WTopLeft.dc.html", "WTimer.dc.html", "WPace.dc.html", "WAltitude.dc.html", "WSpeed.dc.html", "WAttitude.dc.html", "WHealth.dc.html", "WMap.dc.html",
+    "SheetTop.dc.html", "SheetAltitude.dc.html", "SheetFlight.dc.html", "SheetHealth.dc.html", "SheetWorld.dc.html", "Modes.dc.html"
+  ],
+  "notes": {
+    "t_sys": {"x": 0, "y": -300, "text": "Визуальный язык, сетка, спецификация", "kind": "title1", "maxW": 6240},
+    "t_hud": {"x": 0, "y": 2300, "text": "Полный HUD — 5 состояний (на сцене, старый HUD удалён с кадров)", "kind": "title1", "maxW": 8320},
+    "t_w": {"x": 0, "y": 3460, "text": "Виджеты — компоненты в натуральную величину", "kind": "title1", "maxW": 2844},
+    "t_s": {"x": 0, "y": 4260, "text": "Состояния виджетов", "kind": "title1", "maxW": 7820},
+    "t_m": {"x": 0, "y": 5560, "text": "Режимы: полный · минимальный · стрим", "kind": "title1", "maxW": 1720}
+  },
+  "designSystems": []
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Скорость и положение — состояния</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1600px; height:800px; box-sizing:border-box; padding:40px; background:#D8B784; color:#060A18; font-family:'Golos Text',sans-serif; display:flex; flex-direction:column; gap:28px">
+  <section style="display:flex; flex-direction:column; gap:12px">
+    <h2 style="margin:0; font-size:15px; font-weight:800; letter-spacing:0.06em">СПИДОМЕТР: БЕЗ СТРЕЛКИ ЧЕРЕЗ ЦЕНТР — УКАЗАТЕЛЬ ТОЛЬКО НА ДУГЕ</h2>
+    <div style="display:flex; gap:24px">
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">700 м/с</span><dc-import name="WSpeed" speed="{{ 700 }}" hint-size="280px,280px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">1200 — крейсер</span><dc-import name="WSpeed" speed="{{ 1200 }}" hint-size="280px,280px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">1900 — оранжевая зона</span><dc-import name="WSpeed" speed="{{ 1900 }}" hint-size="280px,280px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">2100 — красная зона</span><dc-import name="WSpeed" speed="{{ 2100 }}" hint-size="280px,280px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">2300 — потолок корабля</span><dc-import name="WSpeed" speed="{{ 2300 }}" hint-size="280px,280px"></dc-import></div>
+    </div>
+  </section>
+  <section style="display:flex; flex-direction:column; gap:12px">
+    <h2 style="margin:0; font-size:15px; font-weight:800; letter-spacing:0.06em">ПРИБОР ПОЛОЖЕНИЯ: КУРС К ТРАССЕ + ГОРИЗОНТ + ЦИФРЫ, 216×200</h2>
+    <div style="display:flex; gap:24px">
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">1 · ровно, крен −6°</span><dc-import name="WAttitude" pitch="{{ 2 }}" roll="{{ -6 }}" drift="{{ 2 }}" fpv-y="{{ -1 }}" heading="{{ 0 }}" track="{{ 3 }}" hint-size="216px,200px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">2 · набор, тангаж +14°</span><dc-import name="WAttitude" pitch="{{ 14 }}" roll="{{ 0 }}" drift="{{ 1 }}" fpv-y="{{ 8 }}" heading="{{ 0 }}" track="{{ 1 }}" cmd-pitch="{{ 0.55 }}" hint-size="216px,200px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">3 · снижение, крен 20°</span><dc-import name="WAttitude" pitch="{{ -9 }}" roll="{{ 20 }}" drift="{{ 8 }}" fpv-y="{{ -4 }}" heading="{{ -20 }}" track="{{ -6 }}" cmd-pitch="{{ 0.4 }}" cmd-roll="{{ -0.6 }}" hint-size="216px,200px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">4 · крен 38°, снос 14° (янтарь)</span><dc-import name="WAttitude" pitch="{{ 4 }}" roll="{{ 38 }}" drift="{{ 14 }}" fpv-y="{{ 2 }}" heading="{{ 28 }}" track="{{ 36 }}" cmd-roll="{{ 0.8 }}" hint-size="216px,200px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">5 · тангаж +22°</span><dc-import name="WAttitude" pitch="{{ 22 }}" roll="{{ -4 }}" drift="{{ -3 }}" fpv-y="{{ 16 }}" heading="{{ -45 }}" track="{{ -40 }}" cmd-pitch="{{ 0.6 }}" hint-size="216px,200px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Мин. режим — только горизонт</span><dc-import name="WAttitude" pitch="{{ 4 }}" roll="{{ 38 }}" drift="{{ 14 }}" fpv-y="{{ 2 }}" compact="{{ true }}" hint-size="216px,200px"></dc-import></div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px 24px; font-size:12px; line-height:1.45; margin-top:8px">
+      <div><b>Жёлтый ▲ на ленте</b> — нос, <b>зелёный ◆</b> — куда летим. Подписи ±60 внутри плашки.</div>
+      <div><b>Жёлтый символ</b> — корабль (неподвижен), <b>зелёный кружок с усиками</b> — вектор полёта.</div>
+      <div><b>Голубые точки на краях</b> — ввод игрока: справа тангаж, снизу крен. Крестик 80×80 убран.</div>
+      <div><b>Тангаж ниже горизонта</b> — пунктир, выше — сплошные: читается без цвета.</div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":800}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

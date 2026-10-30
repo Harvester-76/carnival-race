@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Шкала высоты — состояния</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1100px; height:760px; box-sizing:border-box; padding:40px; background:#D8B784; color:#060A18; font-family:'Golos Text',sans-serif; display:flex; flex-direction:column; gap:20px">
+  <h2 style="margin:0; font-size:15px; font-weight:800; letter-spacing:0.06em">ШКАЛА ВЫСОТЫ: ОКНО ±1000 М, КОРАБЛЬ ВСЕГДА В ЦЕНТРЕ</h2>
+  <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:24px">
+    <div style="display:flex; flex-direction:column; gap:8px"><span style="font-size:13px; font-weight:600; min-height:34px">Спокойный полёт</span><dc-import name="WAltitude" alt="{{ 1703 }}" agl="{{ 1703 }}" vs="{{ 0 }}" hint-size="128px,452px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:8px"><span style="font-size:13px; font-weight:600; min-height:34px">Набор, до потолка 8 с</span><dc-import name="WAltitude" alt="{{ 4300 }}" agl="{{ 4300 }}" vs="{{ 130 }}" hint-size="128px,452px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:8px"><span style="font-size:13px; font-weight:600; min-height:34px">У потолка, +180 м/с, 1,1 с</span><dc-import name="WAltitude" alt="{{ 5150 }}" agl="{{ 5150 }}" vs="{{ 180 }}" hint-size="128px,452px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:8px"><span style="font-size:13px; font-weight:600; min-height:34px">Выше потолка: отсчёт</span><dc-import name="WAltitude" alt="{{ 5407 }}" agl="{{ 5407 }}" vs="{{ 60 }}" out-left="{{ 6 }}" hint-size="128px,452px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:8px"><span style="font-size:13px; font-weight:600; min-height:34px">Рельеф растёт впереди</span><dc-import name="WAltitude" alt="{{ 900 }}" agl="{{ 330 }}" vs="{{ -20 }}" ground-t="{{ 4.2 }}" terr="{{t.rise}}" hint-size="128px,452px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:8px"><span style="font-size:13px; font-weight:600; min-height:34px">У земли, −140 м/с, 0,9 с</span><dc-import name="WAltitude" alt="{{ 120 }}" agl="{{ 122 }}" vs="{{ -140 }}" ground-t="{{ 0.9 }}" hint-size="128px,452px"></dc-import></div>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px 24px; font-size:12px; line-height:1.45">
+    <div><b>Зелёная заливка</b> — коридор. <b>Янтарь</b> — 300 м под потолком и 80–250 м над землёй.</div>
+    <div><b>Красная штриховка</b> — выше потолка и последние 80 м; <b>коричневая штриховка</b> — земля.</div>
+    <div><b>‹ метки</b> справа — рельеф через 1/2/3 с. <b>Стрелка</b> — верт. скорость, цвет по времени до границы.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() { return { t: { rise: [740, 860, 1010] } }; }
+}
+</script>
+</body>
+</html>

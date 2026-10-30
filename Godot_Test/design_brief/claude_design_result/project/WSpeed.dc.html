@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Спидометр</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position:relative; width:280px; height:280px; font-family:'Golos Text',sans-serif; color:#F7E6BF">
+  <div style="position:absolute; left:0; top:0; width:280px; height:280px; border-radius:50%; background:rgba(6,10,24,0.72); box-shadow:inset 0 0 0 1px rgba(147,169,217,0.28)"></div>
+  <svg width="280" height="280" viewBox="0 0 280 280" style="position:absolute; left:0; top:0" aria-hidden="true">
+    <path d="{{dimG}}" fill="none" stroke="#59E673" stroke-opacity="0.28" stroke-width="12"></path>
+    <path d="{{dimY}}" fill="none" stroke="#F2CC40" stroke-opacity="0.28" stroke-width="12"></path>
+    <path d="{{dimO}}" fill="none" stroke="#FF8A1E" stroke-opacity="0.28" stroke-width="12"></path>
+    <path d="{{dimR}}" fill="none" stroke="#F24033" stroke-opacity="0.28" stroke-width="12"></path>
+    <path d="{{litG}}" fill="none" stroke="#59E673" stroke-width="12"></path>
+    <path d="{{litY}}" fill="none" stroke="#F2CC40" stroke-width="12"></path>
+    <path d="{{litO}}" fill="none" stroke="#FF8A1E" stroke-width="12"></path>
+    <path d="{{litR}}" fill="none" stroke="#F24033" stroke-width="12"></path>
+    <path d="{{minorTicks}}" stroke="#93A9D9" stroke-opacity="0.6" stroke-width="1"></path>
+    <path d="{{majorTicks}}" stroke="#F7E6BF" stroke-width="2"></path>
+    <path d="{{maxNotch}}" stroke="#FFFFFF" stroke-width="3"></path>
+    <path d="{{pointer}}" stroke="#060A18" stroke-width="9" stroke-linecap="round"></path>
+    <path d="{{pointer}}" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"></path>
+  </svg>
+  <sc-for list="{{labels}}" as="l" hint-placeholder-count="5">
+    <div style="position:absolute; left:{{l.x}}px; top:{{l.y}}px; width:40px; margin-left:-20px; margin-top:-8px; text-align:center; font-family:'JetBrains Mono',monospace; font-weight:500; font-size:11px; line-height:16px; color:#93A9D9">{{l.t}}</div>
+  </sc-for>
+  <div style="position:absolute; left:0; top:106px; width:280px; text-align:center; font-family:'JetBrains Mono',monospace; font-weight:800; font-size:56px; line-height:56px; letter-spacing:-0.02em; color:#F7E6BF">{{speedText}}</div>
+  <div style="position:absolute; left:0; top:170px; width:280px; text-align:center; font-weight:700; font-size:13px; line-height:16px; letter-spacing:0.06em; color:#93A9D9">М/С</div>
+  <div style="position:absolute; left:0; top:226px; width:280px; text-align:center; font-family:'JetBrains Mono',monospace; font-weight:500; font-size:13px; line-height:16px; color:#93A9D9">{{kmh}} км/ч</div>
+  <sc-if value="{{atLimit}}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; left:104px; top:194px; width:72px; height:20px; border-radius:4px; background:#F24033; color:#FFFFFF; font-weight:800; font-size:11px; line-height:20px; text-align:center; letter-spacing:0.06em">ПРЕДЕЛ</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"speed":{"editor":"range","min":0,"max":2400,"step":10,"default":1200},"$preview":{"width":280,"height":280}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = Math.max(0, Math.min(2400, this.props.speed ?? 1200));
+    const cx = 140, cy = 140, R = 118;
+    const pt = (f, r) => { const a = (135 + 270 * f) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+    const arc = (f0, f1, r) => {
+      if (f1 - f0 <= 0.0005) return '';
+      const p0 = pt(f0, r), p1 = pt(f1, r);
+      const large = (f1 - f0) * 270 > 180 ? 1 : 0;
+      return 'M' + p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) + ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1);
+    };
+    const f = v / 2400, g = 0.004;
+    const zones = [[0, 0.35], [0.35, 0.65], [0.65, 0.85], [0.85, 1]];
+    const dim = zones.map(z => arc(z[0] + (z[0] ? g : 0), z[1] - (z[1] < 1 ? g : 0), R));
+    const lit = zones.map(z => arc(z[0] + (z[0] ? g : 0), Math.min(f, z[1] - (z[1] < 1 ? g : 0)), R));
+    const seg = (fr, r0, r1) => { const a = pt(fr, r0), b = pt(fr, r1); return 'M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + ' L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1); };
+    let minor = '', major = '';
+    for (let s = 0; s <= 2400; s += 100) {
+      if (s % 500 === 0) major += seg(s / 2400, 98, 109) + ' ';
+      else minor += seg(s / 2400, 102, 109) + ' ';
+    }
+    const labels = [0, 500, 1000, 1500, 2000].map(s => { const p = pt(s / 2400, 84); return { x: p[0].toFixed(1), y: p[1].toFixed(1), t: String(s) }; });
+    return {
+      dimG: dim[0], dimY: dim[1], dimO: dim[2], dimR: dim[3],
+      litG: lit[0], litY: lit[1], litO: lit[2], litR: lit[3],
+      minorTicks: minor, majorTicks: major,
+      maxNotch: seg(2300 / 2400, 126, 136),
+      pointer: seg(f, 100, 132),
+      labels,
+      speedText: String(Math.round(v)),
+      kmh: String(Math.round(v * 3.6)),
+      atLimit: v >= 2290
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Шкала высоты</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position:relative; width:128px; height:452px; font-family:'Golos Text',sans-serif; color:#F7E6BF">
+  <div style="position:absolute; left:0; top:0; width:128px; height:452px; border-radius:10px; background:rgba(6,10,24,0.72); box-shadow:inset 0 0 0 1px rgba(147,169,217,0.28)"></div>
+
+  <!-- шапка: потолок -->
+  <div style="position:absolute; left:0; top:0; width:128px; height:52px; border-radius:10px 10px 0 0; background:{{headBg}}"></div>
+  <div style="position:absolute; left:10px; top:10px; font-weight:{{headCapW}}; font-size:11px; line-height:13px; letter-spacing:0.06em; color:{{headCapColor}}">{{headCap}}</div>
+  <div style="position:absolute; left:10px; top:26px; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:18px; line-height:20px; color:{{headValColor}}">{{headVal}}</div>
+  <div style="position:absolute; right:10px; top:28px; font-family:'JetBrains Mono',monospace; font-weight:800; font-size:13px; line-height:16px; color:{{headTColor}}">{{headT}}</div>
+
+  <svg width="128" height="452" viewBox="0 0 128 452" style="position:absolute; left:0; top:0" aria-hidden="true">
+    <defs>
+      <pattern id="altHatchR" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#F24033"></rect><rect width="2" height="6" fill="#060A18" fill-opacity="0.55"></rect></pattern>
+      <pattern id="altHatchG" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="8" height="8" fill="#4A3220"></rect><rect width="2" height="8" fill="#C08A55" fill-opacity="0.35"></rect></pattern>
+    </defs>
+    <path d="M0 52.5 H128 M0 399.5 H128" stroke="#93A9D9" stroke-opacity="0.2"></path>
+    <rect x="46" y="58" width="32" height="336" fill="#121A36"></rect>
+    <path d="{{zCorr}}" fill="#59E673" fill-opacity="0.32"></path>
+    <path d="{{zCeilWarn}}" fill="#F2CC40" fill-opacity="0.85"></path>
+    <path d="{{zAbove}}" fill="url(#altHatchR)"></path>
+    <path d="{{zGround}}" fill="url(#altHatchG)"></path>
+    <path d="{{zGroundWarn}}" fill="#F2CC40" fill-opacity="0.85"></path>
+    <path d="{{zGroundDanger}}" fill="url(#altHatchR)"></path>
+    <path d="{{groundEdge}}" stroke="#C08A55" stroke-width="2"></path>
+    <path d="{{minorTicks}}" stroke="#93A9D9" stroke-opacity="0.6" stroke-width="1"></path>
+    <path d="{{majorTicks}}" stroke="#93A9D9" stroke-width="2"></path>
+    <path d="{{ceilLine}}" stroke="#060A18" stroke-width="7"></path>
+    <path d="{{ceilLine}}" stroke="#F24033" stroke-width="4"></path>
+    <path d="{{terrMarks}}" fill="none" stroke="#C08A55" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="{{arrow}}" fill="none" stroke="#060A18" stroke-width="8" stroke-linecap="round"></path>
+    <path d="{{arrow}}" fill="none" stroke="{{arrowColor}}" stroke-width="4" stroke-linecap="round"></path>
+    <path d="{{arrowHead}}" fill="{{arrowColor}}" stroke="#060A18" stroke-width="1.5"></path>
+    <path d="M42 226 H82" stroke="#060A18" stroke-width="5"></path>
+    <path d="M42 226 H82" stroke="#FFFFFF" stroke-width="2"></path>
+    <path d="M82 226 L92 220 V232 Z" fill="#FFFFFF" stroke="#060A18" stroke-width="1.5"></path>
+  </svg>
+
+  <sc-for list="{{labels}}" as="l" hint-placeholder-count="4">
+    <div style="position:absolute; left:0; top:{{l.y}}px; width:38px; margin-top:-7px; text-align:right; font-family:'JetBrains Mono',monospace; font-weight:500; font-size:11px; line-height:14px; color:#93A9D9">{{l.t}}</div>
+  </sc-for>
+  <div style="position:absolute; left:94px; top:218px; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; line-height:16px; color:#F7E6BF">{{vsT}}</div>
+
+  <!-- подвал: земля -->
+  <div style="position:absolute; left:0; top:400px; width:128px; height:52px; border-radius:0 0 10px 10px; background:{{footBg}}"></div>
+  <div style="position:absolute; left:10px; top:410px; font-weight:700; font-size:11px; line-height:13px; letter-spacing:0.06em; color:{{footCapColor}}">ЗЕМЛЯ</div>
+  <div style="position:absolute; left:10px; top:426px; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:18px; line-height:20px; color:{{footValColor}}">{{aglT}}</div>
+  <div style="position:absolute; right:10px; top:428px; font-family:'JetBrains Mono',monospace; font-weight:800; font-size:13px; line-height:16px; color:{{footTColor}}">{{footT}}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"alt":{"editor":"range","min":0,"max":7000,"step":10,"default":1703},"agl":{"editor":"range","min":0,"max":6000,"step":1,"default":1703},"vs":{"editor":"range","min":-400,"max":400,"step":10,"default":0},"groundT":{"editor":"float","default":99},"outLeft":{"editor":"int","default":8},"terr":{"editor":null},"$preview":{"width":128,"height":452}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props;
+    const alt = P.alt ?? 1703, agl = P.agl ?? 1703, vs = P.vs ?? 0;
+    const groundT = P.groundT ?? 99, outLeft = P.outLeft ?? 8;
+    const CEIL = 5350, ground = alt - agl;
+    const terr = P.terr ?? [ground + 30, ground + 90, ground + 160];
+    const K = 0.168, TOP = 58, BOT = 394, MID = 226;
+    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    const Y = h => cl(MID - (h - alt) * K, TOP, BOT);
+    const band = (lo, hi) => { const y1 = Y(hi), y2 = Y(lo); return (y2 - y1 < 0.5) ? '' : 'M46 ' + y1.toFixed(1) + ' H78 V' + y2.toFixed(1) + ' H46 Z'; };
+    const INF = 1e6;
+    let minor = '', major = ''; const labels = [];
+    for (let h = Math.ceil((alt - 1000) / 100) * 100; h <= alt + 1000; h += 100) {
+      const y = MID - (h - alt) * K; if (y < TOP + 1 || y > BOT - 1) continue;
+      if (h % 500 === 0) { major += 'M38 ' + y.toFixed(1) + ' H46 '; labels.push({ y: y.toFixed(1), t: String(h) }); }
+      else minor += 'M41 ' + y.toFixed(1) + ' H46 ';
+    }
+    const cy = MID - (CEIL - alt) * K;
+    const gy = MID - (ground - alt) * K;
+    let tm = '';
+    terr.forEach(h => { const y = MID - (h - alt) * K; if (y > TOP + 4 && y < BOT - 4) tm += 'M88 ' + (y - 4).toFixed(1) + ' L81 ' + y.toFixed(1) + ' L88 ' + (y + 4).toFixed(1) + ' '; });
+    const above = alt > CEIL;
+    let t = 99;
+    if (vs > 5 && !above) t = (CEIL - alt) / vs;
+    if (vs < -5) t = agl / -vs;
+    const tCol = t < 3 ? '#F24033' : (t < 6 ? '#F2CC40' : '#FFFFFF');
+    const len = cl(vs / 300, -1, 1) * 110;
+    const ay = MID - len;
+    const arrow = Math.abs(vs) > 5 ? 'M62 ' + MID + ' V' + ay.toFixed(1) : '';
+    const u = vs > 0 ? -1 : 1;
+    const head = Math.abs(vs) > 5 ? 'M62 ' + (ay + 5 * u).toFixed(1) + ' L56 ' + (ay - 5 * u).toFixed(1) + ' H68 Z' : '';
+    const ceilT = (vs > 5 && !above && t < 10) ? t.toFixed(1).replace('.', ',') + ' с' : '';
+    const ceilTCol = t < 3 ? '#F24033' : (t < 6 ? '#F2CC40' : '#F7E6BF');
+    const gCol = groundT < 3 ? '#F24033' : (groundT < 6 ? '#F2CC40' : '#F7E6BF');
+    const gDanger = groundT < 3;
+    const vsAbs = Math.abs(Math.round(vs));
+    return {
+      zCorr: band(ground + 250, CEIL - 300), zCeilWarn: band(Math.max(CEIL - 300, ground + 250), CEIL), zAbove: band(CEIL, INF),
+      zGround: band(-INF, ground), zGroundWarn: band(ground + 80, ground + 250), zGroundDanger: band(ground, ground + 80),
+      groundEdge: (gy > TOP && gy < BOT) ? 'M46 ' + gy.toFixed(1) + ' H78' : '',
+      minorTicks: minor, majorTicks: major, labels,
+      ceilLine: (cy > TOP && cy < BOT) ? 'M40 ' + cy.toFixed(1) + ' H86' : '',
+      terrMarks: tm,
+      arrow, arrowHead: head, arrowColor: tCol,
+      vsT: vs === 0 ? '0' : (vs > 0 ? '+' : '−') + vsAbs,
+      headBg: above ? '#F24033' : 'transparent',
+      headCap: above ? 'ЗА ПОТОЛКОМ' : 'ПОТОЛОК', headCapW: above ? 800 : 700,
+      headCapColor: above ? '#FFFFFF' : '#93A9D9',
+      headVal: above ? '+' + Math.round(alt - CEIL) + ' м' : Math.round(CEIL - alt) + ' м',
+      headValColor: above ? '#FFFFFF' : '#F7E6BF',
+      headT: above ? outLeft + ' с' : ceilT, headTColor: above ? '#FFFFFF' : ceilTCol,
+      aglT: Math.round(agl) + ' м',
+      footBg: gDanger ? '#F24033' : 'transparent',
+      footCapColor: gDanger ? '#FFFFFF' : '#93A9D9', footValColor: gDanger ? '#FFFFFF' : '#F7E6BF',
+      footT: groundT <= 6 ? groundT.toFixed(1).replace('.', ',') + ' с' : '', footTColor: gDanger ? '#FFFFFF' : gCol
+    };
+  }
+}
+</script>
+</body>
+</html>

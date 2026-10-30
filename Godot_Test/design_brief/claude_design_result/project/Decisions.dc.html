@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Решения и спорные места</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1200px; height:1700px; box-sizing:border-box; padding:48px 56px; background:#060A18; color:#F7E6BF; font-family:'Golos Text',sans-serif; font-size:14px; line-height:1.55; display:flex; flex-direction:column; gap:28px">
+  <h1 style="margin:0; font-family:'Dela Gothic One',sans-serif; font-weight:400; font-size:36px">Решения <span style="color:#FF8A1E">по проблемам</span></h1>
+  <div style="display:grid; grid-template-columns:40px 1fr; gap:10px 16px">
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">1</span><div><b>Стиль меню.</b> Те же шрифты (Dela / Golos / JetBrains Mono) и цвета (INK, оранжевый #FF8A1E, steel, cream). Один тип плашки на все виджеты, один тип тревоги.</div>
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">2</span><div><b>Низ слева.</b> Спидометр и прибор — две отдельные плашки с промежутком 12. Стрелки через центр больше нет, «0» открыт. Подписи ленты курса ±60 сдвинуты внутрь (лента 156 px на 216). Мелких подписей &lt;11 px нет.</div>
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">3</span><div><b>Лапы корабля.</b> Прибор 216×200 заканчивается на x 532; корабль начинается с x ≈ 548. Крестик 80×80 убран — за счёт этого прибор стал уже на 204 px.</div>
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">4</span><div><b>Цветовая слепота.</b> Потери — пунктир + крест; зоны запрета — штриховка; срочность — число дуг + текстовый чип; темп — знак, стрелка, слово; соперники — ▲/▼ в паре orange/cyan; срезки на карте — пунктир; тангаж ниже горизонта — пунктир.</div>
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">5</span><div><b>Схема корабля.</b> Вместо выпуклой оболочки — 5 простых многоугольников: корпус, два стреловидных крыла с законцовками, три маршевых сопла, 7 взлётных вентиляторов. Рисуется draw_colored_polygon + draw_polyline, координаты в спецификации.</div>
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">6</span><div><b>Сетка.</b> Поля 24, промежуток 12, верхняя полоса 24–120 одной высоты (96) у всех плашек, колонки начинаются с y 132.</div>
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">7</span><div><b>Правая колонка.</b> Темп, здоровье и карта — одна ширина 280, левый край x 1296. Слева высота и позиция — одна ширина 128. Здоровье 280×280 и карта 280×280 зеркалят спидометр 280.</div>
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:20px; color:#FF8A1E">8</span><div><b>Режимы.</b> Полный / минимальный / стрим — см. лист «Режимы HUD».</div>
+  </div>
+
+  <h1 style="margin:8px 0 0; font-family:'Dela Gothic One',sans-serif; font-weight:400; font-size:36px">Спорные места <span style="color:#FF8A1E">— что я поменял в логике</span></h1>
+  <div style="display:flex; flex-direction:column; gap:14px">
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">«До финиша» переехало в плашку времени.</b> Всё о прогрессе (время, полоса, остаток) в одном месте по центру; справа остались то, что зависит от выбора игрока: темп и срезка. Минус: у центра на одну строку больше.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Крестик управления 80×80 → две точки на краях горизонта.</b> Ввод по тангажу и крену виден там же, куда смотрит глаз. Рыскание в полном HUD не показываю (его последствие видно на ленте курса); полный крестик оставить в служебном F1 или режиме обучения.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Позиция 70 px → Dela 40.</b> Главным числом остаётся скорость (56). Позиция меняется редко, внимание к ней привлекает вспышка 0,6 с, а не размер.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Срочность удара — три порога, а не два.</b> Сейчас один порог цвета (1,2 с). Добавил 2,0 с для второй дуги — цвет не меняется, растёт число дуг. Нужна проверка, не слишком ли рано «шумит».</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Чип удара под панелью здоровья.</b> Дублирует зону словами («ПРАВОЕ КРЫЛО · 0,9 с»). Это новая строка текста в бою — если плейтест покажет, что её не читают, оставить только дуги.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Подписи соперников: чип, лимит 6, переворот и индикатор у края.</b> Голый текст с обводкой теряется на светлой пыли. Сейчас на экране бывает 6+ подписей — оставляю ближайшие 6. Новое: соперник ближе 1 км вне кадра (позади, сбоку) — чип у края экрана со стрелкой.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Карта не масштабируется, но стала информативнее.</b> Добавлены точки соперников и приглушённое пройденное. Альтернатива на обсуждение: плашка по пропорциям трассы (≈ 200×280) — освободит 80 px, но сломает симметрию колонок.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Уровень сложности в HUD — кандидат на удаление.</b> Он не меняется за гонку. Оставил мелкой подписью под полосой; в «стриме» скрыт. Можно показывать 3 с на старте и в паузе.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Цифры тангажа и крена.</b> Дублируют горизонт. Оставил все три (сокращения ТАНГ / КРЕН / СНОС), но выделяю только снос (янтарь при ≥10°) — это то, чего на горизонте не видно сразу.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Баннер «Вернитесь в каньон» закрывает 72 px зоны обзора.</b> Сознательно: в эти секунды это главное. Ширина 480, не опускается ниже y 204.</div>
+    <div style="padding:14px 18px; border-radius:10px; background:#121A36"><b style="color:#FF8A1E">Данные на макетах.</b> На исходных кадрах позиция 12/12 при сопернике позади — в макетах позиции исправлены (7, 9, 5, 4, 11), время и остаток пересчитаны по ~640 км. Время соперника = дистанция / max(скорость, 300).</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1200,"height":1700}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

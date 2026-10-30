@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Здоровье и удары</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position:relative; width:280px; height:320px; font-family:'Golos Text',sans-serif; color:#F7E6BF">
+  <div style="position:absolute; left:0; top:0; width:280px; height:280px; border-radius:10px; background:rgba(6,10,24,0.72); box-shadow:inset 0 0 0 1px rgba(147,169,217,0.28)"></div>
+  <div style="position:absolute; left:12px; top:12px; font-weight:700; font-size:11px; line-height:13px; letter-spacing:0.06em; color:#93A9D9">ЗДОРОВЬЕ</div>
+  <div style="position:absolute; right:12px; top:6px; font-family:'JetBrains Mono',monospace; font-weight:800; font-size:20px; line-height:24px; color:{{hpColor}}">{{hpT}}</div>
+  <svg width="280" height="280" viewBox="0 0 280 280" style="position:absolute; left:0; top:0" aria-hidden="true">
+    <rect x="12" y="34" width="256" height="6" rx="3" fill="#93A9D9" fill-opacity="0.2"></rect>
+    <rect x="12" y="34" width="{{hpW}}" height="6" rx="3" fill="{{hpColor}}"></rect>
+    <path d="M96.5 33 V41 M181.5 33 V41" stroke="#060A18" stroke-width="2"></path>
+    <path d="M8 64 H272 M8 80 H272 M8 96 H272 M8 112 H272 M8 128 H272 M8 144 H272 M8 160 H272 M8 176 H272 M8 192 H272 M8 208 H272 M8 224 H272 M8 240 H272 M8 256 H272 M28 52 V272 M44 52 V272 M60 52 V272 M76 52 V272 M92 52 V272 M108 52 V272 M124 52 V272 M140 52 V272 M156 52 V272 M172 52 V272 M188 52 V272 M204 52 V272 M220 52 V272 M236 52 V272 M252 52 V272" stroke="#93A9D9" stroke-opacity="0.08" stroke-width="1"></path>
+    <g transform="translate(140 164) scale(0.88) translate(-140 -157)">
+      <!-- крылья с законцовками -->
+      <path d="M123 148 L66 192 L64 212 L122 204 Z" fill="{{p.wingL.fill}}" fill-opacity="{{p.wingL.fo}}" stroke="{{p.wingL.stroke}}" stroke-width="2" stroke-dasharray="{{p.wingL.dash}}" stroke-linejoin="round"></path>
+      <rect x="55" y="174" width="10" height="48" rx="5" fill="{{p.wingL.fill}}" fill-opacity="{{p.wingL.fo}}" stroke="{{p.wingL.stroke}}" stroke-width="2" stroke-dasharray="{{p.wingL.dash}}"></rect>
+      <path d="M157 148 L214 192 L216 212 L158 204 Z" fill="{{p.wingR.fill}}" fill-opacity="{{p.wingR.fo}}" stroke="{{p.wingR.stroke}}" stroke-width="2" stroke-dasharray="{{p.wingR.dash}}" stroke-linejoin="round"></path>
+      <rect x="215" y="174" width="10" height="48" rx="5" fill="{{p.wingR.fill}}" fill-opacity="{{p.wingR.fo}}" stroke="{{p.wingR.stroke}}" stroke-width="2" stroke-dasharray="{{p.wingR.dash}}"></rect>
+      <!-- корпус -->
+      <path d="M140 60 L151 72 L157 96 L158 200 L163 236 L117 236 L122 200 L123 96 L129 72 Z" fill="{{hullFill}}" fill-opacity="{{hullFo}}" stroke="{{hullStroke}}" stroke-width="{{hullSw}}" stroke-linejoin="round"></path>
+      <path d="M140 72 V226" stroke="#8CD9F2" stroke-opacity="0.35" stroke-width="1"></path>
+      <!-- маршевые моторы -->
+      <rect x="118" y="236" width="13" height="12" rx="2" fill="{{p.mainL.fill}}" fill-opacity="{{p.mainL.fo}}" stroke="{{p.mainL.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.mainL.dash}}"></rect>
+      <rect x="133.5" y="236" width="13" height="17" rx="2" fill="{{p.mainC.fill}}" fill-opacity="{{p.mainC.fo}}" stroke="{{p.mainC.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.mainC.dash}}"></rect>
+      <rect x="149" y="236" width="13" height="12" rx="2" fill="{{p.mainR.fill}}" fill-opacity="{{p.mainR.fo}}" stroke="{{p.mainR.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.mainR.dash}}"></rect>
+      <!-- взлётные моторы (вентиляторы в брюхе) -->
+      <path d="{{liftRings}}" fill="none" stroke="{{liftRingColor}}" stroke-width="2"></path>
+      <circle cx="140" cy="90" r="5.5" fill="{{p.lf1.fill}}" fill-opacity="{{p.lf1.fo}}" stroke="{{p.lf1.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.lf1.dash}}"></circle>
+      <circle cx="133" cy="103" r="5.5" fill="{{p.lf2.fill}}" fill-opacity="{{p.lf2.fo}}" stroke="{{p.lf2.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.lf2.dash}}"></circle>
+      <circle cx="147" cy="103" r="5.5" fill="{{p.lf3.fill}}" fill-opacity="{{p.lf3.fo}}" stroke="{{p.lf3.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.lf3.dash}}"></circle>
+      <circle cx="132" cy="176" r="5.5" fill="{{p.lr1.fill}}" fill-opacity="{{p.lr1.fo}}" stroke="{{p.lr1.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.lr1.dash}}"></circle>
+      <circle cx="148" cy="176" r="5.5" fill="{{p.lr2.fill}}" fill-opacity="{{p.lr2.fo}}" stroke="{{p.lr2.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.lr2.dash}}"></circle>
+      <circle cx="132" cy="191" r="5.5" fill="{{p.lr3.fill}}" fill-opacity="{{p.lr3.fo}}" stroke="{{p.lr3.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.lr3.dash}}"></circle>
+      <circle cx="148" cy="191" r="5.5" fill="{{p.lr4.fill}}" fill-opacity="{{p.lr4.fo}}" stroke="{{p.lr4.stroke}}" stroke-width="1.5" stroke-dasharray="{{p.lr4.dash}}"></circle>
+      <!-- кресты потерянных деталей -->
+      <path d="{{crosses}}" stroke="#060A18" stroke-width="5" stroke-linecap="round"></path>
+      <path d="{{crosses}}" stroke="#F24033" stroke-width="2.5" stroke-linecap="round"></path>
+      <!-- дуги угрозы -->
+      <path d="{{arcs}}" fill="none" stroke="#060A18" stroke-width="6.5" stroke-linecap="round"></path>
+      <path d="{{arcs}}" fill="none" stroke="{{threatColor}}" stroke-width="3.5" stroke-linecap="round"></path>
+    </g>
+    <!-- вектор скорости в плоскости корабля -->
+    <path d="{{vel}}" stroke="#060A18" stroke-width="5" stroke-linecap="round"></path>
+    <path d="{{vel}}" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"></path>
+    <path d="{{velHead}}" fill="#FFFFFF" stroke="#060A18" stroke-width="1.2"></path>
+    <circle cx="140" cy="164" r="3" fill="#FFFFFF" stroke="#060A18" stroke-width="1.2"></circle>
+  </svg>
+  <sc-if value="{{hasThreat}}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; left:0; top:288px; width:280px; height:32px; box-sizing:border-box; border-radius:6px; background:{{threatColor}}; color:{{chipText}}; display:flex; align-items:center; gap:8px; padding:0 12px">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 L15 14.5 H1 Z" fill="none" stroke="{{chipText}}" stroke-width="2" stroke-linejoin="round"></path><path d="M8 6 V10 M8 12 V12.5" stroke="{{chipText}}" stroke-width="2" stroke-linecap="round"></path></svg>
+      <span style="font-weight:800; font-size:14px; letter-spacing:0.03em; flex:1">{{threatLabel}}</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-weight:800; font-size:15px">{{threatTT}}</span>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"hp":{"editor":"range","min":0,"max":100,"step":1,"default":100},"threat":{"editor":"enum","options":["none","nose","tail","left","right","top","bottom"],"default":"none"},"threatT":{"editor":"range","min":0,"max":3,"step":0.1,"default":0.9},"speed":{"editor":"range","min":0,"max":2400,"step":10,"default":1200},"drift":{"editor":"range","min":-40,"max":40,"step":1,"default":2},"lost":{"editor":null},"$preview":{"width":280,"height":320}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props;
+    const hp = P.hp ?? 100, threat = P.threat ?? 'none', tt = P.threatT ?? 0.9;
+    const lost = P.lost ?? [], speed = P.speed ?? 1200, drift = P.drift ?? 2;
+    const GOOD = '#59E673', WARN = '#F2CC40', DANGER = '#F24033', INK = '#060A18';
+    const has = threat !== 'none';
+    const tc = tt <= 1.2 ? DANGER : WARN;
+    const n = tt <= 1.2 ? 3 : (tt <= 2 ? 2 : 1);
+    const ids = ['wingL', 'wingR', 'mainL', 'mainC', 'mainR', 'lf1', 'lf2', 'lf3', 'lr1', 'lr2', 'lr3', 'lr4'];
+    const centers = { wingL: [92, 192, 11], wingR: [188, 192, 11], mainL: [124.5, 242, 5], mainC: [140, 244.5, 5], mainR: [155.5, 242, 5], lf1: [140, 90, 4], lf2: [133, 103, 4], lf3: [147, 103, 4], lr1: [132, 176, 4], lr2: [148, 176, 4], lr3: [132, 191, 4], lr4: [148, 191, 4] };
+    const p = {}; let crosses = '', rings = '';
+    ids.forEach(id => {
+      const isLost = lost.indexOf(id) >= 0;
+      const isWing = id.indexOf('wing') === 0, isLift = id[0] === 'l';
+      if (isLost) {
+        p[id] = { fill: 'none', fo: 0, stroke: DANGER, dash: '4 3' };
+        const c = centers[id], s = c[2];
+        crosses += 'M' + (c[0] - s) + ' ' + (c[1] - s) + ' L' + (c[0] + s) + ' ' + (c[1] + s) + ' M' + (c[0] + s) + ' ' + (c[1] - s) + ' L' + (c[0] - s) + ' ' + (c[1] + s) + ' ';
+      } else if (isLift && threat === 'bottom') {
+        p[id] = { fill: tc, fo: 1, stroke: '#FFFFFF', dash: 'none' };
+        const c = centers[id];
+        rings += 'M' + (c[0] + 9) + ' ' + c[1] + ' A9 9 0 1 0 ' + (c[0] + 8.99) + ' ' + (c[1] - 0.4) + ' ';
+      } else if (isWing) {
+        p[id] = { fill: GOOD, fo: 0.3, stroke: GOOD, dash: 'none' };
+      } else {
+        p[id] = { fill: GOOD, fo: 0.9, stroke: INK, dash: 'none' };
+      }
+    });
+    const arcAt = (cx, cy, r, a0, a1) => {
+      const t0 = a0 * Math.PI / 180, t1 = a1 * Math.PI / 180;
+      return 'M' + (cx + r * Math.cos(t0)).toFixed(1) + ' ' + (cy + r * Math.sin(t0)).toFixed(1) + ' A' + r + ' ' + r + ' 0 0 1 ' + (cx + r * Math.cos(t1)).toFixed(1) + ' ' + (cy + r * Math.sin(t1)).toFixed(1) + ' ';
+    };
+    const zones = { nose: [140, 56, -130, -50], tail: [140, 258, 50, 130], left: [50, 198, 140, 220], right: [230, 198, -40, 40] };
+    let arcs = '';
+    if (zones[threat]) { const z = zones[threat]; for (let i = 0; i < n; i++) arcs += arcAt(z[0], z[1], 8 + i * 7, z[2], z[3]); }
+    const names = { nose: 'УДАР: НОС', tail: 'УДАР: ХВОСТ', left: 'УДАР: ЛЕВОЕ КРЫЛО', right: 'УДАР: ПРАВОЕ КРЫЛО', top: 'УДАР СВЕРХУ', bottom: 'УДАР СНИЗУ' };
+    const L = Math.min(1, speed / 900) * 70, d = drift * Math.PI / 180;
+    const ex = 140 + L * Math.sin(d), ey = 164 - L * Math.cos(d);
+    const ux = Math.sin(d), uy = -Math.cos(d), nx = -uy, ny = ux;
+    const hx = ex + ux * 6, hy = ey + uy * 6;
+    const velHead = L > 8 ? 'M' + hx.toFixed(1) + ' ' + hy.toFixed(1) + ' L' + (ex + nx * 5).toFixed(1) + ' ' + (ey + ny * 5).toFixed(1) + ' L' + (ex - nx * 5).toFixed(1) + ' ' + (ey - ny * 5).toFixed(1) + ' Z' : '';
+    const hpCol = hp > 66 ? GOOD : (hp > 33 ? WARN : DANGER);
+    return {
+      p, crosses, arcs, threatColor: tc,
+      liftRings: rings, liftRingColor: tc,
+      hullFill: threat === 'top' ? tc : '#8CD9F2', hullFo: threat === 'top' ? 0.5 : 0.08,
+      hullStroke: threat === 'top' ? tc : '#8CD9F2', hullSw: threat === 'top' ? 3.5 : 2,
+      vel: 'M140 164 L' + ex.toFixed(1) + ' ' + ey.toFixed(1), velHead,
+      hpT: Math.round(hp) + '%', hpW: (256 * hp / 100).toFixed(1), hpColor: hpCol,
+      hasThreat: has, threatLabel: names[threat] || '', threatTT: tt.toFixed(1).replace('.', ',') + ' с',
+      chipText: tc === WARN ? INK : '#FFFFFF'
+    };
+  }
+}
+</script>
+</body>
+</html>

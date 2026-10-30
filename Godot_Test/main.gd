@@ -73,14 +73,15 @@ var ui: CanvasLayer
 var music: Node
 const INTRO_T := 27.465            # момент старта кораблей в треке Retribution (вступление: 0–21 с катсцена, 21–27.465 с отсчёт)
 const INTRO_CUT := 21.0
+const INTRO_SKIP_LEFT := 3.0       # пропуск катсцены перематывает на момент, когда в обратном отсчёте горит «3» (за 3 с до старта)
 var intro_on := false
 var world_env: Environment
 const FOG_BASE := 0.00003
 var intro_skipped := false
 var intro_seen := false
-func skip_intro() -> void:                                                  # пропуск катсцены: музыка перематывается на начало отсчёта (21 с)
+func skip_intro() -> void:                                                  # пропуск катсцены: музыка перематывается на момент, когда в отсчёте «3»
 	intro_skipped = true
-	music.seek_intro(INTRO_CUT); cam_snap = true; intro_picks = []
+	music.seek_intro(INTRO_T - INTRO_SKIP_LEFT); cam_snap = true; intro_picks = []
 	if Input.is_action_just_pressed("assist"): assist = not assist         # A на геймпаде — и пропуск, и стабилизация: нажатие не должно выключать стабилизацию
 	if world_env != null: world_env.fog_density = FOG_BASE
 var cam_snap := false
@@ -308,7 +309,7 @@ const LEVEL_ROLL := [2.5, 1.5, 0.0, 0.0, 0.0]            # самовыравн�
 var prev_lvl := -1
 func _lvl() -> int: return clampi(int(cfg["level"]), 0, 4)
 const DEADZONES := [0.05, 0.08, 0.12, 0.18, 0.25]
-var cfg := {"inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "stats": {}, "ship": 0, "ach": {}, "rec": {}}
+var cfg := {"hud_mode": 0, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "stats": {}, "ship": 0, "ach": {}, "rec": {}}
 var esc_prev := false
 var menu_open := false
 var menu_i := 0
@@ -2837,7 +2838,9 @@ func _process(dt: float) -> void:
 			if pf % 60 == 0 and pf >= 40: print("FLOW pf=", pf, " state=", ui.state, " start_t=", snappedf(start_t, 0.1), " race_t=", snappedf(race_t, 0.1), " v=", int(ship.linear_velocity.length()), " ts=", Engine.time_scale)
 			if pf == 400: get_tree().quit()
 		if pf == 70 and ui_shot != "spurcam" and ui_shot != "hatchcam" and ui_shot != "flow" and ui_shot != "flowpad" and ui_shot != "fin" and ui_shot != "tour" and ui_shot != "dump" and ui_shot != "intro" and not ui_shot.begins_with("padtest") and ui_shot != "padlog" and ui_shot != "tilebench" and ui_shot != "cutcam" and ui_shot != "cutwidth" and ui_shot != "cutship" and ui_shot != "gridcam" and ui_shot != "liverycam" and ui_shot != "shipswap" and ui_shot != "unstick":
-			get_viewport().get_texture().get_image().save_png("/private/tmp/ui_" + ui_shot + ".png"); get_tree().quit()
+			var shot_sfx := ""                                                         # -- hudmock=N: снимок «ui_hud_mN.png», чтобы сценарии можно было снимать параллельно
+			for ua in OS.get_cmdline_user_args(): if ua.begins_with("hudmock="): shot_sfx = "_m" + ua.substr(8)
+			get_viewport().get_texture().get_image().save_png("/private/tmp/ui_" + ui_shot + shot_sfx + ".png"); get_tree().quit()
 	if "tech" in OS.get_cmdline_user_args() and frame >= 40 and tech_shot_n == 0 and not tech_open: _set_tech(true)
 	var esc := Input.is_key_pressed(KEY_ESCAPE)
 	if Input.is_action_just_pressed("tech") or (tech_open and esc and not esc_prev):
@@ -2893,7 +2896,7 @@ func _process(dt: float) -> void:
 			if intro_on: intro_on = false; music.race_started()
 	if racing: race_t += dt
 	# запретная зона по высоте: границы не видно и не бьёт, но надо выйти за RIM_GRACE секунд
-	if ship.global_position.y > RIM_Y and not soak:
+	if ship.global_position.y > RIM_Y and not soak and not p_dsq and dsq_t <= 0.0:       # после дисквалификации (и пока идёт её отсчёт) время выше потолка больше не копится
 		rim_t += dt
 		if racing: p_rim_ever = true
 	else: rim_t = maxf(0.0, rim_t - dt * 2.0)
@@ -2902,9 +2905,9 @@ func _process(dt: float) -> void:
 		warn_label.visible = true; warn_label.text = "ДИСКВАЛИФИКАЦИЯ"
 		if dsq_t <= 0.0: _disqualify()
 	elif msg_t > 0.0:
-		msg_t -= dt; warn_label.visible = true; warn_label.text = msg_txt
+		msg_t -= dt; warn_label.visible = false                                    # сообщение рисует HUD (hud_widgets.gd, полоса внизу)
 	elif rim_t > 0.0:
-		warn_label.visible = true; warn_label.text = "Вернитесь в каньон: %d" % int(ceil(RIM_GRACE - rim_t))
+		warn_label.visible = false                                                  # тревогу потолка рисует HUD (hud_widgets.gd)
 		if rim_t >= RIM_GRACE and not p_dsq and not p_fin: dsq_t = 3.0; rim_t = 0.0; _log_event("DISQUALIFIED rim")
 	else: warn_label.visible = false
 	var pq := _track_query(ship.global_position.x, ship.global_position.z)
