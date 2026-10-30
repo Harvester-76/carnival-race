@@ -66,6 +66,9 @@ var plan_lift := {}                                                          # �
 var marker_los := {}                                                         # номер бота -> [время проверки, виден]
 var markers: Array = []                                                      # подписи соперников этого кадра
 var horizon: Control
+var pa := 0.72                                                               # плотность подложек плашек (настройка «Прозрачность панелей»)
+var base_pos := {}                                                           # исходные позиции виджетов (до отступа от края)
+const ANCHOR := ["pos", "riv", "timer", "pace", "alt", "hp", "chip", "alarm", "spd", "att", "map", "msg"]   # виджеты, к которым применяется отступ от края
 var map_cache := {"id": 0, "pts": PackedVector2Array(), "s": PackedFloat32Array(), "cuts": [], "lo": Vector2(), "k": 1.0, "off": Vector2()}
 
 func setup(main_node: Node, ui_node: Node) -> void:
@@ -75,6 +78,9 @@ func setup(main_node: Node, ui_node: Node) -> void:
 	_load_fonts(); _make_styles(); _make_hatch()
 	mode = clampi(int(main.cfg.get("hud_mode", 0)), 0, 2)
 	for ua in OS.get_cmdline_user_args(): if ua.begins_with("hudmode="): mode = clampi(int(ua.substr(8)), 0, 2)      # -- hudmode=0|1|2 для скриншотов
+	for ua in OS.get_cmdline_user_args():                                    # для скриншотов (в памяти, не сохраняется): -- hudalpha=0.3 hudmargin=3
+		if ua.begins_with("hudalpha="): main.cfg["hud_alpha"] = float(ua.substr(9))
+		if ua.begins_with("hudmargin="): main.cfg["hud_margin"] = float(ua.substr(10))
 	W["pos"] = _mk(Vector2(24, 24), Vector2(128, 96), _draw_pos)
 	W["riv"] = _mk(Vector2(164, 24), Vector2(320, 96), _draw_riv)
 	W["timer"] = _mk(Vector2(620, 24), Vector2(360, 96), _draw_timer)
@@ -92,6 +98,7 @@ func setup(main_node: Node, ui_node: Node) -> void:
 	mask.clip_children = CanvasItem.CLIP_CHILDREN_ONLY; (W["att"] as Control).add_child(mask)
 	horizon = Control.new(); horizon.size = Vector2(192, 110); horizon.mouse_filter = Control.MOUSE_FILTER_IGNORE; mask.add_child(horizon)
 	horizon.draw.connect(_draw_horizon)
+	for k in ANCHOR: base_pos[k] = (W[k] as Control).position
 	W["marks"] = _mk(Vector2.ZERO, Vector2(1600, 900), _draw_marks)
 	(W["marks"] as Control).get_parent().remove_child(W["marks"]); (ui.marker_root as Control).add_child(W["marks"])      # подписи — под плашками HUD и видны и в паузе
 
@@ -166,6 +173,13 @@ func _tcol(t: float, calm: Color) -> Color: return DANGER if t < 3.0 else (WARN 
 # ---------- данные кадра ----------
 func _process(dt: float) -> void:
 	if main == null or main.ship == null or not visible: return
+	pa = clampf(float(main.cfg.get("hud_alpha", 0.72)), 0.0, 1.0)
+	sb_plaque.bg_color = Color(INK, pa); sb_alarm.bg_color = Color(INK, lerpf(pa, 1.0, 0.5))
+	var mg := clampf(float(main.cfg.get("hud_margin", 0.0)), 0.0, 5.0) / 100.0               # отступ HUD от края, % экрана: HUD сжимается к центру, чтобы вписаться внутрь, виджеты не налезают друг на друга
+	var kz := 1.0 - 2.0 * mg
+	for k in ANCHOR:
+		var wc: Control = W[k]
+		wc.scale = Vector2(kz, kz); wc.position = Vector2(800, 450) + ((base_pos[k] as Vector2) - Vector2(800, 450)) * kz
 	_update_state(dt)
 	for k in W: (W[k] as Control).queue_redraw()
 	horizon.queue_redraw()
@@ -304,7 +318,7 @@ func _update_visibility(dt: float) -> void:
 		c.modulate.a = move_toward(c.modulate.a, 1.0 if vis else 0.0, dt / (0.2 if vis else 0.3))
 		c.visible = c.modulate.a > 0.01
 	(W["riv"] as Control).visible = (W["riv"] as Control).visible and (S.get("a") != null or S.get("b") != null)
-	(W["chip"] as Control).visible = (W["chip"] as Control).visible and String(S.get("zone", "")) != "" and (mode == 0 or (W["hp"] as Control).visible)
+	(W["chip"] as Control).visible = (W["chip"] as Control).visible and bool(main.cfg.get("hud_chip", true)) and String(S.get("zone", "")) != "" and (mode == 0 or (W["hp"] as Control).visible)
 	(W["alarm"] as Control).visible = float(S.get("alt", 0.0)) > CEIL_Y and (mock_id > 0 or (not main.p_dsq and not main.p_fin and float(main.dsq_t) <= 0.0))    # после дисквалификации баннера и отсчёта нет
 	(W["msg"] as Control).visible = String(_msg_info()[0]) != ""
 
@@ -357,7 +371,7 @@ func _draw_timer(c: Control) -> void:
 	c.draw_style_box(_flat(ORANGE, 3), Rect2(16, 56, fw, 6))
 	for cm in S.get("cut_marks", []): c.draw_line(Vector2(16 + float(cm[0]) * 328, 67), Vector2(16 + float(cm[1]) * 328, 67), Color(ORANGE, 0.75), 2.0)
 	for x in [98, 180, 262]: c.draw_line(Vector2(x, 53), Vector2(x, 65), Color(INK, 0.7), 1.0)
-	if mode != 2: _tx(c, "g7", 11, String(S.get("level", "")), 16, 72, STEEL, HORIZONTAL_ALIGNMENT_LEFT, -1, 13)
+	if mode != 2 and bool(main.cfg.get("hud_level", true)): _tx(c, "g7", 11, String(S.get("level", "")), 16, 72, STEEL, HORIZONTAL_ALIGNMENT_LEFT, -1, 13)
 	var val := _fmt_d(float(S.get("to_finish", 0.0))); var wv := _tw("m7", 13, val)
 	_txr(c, "m7", 13, val, 344, 72, CREAM, 16)
 	_txr(c, "g7", 11, "ДО ФИНИША ", 344 - wv, 72, STEEL, 16)
@@ -453,7 +467,7 @@ func _pt(f: float, r: float) -> Vector2:
 
 func _draw_spd(c: Control) -> void:
 	var v := float(S.get("speed", 0.0)); var vv := clampf(v, 0.0, SPEED_MAX); var f := vv / SPEED_MAX
-	c.draw_circle(Vector2(140, 140), 140, Color(INK, 0.72)); c.draw_arc(Vector2(140, 140), 139.5, 0, TAU, 96, Color(STEEL, 0.28), 1.0, true)
+	c.draw_circle(Vector2(140, 140), 140, Color(INK, pa)); c.draw_arc(Vector2(140, 140), 139.5, 0, TAU, 96, Color(STEEL, 0.28), 1.0, true)
 	var zones := [[0.0, 0.35, GOOD], [0.35, 0.65, WARN], [0.65, 0.85, ORANGE], [0.85, 1.0, DANGER]]
 	var g := 0.004
 	for z in zones:
@@ -805,7 +819,7 @@ func _draw_marks(c: Control) -> void:
 		if top < 132.0: top = sp.y + 36.0                                    # слишком высоко: переворот под корабль
 		var rc := Rect2(sp.x - w * 0.5, top, w, 22)
 		var a := float(r["a"])
-		var sb := _flat(Color(INK, 0.55 * a), 4)
+		var sb := _flat(Color(INK, pa * 0.76 * a), 4)
 		if near_behind: sb.border_color = Color(CYAN, a); sb.set_border_width_all(2)
 		c.draw_style_box(sb, rc)
 		c.draw_circle(rc.position + Vector2(10.5, 11), 3.5, Color(pc, a))
@@ -831,7 +845,7 @@ func _draw_marks(c: Control) -> void:
 		var w2 := _tw("g7", 13, nm2) + 6.0 + _tw("m7", 12, dt2) + 12.0 + 16.0
 		var ep := Vector2(180.0 if left else 1290.0, clampf(vs.y * 0.5 + dir2.y * vs.y * 0.5 + float(k) * 26.0, 220.0, 640.0))
 		var rc2 := Rect2(ep.x - (0.0 if left else w2), ep.y - 11, w2, 22)
-		c.draw_style_box(_flat(Color(INK, 0.55), 4), rc2)
+		c.draw_style_box(_flat(Color(INK, pa * 0.76), 4), rc2)
 		_tx(c, "g7", 13, nm2, rc2.position.x + (20.0 if left else 6.0), rc2.position.y, CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, 22)
 		_tx(c, "m7", 12, dt2, rc2.position.x + (20.0 if left else 6.0) + _tw("g7", 13, nm2) + 6.0, rc2.position.y, STEEL, HORIZONTAL_ALIGNMENT_LEFT, -1, 22)
 		var tx := rc2.position.x + (4.0 if left else w2 - 14.0)

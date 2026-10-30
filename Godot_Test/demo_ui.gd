@@ -97,7 +97,7 @@ const ACH := [
 const DEV_RECORD := 137.36                                                  # рекорд разработчика, с (2:17.36, «Дальнобойщик»): один на все уровни и корабли; обновляется с версиями игры
 const OS_ACH := {"Windows": "os_win", "macOS": "os_mac", "Linux": "os_linux", "FreeBSD": "os_linux", "NetBSD": "os_linux", "OpenBSD": "os_linux", "BSD": "os_linux", "Android": "os_android", "iOS": "os_ios"}
 const MUSIC_ALL := ["tuman.mp3", "radium.mp3", "avenger.mp3", "globacide.mp3", "retribution.mp3", "results.mp3"]
-const PAGES_ALL := ["settings", "controls", "sound", "camera", "keys", "pad", "advanced", "ach", "about", "project", "exit"]
+const PAGES_ALL := ["settings", "controls", "sound", "camera", "interface", "keys", "pad", "advanced", "ach", "about", "project", "exit"]
 const PROJECT_SECTIONS := [
 	{"t": "О проекте", "body": "Карнавальская Гонка — игра по мотивам цикла Ольги Громыко «Космоолухи»: гонка транспортных кораблей по гигантскому каньону планеты Карнавал, где побеждает не самый быстрый, а самый хитрый, везучий и живучий. Главная цель — передать дух книжных гонок: ветвящуюся трассу, где путь выбирают на ходу, подножки соперникам, обвалы, тупики и отыгрыш ролей.\n\nСейчас перед вами демо-прототип на движке Godot. Он нужен, чтобы обкатать управление кораблём, поведение соперников и показать идею. Полноценная игра будет делаться на Unreal Engine."},
 	{"t": "Режимы игры", "body": "Тренировочный режим. Гонка с ботами. Можно выбрать участок реальной трассы из книги длиной 3–5 минут игрового времени и отрабатывать именно его. Правила выбывания (застрял, перевёрнут, вылетел за кромку) задаются отдельно для каждого режима и хранятся как данные, а не зашиты в код.\n\nRP-режим. Игра служит средой для ролевой игры: гонка идёт по всей трассе целиком. Сломанный корабль не дисквалифицируется автоматически, он ждёт эвакуации, а решения (штраф, возврат на трассу, дисквалификация) принимают живые судьи.\n\nСетевая гонка без RP: правила применяет автомат. В далёкой перспективе возможна ролевая игра (RPG)."},
@@ -304,7 +304,7 @@ func _page_items() -> Array:
 				var has: bool = got.has(a["id"])
 				it.append({"id": a["id"], "title": a["title"], "cond": a["cond"], "st": "got" if has else ("hidden" if a.get("hidden", false) else "lock"), "when": String(got.get(a["id"], "")), "prog": "" if has else _ach_prog(String(a["id"]))})
 		"settings":
-			it = [{"t": "Управление", "kind": "action", "a": func(): goto_page("controls")}, {"t": "Звук", "kind": "action", "a": func(): goto_page("sound")}, {"t": "Камера", "kind": "action", "a": func(): goto_page("camera")}, back]
+			it = [{"t": "Управление", "kind": "action", "a": func(): goto_page("controls")}, {"t": "Звук", "kind": "action", "a": func(): goto_page("sound")}, {"t": "Камера", "kind": "action", "a": func(): goto_page("camera")}, {"t": "Интерфейс", "kind": "action", "d": "Режим HUD, прозрачность панелей, отступ от края экрана и что показывать.", "a": func(): goto_page("interface")}, back]
 		"controls":
 			it = [{"t": "Схема геймпада:  ◀ %d ▶" % (main.scheme + 1), "l": "Схема геймпада", "kind": "choice", "val": "%d" % (main.scheme + 1), "cw": 80.0, "cfs": 28, "d": "Схема 1: левый стик — тангаж (вверх-вниз) и крен (влево-вправо), бамперы LB/RB — рыскание, правый стик — маневровые (всё переназначается). Схема 2: каждый стик управляет своим бортом маневровых.", "s": func(_d): _flip_scheme(), "a": func(): _flip_scheme()},
 				_bool_item("Левый стик, влево-вправо: инверсия", "inv_lx"), _bool_item("Левый стик, вверх-вниз: инверсия", "inv_ly"),
@@ -342,6 +342,15 @@ func _page_items() -> Array:
 				_num_item("Музыка в меню", func(): return float(main.cfg["menu_music"]), func(x): _set_menu_music(x), 0.1, 0.0, 1.0, "Громкость музыки в главном меню и на экране результатов.", "%.1f"),
 				_num_item("Звуки корабля", func(): return float(main.cfg["ship_sfx"]), func(x): _set_cfg("ship_sfx", x), 0.1, 0.0, 1.0, "Гул моторов, маневровые, сигнал приближения к земле и взрывы при ударах.", "%.1f"),
 				_num_item("Звуки интерфейса", func(): return float(main.cfg["sfx"]), func(x): _set_sfx(x), 0.1, 0.0, 1.0, "Щелчки, переключатели и сигналы меню.", "%.1f"), back]
+		"interface":
+			var hmn := ["Полный", "Минимальный", "Стрим"]
+			var hm := clampi(int(main.cfg.get("hud_mode", 0)), 0, 2)
+			it = [{"t": "Режим HUD:  ◀ %s ▶" % hmn[hm], "l": "Режим HUD", "kind": "choice", "val": hmn[hm], "cw": 300.0, "cfs": 26, "d": "Полный: все приборы. Минимальный: скорость, горизонт и предупреждения, остальное появляется на 2 с, когда нужно. Стрим: без приборов, гонка как зрелище. В гонке переключается клавишей F2.", "s": func(d): _change_hud_mode(d), "a": func(): _change_hud_mode(1)},
+				_num_item("Прозрачность панелей", func(): return float(main.cfg["hud_alpha"]), func(x): _set_cfg("hud_alpha", x), 0.04, 0.0, 1.0, "Насколько плотно залиты тёмные плашки виджетов HUD: 0 — прозрачные, 1 — непрозрачные. По умолчанию 0,72.", "%.2f"),
+				_num_item("Отступ HUD от края, %", func(): return float(main.cfg["hud_margin"]), func(x): _set_cfg("hud_margin", x), 0.5, 0.0, 5.0, "Для телевизоров, где обрезаются края: HUD немного сжимается к центру, чтобы целиком вписаться в экран с отступом. 5% — размеры около 90%. По умолчанию 0.", "%.1f"),
+				_bool_item("Уровень сложности в HUD", "hud_level", "Подпись уровня под полосой прогресса (в режиме «Стрим» скрыта всегда)."),
+				_bool_item("Чип удара под здоровьем", "hud_chip", "Строка словами «УДАР: ПРАВОЕ КРЫЛО · 0,9 с» под панелью здоровья. Выключите, если хватает дуг и подсветки на самой схеме."),
+				{"t": "Сбросить интерфейс", "d": "Вернуть режим, прозрачность, отступ и переключатели HUD к значениям по умолчанию.", "a": func(): _reset_hud()}, back]
 		"camera":
 			var cvn: String = main.CAM_NAMES[clampi(int(main.cfg["cam_view"]), 0, main.CAM_NAMES.size() - 1)]
 			it = [{"t": "Вид камеры:  ◀ %s ▶" % cvn, "l": "Вид камеры", "kind": "choice", "val": cvn, "cw": 320.0, "cfs": 26, "d": "Какой вид камеры включается в начале гонки. Во время гонки его можно менять клавишей камеры. «От первого лица» — из кабины, камера жёстко закреплена на корабле.", "s": func(d): _change_cam_view(d), "a": func(): _change_cam_view(1)},
@@ -383,6 +392,16 @@ func _ach_prog(id: String) -> String:
 		"vet25": return "%d / 25" % int(st.get("finishes", 0))
 		"collector": return "%d / 20" % mini(_ach_count_others(), 20)
 	return ""
+
+func _change_hud_mode(d: int) -> void:
+	main.cfg["hud_mode"] = posmod(int(main.cfg.get("hud_mode", 0)) + d, 3)
+	if hud != null: hud.mode = int(main.cfg["hud_mode"])
+	main._save_cfg(); _refresh_items()
+
+func _reset_hud() -> void:
+	main.cfg["hud_mode"] = 0; main.cfg["hud_alpha"] = 0.72; main.cfg["hud_margin"] = 0.0; main.cfg["hud_level"] = true; main.cfg["hud_chip"] = true
+	if hud != null: hud.mode = 0
+	main._save_cfg(); sfx.play("back"); _refresh_items()
 
 func _tog(key: String) -> void:
 	main.cfg[key] = not main.cfg[key]; main._save_cfg()
@@ -442,7 +461,7 @@ func goto_page(p: String) -> void:
 
 func back_page() -> void:
 	capturing = ""; pm_sel = ""; sfx.play("back"); check_custom()
-	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
+	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
 	if page.begins_with("organ:"): page = "advanced"
 	elif page == "main": return
 	else: page = parent.get(page, "main")
@@ -459,6 +478,7 @@ func _page_title() -> String:
 		"advanced": return "УПРАВЛЕНИЕ › РАСШИРЕННЫЕ"
 		"sound": return "НАСТРОЙКИ › ЗВУК"
 		"camera": return "НАСТРОЙКИ › КАМЕРА"
+		"interface": return "НАСТРОЙКИ › ИНТЕРФЕЙС"
 		"ach": return "ДОСТИЖЕНИЯ"
 		"about": return "ОБ ИГРЕ"
 		"project": return "ОБ ИГРЕ › О ПРОЕКТЕ"
