@@ -73,14 +73,15 @@ var ui: CanvasLayer
 var music: Node
 const INTRO_T := 27.465            # момент старта кораблей в треке Retribution (вступление: 0–21 с катсцена, 21–27.465 с отсчёт)
 const INTRO_CUT := 21.0
+const INTRO_SKIP_LEFT := 3.0       # пропуск катсцены перематывает на момент, когда в обратном отсчёте горит «3» (за 3 с до старта)
 var intro_on := false
 var world_env: Environment
 const FOG_BASE := 0.00003
 var intro_skipped := false
 var intro_seen := false
-func skip_intro() -> void:                                                  # пропуск катсцены: музыка перематывается на начало отсчёта (21 с)
+func skip_intro() -> void:                                                  # пропуск катсцены: музыка перематывается на момент, когда в отсчёте «3»
 	intro_skipped = true
-	music.seek_intro(INTRO_CUT); cam_snap = true; intro_picks = []
+	music.seek_intro(INTRO_T - INTRO_SKIP_LEFT); cam_snap = true; intro_picks = []
 	if Input.is_action_just_pressed("assist"): assist = not assist         # A на геймпаде — и пропуск, и стабилизация: нажатие не должно выключать стабилизацию
 	if world_env != null: world_env.fog_density = FOG_BASE
 var cam_snap := false
@@ -151,6 +152,17 @@ var hull_bite_shader: Shader
 var flame_shader: Shader
 var glow_shader: Shader
 var core_shader: Shader
+var marker_core_shader: Shader
+var lens_shader: Shader                                                     # линза прожектора: светится, когда огни включены
+var lens_halo_mat: ShaderMaterial
+var lights_on := true                                                       # прожекторы и габариты игрока (кнопка «lights»)
+var lamp_mats: Array = []                                                   # материалы игрока с габаритами и линзами: [материал, имя параметра]
+var lens_halos := {}                                                        # часть -> ореол линзы
+var spot_lights := {}                                                       # часть -> SpotLight3D
+var halo_shader: Shader                                                     # ореол маршевых моторов бота при форсаже: виден издалека искоркой, вблизи скрыт
+var halo_mat: ShaderMaterial
+var marker_shader: Shader                                                  # ореол габаритных огней на концах крыльев: вблизи исчезает, вдали растёт («боке»), чтобы огни были видны издалека
+var blade_shader: Shader                                                    # свет внутри мотора на стенках лопастей (оверлей поверх корпуса мотора)
 var engines := {}            # имя -> {kind, mi, flame, fmat, pos, mats}
 var kind_total := {"main": 0, "lift": 0, "shunt": 0, "nose": 0}
 var hold_alt := START_ALT
@@ -212,9 +224,9 @@ const KEYBIND := [
 	["sh_fwd", "Маневровые: вперёд", KEY_I], ["sh_back", "Маневровые: назад", KEY_K], ["sh_left", "Маневровые: влево", KEY_J], ["sh_right", "Маневровые: вправо", KEY_L],
 	["boost", "Усиление маневровых", KEY_SHIFT],
 	["look_left", "Взгляд влево (из кабины)", KEY_N], ["look_right", "Взгляд вправо (из кабины)", KEY_M], ["look_up", "Взгляд вверх (из кабины)", KEY_B], ["look_down", "Взгляд вниз (из кабины)", KEY_COMMA],
-	["cam", "Камера", KEY_V], ["assist", "Стабилизация вращения", KEY_T], ["grav", "Гравитация", KEY_G], ["interior", "Интерьер", KEY_H],
+	["cam", "Камера", KEY_V], ["assist", "Стабилизация вращения", KEY_T], ["grav", "Гравитация", KEY_G], ["interior", "Интерьер", KEY_H], ["lights", "Прожекторы и габариты", KEY_P],
 	["detach", "Оторвать деталь", KEY_X], ["boom", "Оторвать всё", KEY_Z], ["reset", "Сброс на старт", KEY_R], ["unstick", "Вернуть на трассу (+20 с)", KEY_Y]]
-const KEY_ACTIONS := ["cam", "assist", "grav", "interior", "detach", "boom", "reset", "unstick"]   # из них часть идёт через InputMap
+const KEY_ACTIONS := ["cam", "assist", "grav", "interior", "lights", "detach", "boom", "reset", "unstick"]   # из них часть идёт через InputMap
 var keys := {}                                                # id -> physical keycode
 # кнопки/оси геймпада: [id, название, привязка по умолчанию, вид: "m" = стик/курок/кнопка, "b" = только кнопка]
 const PADBIND := [
@@ -224,7 +236,7 @@ const PADBIND := [
 	["thr", "Газ (тяговые)", {"t": "a", "i": JOY_AXIS_TRIGGER_RIGHT, "s": 1}, "m"], ["boost", "Усиление маневровых", {"t": "a", "i": JOY_AXIS_TRIGGER_LEFT, "s": 1}, "m"],
 	["lift_up", "Взлётные: форсаж", {"t": "b", "i": JOY_BUTTON_DPAD_UP, "s": 1}, "m"], ["lift_down", "Взлётные: замедление", {"t": "b", "i": JOY_BUTTON_DPAD_DOWN, "s": 1}, "m"],
 	["assist", "Стабилизация вращения", {"t": "b", "i": JOY_BUTTON_A, "s": 1}, "b"], ["detach", "Оторвать деталь", {"t": "b", "i": JOY_BUTTON_X, "s": 1}, "b"],
-	["cam", "Камера", {"t": "b", "i": JOY_BUTTON_RIGHT_STICK, "s": 1}, "b"], ["interior", "Интерьер", {"t": "b", "i": JOY_BUTTON_BACK, "s": 1}, "b"],
+	["cam", "Камера", {"t": "b", "i": JOY_BUTTON_RIGHT_STICK, "s": 1}, "b"], ["interior", "Интерьер", {"t": "b", "i": JOY_BUTTON_BACK, "s": 1}, "b"], ["lights", "Прожекторы и габариты", {"t": "b", "i": JOY_BUTTON_DPAD_LEFT, "s": 1}, "b"],
 	["scheme", "Схема геймпада 1/2", {"t": "b", "i": JOY_BUTTON_Y, "s": 1}, "b"]]
 const PAD_BTN_NAMES := ["A", "B", "X", "Y", "Back", "Guide", "Start", "L3", "R3", "LB", "RB", "D-pad ↑", "D-pad ↓", "D-pad ←", "D-pad →"]
 var pad := {}                                                 # id -> {t: "a"|"b", i: индекс, s: знак}
@@ -302,13 +314,13 @@ const MENU_NUM := {}
 const LEVEL_NAMES := ["Турист", "Дальнобойщик", "Любимец букмекеров", "Ветеран", "Киборг"]
 const LEVEL_TAGS := ["Случайно попал на трассу", "Честный работяга с опытом дальних перелётов", "Ставки один к трём!", "Видел всякое", "Ощущает корабль, как продолжение своего тела"]
 # гашение «неносовой» инерции: [вбок, вверх-вниз, усиление при тяге главных], 1/с; Ветеран = как раньше; Киборг = как Ветеран, но без помощи
-const LEVEL_SLIP := [[4.0, 4.0, 2.0], [2.5, 2.5, 1.5], [1.2, 1.2, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+const LEVEL_SLIP := [[4.0, 4.0, 2.0], [0.25, 0.25, 1.0], [0.05, 0.05, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]     # Дальнобойщик = прежний Любимец (на полной тяге τ = 2 с), Любимец в 5 раз слабее (τ = 10 с); было 2.5 и 1.2
 const LEVEL_DAMP := [3.0, 2.0, 1.0, 1.0, 1.0]           # множитель гашения вращения стабилизацией: Турист и Дальнобойщик быстрее останавливают вращение
 const LEVEL_ROLL := [2.5, 1.5, 0.0, 0.0, 0.0]            # самовыравнивание по крену (Салага, Ученик), 1/с
 var prev_lvl := -1
 func _lvl() -> int: return clampi(int(cfg["level"]), 0, 4)
 const DEADZONES := [0.05, 0.08, 0.12, 0.18, 0.25]
-var cfg := {"inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "stats": {}, "ship": 0, "ach": {}, "rec": {}}
+var cfg := {"hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "stats": {}, "ship": 0, "ach": {}, "rec": {}}
 var esc_prev := false
 var menu_open := false
 var menu_i := 0
@@ -853,11 +865,11 @@ func _ready() -> void:
 
 func _setup_input() -> void:
 	if InputMap.has_action("cam"): return                     # после перезагрузки сцены действия уже есть
-	var m := {"cam": keys["cam"], "grav": keys["grav"], "assist": keys["assist"], "detach": keys["detach"], "boom": keys["boom"], "reset": keys["reset"], "unstick": keys["unstick"], "interior": keys["interior"], "scheme": KEY_F2, "menu": KEY_F3, "tech": KEY_F4, "mark": KEY_F5, "help": KEY_F1}
+	var m := {"cam": keys["cam"], "grav": keys["grav"], "assist": keys["assist"], "detach": keys["detach"], "boom": keys["boom"], "reset": keys["reset"], "unstick": keys["unstick"], "interior": keys["interior"], "lights": keys["lights"], "scheme": KEY_F2, "menu": KEY_F3, "tech": KEY_F4, "mark": KEY_F5, "help": KEY_F1}
 	for a in m:
 		InputMap.add_action(a)
 		var ev := InputEventKey.new(); ev.physical_keycode = m[a]; InputMap.action_add_event(a, ev)
-	var jb := {"cam": JOY_BUTTON_RIGHT_STICK, "scheme": JOY_BUTTON_Y, "assist": JOY_BUTTON_A, "detach": JOY_BUTTON_X, "interior": JOY_BUTTON_BACK, "menu": JOY_BUTTON_LEFT_STICK, "mark": JOY_BUTTON_B}
+	var jb := {"cam": JOY_BUTTON_RIGHT_STICK, "scheme": JOY_BUTTON_Y, "assist": JOY_BUTTON_A, "detach": JOY_BUTTON_X, "interior": JOY_BUTTON_BACK, "lights": JOY_BUTTON_DPAD_LEFT, "menu": JOY_BUTTON_LEFT_STICK, "mark": JOY_BUTTON_B}
 	for a in jb:
 		var ev := InputEventJoypadButton.new(); ev.button_index = jb[a]; InputMap.action_add_event(a, ev)
 	apply_pad()
@@ -879,6 +891,10 @@ uniform float two_sided = 0.0;                                     // 1 = нак
 uniform float hex_k = 0.35;        // контрастность шестигранников (1 = как было)
 uniform float rear_y = -30.0;
 uniform float rear_x = 9.5;
+uniform float wbot = 0.0;                                           // 1 = нижние крылья: исходные косые полоски убираются, вместо них полоски параллельно задней кромке
+uniform float wb_y = -33.3;                                         // где идут полоски (координата Blender y = −z корабля)
+uniform float wb_x0 = 11.4;
+uniform float wb_x1 = 18.4;                                         // от корпуса до этой |x|
 uniform vec4 dents[8];                                             // вмятины от ударов: xyz — центр в координатах po, w — радиус
 uniform float dent_n = 0.0;
 float h3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
@@ -915,6 +931,20 @@ void fragment(){
   float rear = (1.0 - smoothstep(rear_y - 3.0, rear_y, p.y)) * (1.0 - smoothstep(rear_x - 1.0, rear_x, abs(p.x)));   // задняя часть корпуса (к ней крепятся моторы): шестигранников нет
   line *= (1.0 - rear) * hex_k;
   vec3 base = texture(alb, UV).rgb;
+  if (wbot > 0.5) {
+    float lum = dot(base, vec3(0.3333));
+    float old = 1.0 - smoothstep(0.30, 0.52, lum);                          // тёмные полоски исходной текстуры
+    base = mix(base, vec3(0.86, 0.85, 0.83), old);                          // убираем их
+    float ax = abs(p.x);
+    float inner = smoothstep(wb_x0 - 0.3, wb_x0, ax) * (1.0 - smoothstep(wb_x1, wb_x1 + 0.3, ax));
+    // полосы берём прямо из текстуры: чистый горизонтальный блок полос верхних крыльев в атласе (строки 3042..3137, 32 текселя на единицу модели), поэтому рваность и сколы те же
+    float tx = 300.0 + (ax - 11.4) * 32.0;
+    float ty = 3089.5 + (p.y - wb_y) * 32.0;
+    vec3 stamp = texture(alb, vec2(tx, ty) / 4096.0).rgb;
+    float within = 1.0 - smoothstep(1.55, 1.7, abs(p.y - wb_y));
+    float st = (1.0 - smoothstep(0.30, 0.55, dot(stamp, vec3(0.3333)))) * inner * within;
+    base = mix(base, stamp, st);
+  }
   vec3 ob = vec3(po.x - dec_o.x, -(po.z - dec_o.z), po.y - dec_o.y);   // координаты Blender относительно начала корпуса
   float sd = n.x >= 0.0 ? 1.0 : -1.0;                                   // с левого борта наклейка зеркальная: читается слева направо
   float c0 = sd > 0.0 ? 0.8 : -3.8; float k0 = sd > 0.0 ? 1.0 : 0.78;          // слева наклейка меньше и сдвинута к корме: там круглый люк
@@ -970,26 +1000,169 @@ void fragment(){
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never;
 uniform float power = 0.0;
 void fragment(){
-  float f = 0.85 + 0.15 * sin(TIME * 40.0);
-  ALBEDO = vec3(0.35, 0.65, 1.0) * (0.4 + power * 2.5) * f;
-  ALPHA = clamp(0.12 + power * 0.8, 0.0, 1.0);
+  // плоский мерцающий диск у среза мотора, как было раньше, но чуть прозрачнее прежнего: поверх него светятся лопасти (blade_shader)
+  float f = 0.6 + 0.34 * sin(TIME * 40.0) + 0.26 * sin(TIME * 23.7 + 1.3) + 0.2 * sin(TIME * 67.0 + 0.4);       // сильное неровное мерцание: три несоизмеримые частоты, яркость гуляет от почти нуля до ~1,4
+  f = max(f, 0.05);
+  f *= f * 0.6 + 0.7;                                                                                   // провалы глубже, пики резче
+  vec3 col = mix(vec3(0.02, 0.2, 1.0), vec3(0.35, 0.65, 1.0), clamp(power * 1.4, 0.0, 1.0));   // в покое мерцает синим, с тягой светлеет к голубому
+  ALBEDO = col * (0.4 + power * 2.5) * f;
+  ALPHA = clamp(0.1 + power * 0.6, 0.0, 1.0);
+}"""
+	marker_shader = Shader.new()
+	marker_shader.code = """shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never, fog_disabled;
+instance uniform vec3 mctr = vec3(0.0);
+instance uniform float lit = 1.0;                                                   // огни включены
+instance uniform float big = 0.0;                                                   // 1 = корабль игрока: большой яркий ореол и вблизи
+uniform vec3 cold_c = vec3(0.95, 0.03, 0.07);
+uniform vec3 hot_c = vec3(1.0, 0.34, 0.12);
+uniform float on = 1.0;                                                            // включены ли огни (обычный параметр материала: у крыльев несколько шейдеров с instance-параметрами)
+uniform float gain = 1.0;                                                           // общий множитель яркости (у ореолов прожекторов очень мал)
+varying float dist;
+varying vec3 cview;
+varying float rad;
+void vertex(){
+  vec3 wc = (MODEL_MATRIX * vec4(mctr, 1.0)).xyz;
+  dist = length(wc - CAMERA_POSITION_WORLD);
+  float k = clamp(dist * 0.0055 / 0.9, 0.5, 12.0);
+  k = mix(k, max(k, 9.0), big);
+  VERTEX = mctr + (VERTEX - mctr) * k;
+  cview = (MODELVIEW_MATRIX * vec4(mctr, 1.0)).xyz;
+  rad = length((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz - cview);
+}
+void fragment(){
+  // гладкий радиальный спад по расстоянию луча до центра: не зависит от полигонов шара
+  vec3 dir = normalize(VERTEX);
+  float d = length(cview - dot(cview, dir) * dir) / rad;
+  float e = 1.0 - smoothstep(0.0, 1.0, d);
+  float a = exp(-d * d * 1.2) * e * e;                                       // плавно к нулю с нулевой производной на краю шара
+  float far = smoothstep(100.0, 700.0, dist);
+  vec3 hot = hot_c;
+  vec3 cold = cold_c;
+  vec3 hc = mix(cold, hot, pow(exp(-d * d * 45.0), 0.6));
+  ALBEDO = hc * a * mix(mix(0.55, 0.9, far), 1.0, big) * 2.0 * lit * on * gain;
+  ALPHA = 1.0;
+}"""
+	marker_core_shader = Shader.new()
+	marker_core_shader.code = """shader_type spatial;
+render_mode unshaded;
+uniform float lit = 1.0;
+void fragment(){
+  // сама лампа: горячий жёлто-белый центр, к краю красный; яркость выше 1, поэтому светится (bloom), а не выглядит покрашенной
+  float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+  float h = pow(nv, 2.5);
+  vec3 c = mix(vec3(1.0, 0.10, 0.03), vec3(1.0, 0.80, 0.50), h);
+  ALBEDO = c * mix(0.45, 2.2 + 4.0 * h, lit);
+}"""
+	lens_shader = Shader.new()
+	lens_shader.code = """shader_type spatial;
+uniform float lit = 1.0;
+void fragment(){
+  ALBEDO = vec3(0.22, 0.21, 0.18); ROUGHNESS = 0.15; METALLIC = 0.2;
+  float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+  EMISSION = vec3(1.0, 0.93, 0.78) * lit * (3.0 + 4.0 * pow(nv, 2.0));
+}"""
+	lens_halo_mat = ShaderMaterial.new(); lens_halo_mat.shader = marker_shader
+	lens_halo_mat.set_shader_parameter("gain", 0.12); lens_halo_mat.set_shader_parameter("cold_c", Vector3(1.0, 0.80, 0.45)); lens_halo_mat.set_shader_parameter("hot_c", Vector3(1.0, 0.97, 0.88))
+	halo_shader = Shader.new()
+	halo_shader.code = """shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never, fog_disabled;
+instance uniform float pw = 0.0;
+varying float dist;
+void vertex(){
+  dist = length(MODEL_MATRIX[3].xyz - CAMERA_POSITION_WORLD);
+  VERTEX *= clamp(dist * 0.008 / 2.0, 0.3, 14.0);                                  // на экране ~5 px, но не больше 14 радиусов (около 28 единиц)
+}
+void fragment(){
+  float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+  float a = pow(nv, 2.2);                                                            // мягкий круг без края шара
+  float far = smoothstep(150.0, 700.0, dist);                                        // вблизи (где видны сами моторы) ореола нет
+  float fl = 0.85 + 0.15 * sin(TIME * 33.0 + dist * 0.01);
+  ALBEDO = vec3(0.30, 0.55, 1.0) * a * pw * far * 2.6 * fl;
+  ALPHA = 1.0;
+}"""
+	halo_mat = ShaderMaterial.new(); halo_mat.shader = halo_shader
+	blade_shader = Shader.new()
+	blade_shader.code = """shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never;
+uniform float power = 0.0;
+instance uniform vec3 ctr = vec3(0.0);
+instance uniform vec3 axis = vec3(0.0, 0.0, 1.0);
+instance uniform float rad_g = 0.0;
+instance uniform float t_lo = 0.0;
+instance uniform float t_hi = 1.0;
+varying vec3 lp;
+varying vec3 ln;
+void vertex(){ lp = VERTEX; ln = NORMAL; }
+void fragment(){
+  // свет ядра на стенках и дне лопастей, как настоящее освещение: сильнее у ядра, по мере удаления слабеет и холоднеет, грани, повёрнутые от ядра, остаются тёмными
+  if (rad_g < 0.0001) discard;
+  vec3 a = normalize(axis);
+  vec3 d = lp - ctr;
+  float t = dot(d, a);
+  float r = length(d - a * t) / rad_g;
+  vec3 src = ctr + a * (t_lo * 0.35);                                                // условный источник света в ядре
+  vec3 toL = src - lp;
+  float dist = length(toL) / rad_g;
+  float lam = clamp(dot(normalize(ln), normalize(toL)), 0.0, 1.0);
+  float ring = smoothstep(0.5, 0.7, r) * (1.0 - smoothstep(1.3, 1.45, r));        // кольцо лопастей вокруг ядра, наружные стенки корпуса сюда не попадают
+  float atten = 1.0 / (1.0 + 3.0 * dist * dist);
+  float fade = 1.0 - smoothstep(0.6, 1.5, dist);                                     // у внешнего конца свет сходит на нет
+  vec3 rdir = normalize(d - a * t + vec3(0.0001));
+  float outw = 1.0 - smoothstep(0.15, 0.55, dot(normalize(ln), rdir));               // наружные стенки корпуса мотора не светим
+  float k = pow(lam, 0.7) * atten * fade * ring * 3.0;
+  float amb = atten * fade * ring * outw * 1.7;                                      // грани в тени ядра (прожилки между лопастями) тоже светятся, но глубоким холодным синим
+  vec3 c = mix(vec3(0.60, 0.95, 1.0), vec3(0.0, 0.20, 0.95), smoothstep(0.1, 1.1, dist));   // у ядра горячий голубой, дальше холодный синий
+  float flick = 0.85 + 0.07 * sin(TIME * (2.0 + power * 20.0)) + 0.08 * sin(TIME * 41.0 + 0.7) + 0.05 * sin(TIME * 23.7 + 1.3);      // свет на лопастях заметно дрожит вместе с диском
+  ALBEDO = (c * k + vec3(0.0, 0.14, 0.95) * amb) * (1.8 + power * 3.5) * flick;
+  ALPHA = 1.0;
 }"""
 	core_shader = Shader.new()
 	core_shader.code = """shader_type spatial;
 render_mode unshaded, cull_disabled;
 uniform float power = 0.0;
+instance uniform vec3 ctr = vec3(0.0);
+instance uniform vec3 axis = vec3(0.0, 0.0, 1.0);
+instance uniform float rad = 0.0;
 varying vec3 lp;
 void vertex(){ lp = VERTEX; }
+float h31(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vnoise(vec3 x){
+  vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+float ember(vec3 p, float rate){                                                    // «тлеющий уголёк»: два случайных поля плавно перетекают друг в друга на месте, без бегущих волн
+  float ti = TIME * rate; float a = floor(ti); float b = smoothstep(0.0, 1.0, fract(ti));
+  return mix(vnoise(p + a * vec3(7.1, 3.3, 5.7)), vnoise(p + (a + 1.0) * vec3(7.1, 3.3, 5.7)), b);
+}
 void fragment(){
-  // светящееся плазменное ядро, а не крашеный шар: без бликов, середина горячее, к краю темнеет, внутри медленно «переливается»
+  // гладкий яркий голубой диск (как дефлектор на кадрах из кино): плоский рисунок вокруг оси мотора, а не объёмный шар; лучи рисуют лопасти, а не само ядро;
+  // яркость выше 1, поэтому свечение (glow) даёт ореол вокруг диска; рисунок неподвижный, только общее лёгкое «дыхание»
   float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
-  float core = pow(nv, 2.6);
-  float sw = 0.5 + 0.12 * cos(nv * 11.0);                        // неподвижные мягкие кольца вокруг центра: без бегущих волн
-  float flick = 0.93 + 0.07 * sin(TIME * (2.5 + power * 22.0));   // дыхание ядра целиком (ничего не «течёт»)
-  float heat = clamp(core * (0.55 + 0.35 * sw) + power * 0.55, 0.0, 1.0);
-  vec3 deep = vec3(0.01, 0.05, 0.38); vec3 hot = vec3(0.6, 0.88, 1.0);
-  vec3 c = mix(deep, hot, heat * heat * (3.0 - 2.0 * heat));
-  ALBEDO = c * (0.3 + core * 0.7 + power * 2.6) * flick;
+  float r = clamp(acos(nv) / 1.5708, 0.0, 1.0);                     // запасной вариант без геометрии: радиус по углу к взгляду
+  float ang = 0.0;
+  if (rad > 0.0001) {
+    vec3 a = normalize(axis);
+    vec3 d = lp - ctr;
+    vec3 pr = d - a * dot(d, a);
+    r = clamp(length(pr) / rad, 0.0, 1.0);
+    vec3 t1 = normalize(abs(a.y) < 0.9 ? cross(a, vec3(0.0, 1.0, 0.0)) : cross(a, vec3(1.0, 0.0, 0.0)));
+    vec3 t2 = cross(a, t1);
+    ang = atan(dot(pr, t2), dot(pr, t1));
+  }
+  float flick = 0.95 + 0.05 * sin(TIME * (2.0 + power * 20.0));
+  vec3 deep = vec3(0.30, 0.03, 0.85); vec3 mid = vec3(0.09, 0.18, 1.0); vec3 hot = vec3(0.40, 0.70, 1.0);        // край индиго (синий с заметной фиолетовой примесью)
+  float s1 = smoothstep(0.1, 0.65, r);                               // центр горячий голубой -> середина яркий голубой
+  float s2 = smoothstep(0.55, 1.0, r);                              // к краю глубокий синий (цвет остаётся насыщенным, потому что и яркость к краю падает)
+  vec3 c = mix(hot, mid, s1);
+  c = mix(c, deep, s2);
+  vec3 q = (lp - ctr) / max(rad, 0.001) * 2.2;
+  float e = ember(q, 0.5) * 0.6 + ember(q * 2.4 + 11.0, 0.9) * 0.4;                 // пятна жара: медленные, на месте, угасают и разгораются
+  float zone = 1.0 - smoothstep(0.3, 0.62, r);                                      // тление только в самой центральной области ядра, дальше прежний градиент без изменений
+  float m = mix(1.0, 0.72 + 0.56 * smoothstep(0.2, 0.8, e), zone);
+  c = mix(c, vec3(0.45, 0.78, 1.0), clamp((m - 1.0) * 0.9, 0.0, 0.3));              // в разгоревшихся пятнах чуть светлее и горячее
+  ALBEDO = c * (1.3 + power * 1.5) * (1.0 - 0.4 * s2) * flick * m;
 }"""
 
 func _build_world() -> void:
@@ -1302,6 +1475,7 @@ func _spawn_bots() -> void:                                                  # �
 	bot_tex = {"alb": load("res://ship/tex/hull_albedo_4096.png"), "rgh": load("res://ship/tex/hull_roughness_4096.png"), "mtl": load("res://ship/tex/hull_metallic_4096.png"), "dec": load("res://ship/tex/decal_third_chance.png")}
 	var glow := ShaderMaterial.new(); glow.shader = glow_shader; glow.set_shader_parameter("power", 0.6)
 	var core := ShaderMaterial.new(); core.shader = core_shader; core.set_shader_parameter("power", 0.6)
+	var blade := ShaderMaterial.new(); blade.shader = blade_shader; blade.set_shader_parameter("power", 0.6)
 	for i in N_BOTS:
 		var slot: Vector2i = slots[i + off]
 		var rb := RigidBody3D.new(); rb.name = "Bot%d" % i; rb.mass = MASS; rb.gravity_scale = 1.0
@@ -1330,9 +1504,9 @@ func _spawn_bots() -> void:                                                  # �
 				var m := mi.mesh.surface_get_material(k)
 				if m == null: continue
 				if m.resource_name == "MAT_Engine_Glow": mi.set_surface_override_material(k, glow)
-				elif m.resource_name == "MAT_Engine_Core": mi.set_surface_override_material(k, core)
+				elif m.resource_name == "MAT_Engine_Core": mi.set_surface_override_material(k, core); _core_instance_params(mi, k); mi.material_overlay = blade
 			if nm.begins_with("SM_Glass"): mi.material_override = _glass_mat()
-		var bparts := {}; var beng := {}; var btot := {"main": 0, "lift": 0, "shunt": 0}
+		var bparts := {}; var beng := {}; var bhalos := {}; var blamps := {}; var btot := {"main": 0, "lift": 0, "shunt": 0}
 		for n in rb.get_children():
 			if n is not MeshInstance3D or n.is_queued_for_deletion(): continue
 			var nm2 := String(n.name)
@@ -1341,18 +1515,28 @@ func _spawn_bots() -> void:                                                  # �
 				if nm2.begins_with(p): det2 = true
 			if not det2: continue
 			bparts[nm2] = n
+			if nm2.begins_with("SM_Spotlight_"):
+				var blh := _make_lens_halo(rb, n as MeshInstance3D, false)
+				if blh != null: blamps[nm2] = blh
 			if nm2.begins_with("SM_Engine_"):
 				var kd := "shunt"
 				if nm2.contains("Traction"): kd = "main"
 				elif nm2.contains("TakeOff"): kd = "lift"
 				beng[nm2] = {"kind": kd, "pos": (n as MeshInstance3D).transform * (n as MeshInstance3D).get_aabb().get_center()}
 				btot[kd] += 1
+				if kd == "main" and not evo_mode:                               # ореол при форсаже, виден издалека
+					var dc = _engine_disc_center(n as MeshInstance3D)
+					if dc != null:
+						var hm := MeshInstance3D.new(); var sp := SphereMesh.new(); sp.radius = 1.0; sp.height = 2.0; sp.radial_segments = 12; sp.rings = 6
+						hm.mesh = sp; hm.material_override = halo_mat; hm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; hm.position = (n as MeshInstance3D).transform * (dc as Vector3)
+						rb.add_child(hm)
+						bhalos[nm2] = hm
 		var cs := CollisionShape3D.new(); cs.shape = vres.get("shape", bot_hull_shape); rb.add_child(cs)
 		rb.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM; rb.center_of_mass = vres.get("com", ship.center_of_mass / ship_sc)
 		add_child(rb)
 		rb.global_transform = Transform3D(Basis.IDENTITY, _grid_pos(slot, cols))
 		var gg := _bot_genes(i)
-		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "ptot": bparts.size(), "eng": beng, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
+		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "ptot": bparts.size(), "eng": beng, "halos": bhalos, "lamps": blamps, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
 
 func _bot_genes(i: int) -> Dictionary:
 	var lst: Array = []
@@ -1415,6 +1599,7 @@ func _step_bots(dt: float) -> void:
 	var vel_all: Array = [ship.linear_velocity]
 	for b in bots: pos_all.append((b["rb"] as RigidBody3D).global_position); vel_all.append((b["rb"] as RigidBody3D).linear_velocity)
 	if start_t <= 0.0 and racing: bot_run_t += dt
+	for bi0 in bots.size(): _bot_halos(bots[bi0], bi0)
 	for bi in bots.size():
 		var b: Dictionary = bots[bi]
 		var rb: RigidBody3D = b["rb"]
@@ -1682,8 +1867,11 @@ func _bots_adapt_ok() -> bool:
 
 func _rubber(b: Dictionary) -> float:                                      # множитель скорости: >1 бот отстаёт от игрока, <1 бот впереди игрока
 	if not _bots_adapt_ok() or not racing or p_fin or p_dsq or P("bot_virtual") < 0.5: return 1.0
-	var g := clampf((p_prog - float(b["prog"])) / maxf(P("rubber_r"), 1.0), -1.0, 1.0)
-	return 1.0 + (P("rubber_up") * g if g > 0.0 else P("rubber_dn") * g)
+	var gap := p_prog - float(b["prog"])
+	if gap > 0.0:                                                              # бот позади игрока: догон зависит от отрыва в секундах (при нашей скорости), а не в метрах: на скорости 2000 м/с минута отрыва это 120 км
+		var vp := maxf(ship.linear_velocity.length(), 500.0)
+		return 1.0 + P("rubber_up") * clampf(gap / (vp * maxf(P("rubber_t"), 1.0)), 0.0, 1.0)
+	return 1.0 + P("rubber_dn") * clampf(gap / maxf(P("rubber_r"), 1.0), -1.0, 0.0)
 
 func _bot_launch(b: Dictionary, bi: int) -> float:                         # ген старта 0..1 у каждого бота (сильные бонус) × затухание за bot_launch_t секунд
 	var tl := P("bot_launch_t")
@@ -1697,6 +1885,9 @@ func _bot_virtual(b: Dictionary, dt: float, pth: int) -> void:
 	var cut := pth > 0 and pth <= branches.size()
 	var sc := float((branches[pth - 1] as Dictionary)["sc"]) if cut else 1.0
 	var v := maxf(float(b["v_ema"]), 300.0) * _rubber(b) * (0.8 if cut else 1.0)
+	if _bots_adapt_ok() and racing and not p_fin and not p_dsq:                  # игрок оторвался дальше rubber_t секунд: бот едет почти с его скоростью, отрыв больше не растёт
+		var vpl := maxf(ship.linear_velocity.length(), 500.0)
+		if (p_prog - float(b["prog"])) > vpl * P("rubber_t"): v = maxf(v, vpl * P("rubber_floor"))
 	b["v_virt"] = v
 	var vs := float(b["vs"]) + v * dt / maxf(sc, 0.3)
 	b["vs"] = vs
@@ -1725,6 +1916,7 @@ func _bot_detach(b: Dictionary, nm: String, dir: Vector3) -> void:
 	if not bparts.has(nm): return
 	var rb: RigidBody3D = b["rb"]
 	var mi: MeshInstance3D = bparts[nm]; bparts.erase(nm)
+	if (b["lamps"] as Dictionary).has(nm): (b["lamps"][nm] as Node).queue_free(); (b["lamps"] as Dictionary).erase(nm)
 	if nm.begins_with("SM_Wing_"):
 		var tag := nm.substr(nm.length() - 2)
 		var top := nm.begins_with("SM_Wing_Top")
@@ -1777,12 +1969,13 @@ func _build_ship() -> void:
 		var li: int = SHIP_LIVERY[ship_id]
 		if ResourceLoader.exists("res://ship/tex/livery_%d_albedo.png" % li):
 			hull_tex["alb"] = load("res://ship/tex/livery_%d_albedo.png" % li); hull_tex["dec"] = load("res://ship/tex/livery_%d_decal.png" % li); hull_tex["two_sided"] = true
+	lamp_mats.clear(); lens_halos.clear(); spot_lights.clear()
 	for n in ship.get_children():
 		if n is not MeshInstance3D or n.is_queued_for_deletion(): continue       # вырезанные при подрезке корпуса окна ещё числятся детьми до конца кадра: в части разрушения их брать нельзя
 		var mi := n as MeshInstance3D
 		var nm: String = n.name
 		if nm.begins_with("SM_HexPlate"): n.visible = false
-		_fix_materials(mi, hull_tex, ship_sc)
+		_fix_materials(mi, hull_tex, ship_sc, true)
 		for k in mi.mesh.get_surface_count():
 			var hm := mi.get_surface_override_material(k) as ShaderMaterial
 			if hm != null and hm.shader != null and hm.shader.code.contains("dents"): hull_mats.append(hm)
@@ -1802,9 +1995,16 @@ func _build_ship() -> void:
 			var cs := CollisionShape3D.new(); cs.shape = shp; cs.transform = Transform3D(n.transform.basis.orthonormalized(), n.position); cs.name = "COL_" + nm
 			ship.add_child(cs); shapes[nm] = cs
 		if nm.begins_with("SM_Glass"): mi.material_override = _glass_mat()
+		if nm.begins_with("SM_Spotlight_"):
+			var lh := _make_lens_halo(ship, mi, true)
+			if lh != null: lens_halos[nm] = lh
+			if nm.begins_with("SM_Spotlight_Top"):
+				var sl := _make_spot(mi)
+				if sl != null: spot_lights[nm] = sl
 		if nm.begins_with("SM_Engine_"): _setup_engine(mi)
 	health_w0 = 0.0
 	for pn in parts: health_w0 += part_weight(String(pn))
+	_apply_lights()
 	var hc := CollisionShape3D.new(); hc.shape = hull_shape; ship.add_child(hc)
 	var aabb := AABB()
 	if ship.has_node("SM_Hull_Body"): aabb = (ship.get_node("SM_Hull_Body") as MeshInstance3D).get_aabb()
@@ -1822,10 +2022,22 @@ func _scaled_shape(shp: ConvexPolygonShape3D, sc: float) -> ConvexPolygonShape3D
 		shp.points = pts
 	return shp
 
-func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0) -> void:
+func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0, is_player := false) -> void:
 	for i in mi.mesh.get_surface_count():
 		var m := mi.mesh.surface_get_material(i)
 		if m == null: continue
+		if m.resource_name == "MAT_Lamp_Lens":                  # линза прожектора
+			var lm := ShaderMaterial.new(); lm.shader = lens_shader; mi.set_surface_override_material(i, lm)
+			if is_player: lamp_mats.append([lm, "lit"])
+			continue
+		if m.resource_name == "MAT_Marker_Red":                 # сама лампа габаритного огня: светится, а не крашена
+			var rm := ShaderMaterial.new(); rm.shader = marker_core_shader; mi.set_surface_override_material(i, rm)
+			if is_player: lamp_mats.append([rm, "lit"])
+			continue
+		if m.resource_name == "MAT_Marker_Glow":                # габаритный огонь: ореол зависит от расстояния до камеры
+			var gm := ShaderMaterial.new(); gm.shader = marker_shader; mi.set_surface_override_material(i, gm); _marker_instance_params(mi, i, is_player)
+			if is_player: lamp_mats.append([gm, "on"])
+			continue
 		if m.resource_name == "Material":                       # обшивка: свои текстуры + шестигранники по формуле
 			var sm := ShaderMaterial.new(); sm.shader = hull_shader
 			var bt: Dictionary = tex.get("bite", {})
@@ -1833,7 +2045,77 @@ func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0) -> voi
 				sm.shader = hull_bite_shader; sm.set_shader_parameter("bite_on", 1.0); sm.set_shader_parameter("bite_c", bt["c"]); sm.set_shader_parameter("bite_r", float(bt["r"]))
 			sm.set_shader_parameter("two_sided", 1.0 if tex.get("two_sided", false) else 0.0); sm.set_shader_parameter("alb", tex["alb"]); sm.set_shader_parameter("rgh", tex["rgh"]); sm.set_shader_parameter("mtl", tex["mtl"])
 			sm.set_shader_parameter("offset", mi.position / sc); sm.set_shader_parameter("decal", tex["dec"]); sm.set_shader_parameter("dec_o", hull_pos0)
+			if String(mi.name).begins_with("SM_Wing_Bot_") and (tex["alb"] as Texture2D).resource_path.contains("hull_albedo"): sm.set_shader_parameter("wbot", 1.0)       # у «Третьего шанса» и ботов без ливреи: новые полоски на нижних крыльях
 			mi.set_surface_override_material(i, sm)
+
+var marker_geo_cache := {}
+func _marker_instance_params(mi: MeshInstance3D, surf: int, is_player := false) -> void:         # центр шара ореола в осях меша: вокруг него масштабируется ореол
+	var key := "%d:%d" % [mi.mesh.get_instance_id(), surf]
+	if not marker_geo_cache.has(key):
+		var vs: PackedVector3Array = mi.mesh.surface_get_arrays(surf)[Mesh.ARRAY_VERTEX]
+		var c := Vector3.ZERO
+		for v in vs: c += v
+		marker_geo_cache[key] = c / float(maxi(vs.size(), 1))
+	mi.set_instance_shader_parameter("mctr", marker_geo_cache[key]); mi.set_instance_shader_parameter("big", 1.0 if is_player else 0.0)      # у корабля игрока ореолы большие и яркие на любой дистанции
+
+func _lens_info(mi: MeshInstance3D) -> Dictionary:                         # центр линзы и направление луча в осях меша (низ: вниз, верх: вперёд)
+	for si in mi.mesh.get_surface_count():
+		var cm := mi.mesh.surface_get_material(si)
+		if cm != null and cm.resource_name == "MAT_Lamp_Lens":
+			var vs: PackedVector3Array = mi.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]
+			var c := Vector3.ZERO
+			for v in vs: c += v
+			return {"c": c / float(maxi(vs.size(), 1)), "dir": Vector3.DOWN if String(mi.name).begins_with("SM_Spotlight_Belly") else Vector3.FORWARD}
+	return {}
+
+func _make_lens_halo(parent: Node3D, mi: MeshInstance3D, player: bool) -> MeshInstance3D:   # мягкий ореол линзы, виден издалека и вблизи
+	var li := _lens_info(mi)
+	if li.is_empty(): return null
+	var hm := MeshInstance3D.new(); var sp := SphereMesh.new(); sp.radius = 0.9; sp.height = 1.8; sp.radial_segments = 12; sp.rings = 6
+	hm.mesh = sp; hm.material_override = lens_halo_mat; hm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	hm.position = mi.transform * ((li["c"] as Vector3) + (li["dir"] as Vector3) * 0.35)
+	parent.add_child(hm)
+	hm.set_instance_shader_parameter("mctr", Vector3.ZERO); hm.set_instance_shader_parameter("big", 0.35 if player else 0.0)
+	return hm
+
+func _make_spot(mi: MeshInstance3D) -> SpotLight3D:                        # настоящий свет: прожектор над носом смотрит вперёд
+	var li := _lens_info(mi)
+	if li.is_empty(): return null
+	var sl := SpotLight3D.new()
+	sl.light_color = Color(1.0, 0.93, 0.78); sl.light_energy = 4.0; sl.spot_range = 700.0; sl.spot_angle = 20.0; sl.spot_angle_attenuation = 0.8; sl.shadow_enabled = false
+	sl.position = mi.transform * ((li["c"] as Vector3) + (li["dir"] as Vector3) * 0.5); sl.rotation_degrees = Vector3(-2.0, 0.0, 0.0)
+	ship.add_child(sl)
+	return sl
+
+func _apply_lights() -> void:
+	var v := 1.0 if lights_on else 0.0
+	for lmt in lamp_mats: (lmt[0] as ShaderMaterial).set_shader_parameter(lmt[1], v)
+	for h in lens_halos.values(): if is_instance_valid(h): (h as MeshInstance3D).set_instance_shader_parameter("lit", v)
+	for sl in spot_lights.values(): if is_instance_valid(sl): (sl as SpotLight3D).visible = lights_on
+
+func _lamp_lost(nm: String) -> void:
+	if lens_halos.has(nm): (lens_halos[nm] as Node).queue_free(); lens_halos.erase(nm)
+	if spot_lights.has(nm): (spot_lights[nm] as Node).queue_free(); spot_lights.erase(nm)
+
+func _engine_disc_center(mi: MeshInstance3D) -> Variant:                    # центр диска сопла в осях меша (из кеша ядра), null если не найден
+	for si in mi.mesh.get_surface_count():
+		var cm := mi.mesh.surface_get_material(si)
+		if cm != null and cm.resource_name == "MAT_Engine_Core":
+			var key := "%d:%d" % [mi.mesh.get_instance_id(), si]
+			if core_geo_cache.has(key): return (core_geo_cache[key] as Array)[0]
+	return null
+
+func _bot_halos(b: Dictionary, bi: int) -> void:                          # форсаж: тяга около максимума, старт («втопить») или догон игрока
+	if not b.has("halos"): return
+	var virt := bool(b.get("virt", false))
+	var pw := 0.0
+	if virt: pw = clampf((_rubber(b) - 1.12) * 3.0, 0.0, 1.0)
+	else: pw = clampf((float(b.get("thr", 0.0)) - 0.9) / 0.1, 0.0, 1.0)
+	pw = maxf(pw, _bot_launch(b, bi))
+	for nm in b["halos"]:
+		var h: MeshInstance3D = b["halos"][nm]
+		if not is_instance_valid(h): continue
+		h.set_instance_shader_parameter("pw", pw if (b["parts"] as Dictionary).has(nm) else 0.0)
 
 func _glass_mat() -> ShaderMaterial:
 	if mat_glass == null:
@@ -1842,6 +2124,46 @@ func _glass_mat() -> ShaderMaterial:
 void fragment(){ ALBEDO=vec3(0.06,0.15,0.25); ROUGHNESS=0.04; SPECULAR=0.6; ALPHA=FRONT_FACING?0.5:0.03; }"""
 		mat_glass = ShaderMaterial.new(); mat_glass.shader = sh
 	return mat_glass
+
+var core_geo_cache := {}                                                   # меш + поверхность -> [центр, ось, радиус] светящегося ядра (в осях меша)
+func _core_instance_params(mi: MeshInstance3D, surf: int) -> void:         # рисунок ядра и света лопастей строится вокруг оси мотора: центр, направление наружу и радиусы берём из геометрии
+	var key := "%d:%d" % [mi.mesh.get_instance_id(), surf]
+	if not core_geo_cache.has(key):
+		var cv: PackedVector3Array = mi.mesh.surface_get_arrays(surf)[Mesh.ARRAY_VERTEX]
+		var c := Vector3.ZERO; var ax := Vector3(0, 0, 1)
+		var rad_g := 0.0
+		var gi := -1                                                       # ось и центр берём по диску MAT_Engine_Glow: он плоский и симметричный, нормаль диска точно вдоль оси (у купола ядра среднее по нормалям уходит в сторону)
+		for si in mi.mesh.get_surface_count():
+			var gm := mi.mesh.surface_get_material(si)
+			if gm != null and gm.resource_name == "MAT_Engine_Glow": gi = si; break
+		if gi >= 0:
+			var ga := mi.mesh.surface_get_arrays(gi)
+			var gv: PackedVector3Array = ga[Mesh.ARRAY_VERTEX]; var gn: PackedVector3Array = ga[Mesh.ARRAY_NORMAL]
+			var nav := Vector3.ZERO
+			for k in gv.size(): c += gv[k]; nav += gn[k]
+			c /= float(maxi(gv.size(), 1))
+			if nav.length() > 0.01:
+				ax = nav.normalized()
+				if ax.dot(c - mi.mesh.get_aabb().get_center()) < 0.0: ax = -ax          # наружу: от середины мотора к диску
+			for v in gv: rad_g = maxf(rad_g, (v - c - ax * (v - c).dot(ax)).length())
+		else:
+			for v in cv: c += v
+			c /= float(maxi(cv.size(), 1))
+		var rad := 0.0; var t_lo := -1e9                                    # радиус ядра и где оно кончается по оси
+		for v in cv:
+			rad = maxf(rad, (v - c - ax * (v - c).dot(ax)).length()); t_lo = maxf(t_lo, (v - c).dot(ax))
+		var ts := []                                                       # где кончаются лопасти: 95-й процентиль координат вершин корпуса в кольце лопастей
+		for si in mi.mesh.get_surface_count():
+			var bm := mi.mesh.surface_get_material(si)
+			if bm == null or bm.resource_name == "MAT_Engine_Glow" or bm.resource_name == "MAT_Engine_Core": continue
+			for v in (mi.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+				var tt := (v - c).dot(ax); var rr := (v - c - ax * tt).length()
+				if tt > t_lo and rr > rad_g * 0.85 and rr < rad_g * 1.45: ts.append(tt)
+		ts.sort()
+		var t_hi: float = float(ts[int(float(ts.size() - 1) * 0.95)]) if ts.size() > 8 else t_lo + rad_g * 0.8
+		core_geo_cache[key] = [c, ax, rad, rad_g, t_lo, maxf(t_hi, t_lo + 0.05)]
+	var g: Array = core_geo_cache[key]
+	mi.set_instance_shader_parameter("ctr", g[0]); mi.set_instance_shader_parameter("axis", g[1]); mi.set_instance_shader_parameter("rad", g[2]); mi.set_instance_shader_parameter("rad_g", g[3]); mi.set_instance_shader_parameter("t_lo", g[4]); mi.set_instance_shader_parameter("t_hi", g[5])
 
 func _setup_engine(mi: MeshInstance3D) -> void:
 	var nm := String(mi.name)
@@ -1875,7 +2197,8 @@ func _setup_engine(mi: MeshInstance3D) -> void:
 		if m.resource_name == "MAT_Engine_Glow":
 			var sm := ShaderMaterial.new(); sm.shader = glow_shader; mi.set_surface_override_material(i, sm); mats.append(sm)
 		elif m.resource_name == "MAT_Engine_Core":
-			var sm := ShaderMaterial.new(); sm.shader = core_shader; mi.set_surface_override_material(i, sm); mats.append(sm)
+			var sm := ShaderMaterial.new(); sm.shader = core_shader; mi.set_surface_override_material(i, sm); mats.append(sm); _core_instance_params(mi, i)
+			var bl := ShaderMaterial.new(); bl.shader = blade_shader; mi.material_overlay = bl; mats.append(bl)
 	var pivot := Node3D.new(); pivot.position = noz; mi.add_child(pivot)
 	var cone := CylinderMesh.new(); cone.top_radius = 0.0; cone.bottom_radius = 1.0; cone.height = 1.0
 	cone.radial_segments = 24; cone.rings = 1; cone.cap_top = false; cone.cap_bottom = false
@@ -2564,6 +2887,7 @@ func _fx_tex() -> Texture2D:
 # Мотор «выключен»: пластина свечения становится полностью прозрачной, ядро получает материал основной части мотора
 func _dead_engine_look(mi: MeshInstance3D) -> void:
 	if mi.mesh == null or evo_mode: return
+	mi.material_overlay = null                                                # мёртвый мотор не светится
 	var body: Material = null
 	for i in mi.mesh.get_surface_count():
 		var m := mi.mesh.surface_get_material(i)
@@ -2652,6 +2976,7 @@ func _detach(nm: String, dir: Vector3 = Vector3.ZERO) -> void:
 	if ship_sfx != null: ship_sfx.part_lost(nm)
 	_log_event("DETACH " + nm)
 	var mi: MeshInstance3D = parts[nm]; parts.erase(nm)
+	_lamp_lost(nm)
 	if nm.begins_with("SM_Wing_"):                      # вместе с верхним крылом отлетают его маневровый и верхний прожектор, с нижним — его маневровый
 		var tag := nm.substr(nm.length() - 2)
 		var top := nm.begins_with("SM_Wing_Top")
@@ -2831,7 +3156,9 @@ func _process(dt: float) -> void:
 			if pf % 60 == 0 and pf >= 40: print("FLOW pf=", pf, " state=", ui.state, " start_t=", snappedf(start_t, 0.1), " race_t=", snappedf(race_t, 0.1), " v=", int(ship.linear_velocity.length()), " ts=", Engine.time_scale)
 			if pf == 400: get_tree().quit()
 		if pf == 70 and ui_shot != "spurcam" and ui_shot != "hatchcam" and ui_shot != "flow" and ui_shot != "flowpad" and ui_shot != "fin" and ui_shot != "tour" and ui_shot != "dump" and ui_shot != "intro" and not ui_shot.begins_with("padtest") and ui_shot != "padlog" and ui_shot != "tilebench" and ui_shot != "cutcam" and ui_shot != "cutwidth" and ui_shot != "cutship" and ui_shot != "gridcam" and ui_shot != "liverycam" and ui_shot != "shipswap" and ui_shot != "unstick":
-			get_viewport().get_texture().get_image().save_png("/private/tmp/ui_" + ui_shot + ".png"); get_tree().quit()
+			var shot_sfx := ""                                                         # -- hudmock=N: снимок «ui_hud_mN.png», чтобы сценарии можно было снимать параллельно
+			for ua in OS.get_cmdline_user_args(): if ua.begins_with("hudmock="): shot_sfx = "_m" + ua.substr(8)
+			get_viewport().get_texture().get_image().save_png("/private/tmp/ui_" + ui_shot + shot_sfx + ".png"); get_tree().quit()
 	if "tech" in OS.get_cmdline_user_args() and frame >= 40 and tech_shot_n == 0 and not tech_open: _set_tech(true)
 	var esc := Input.is_key_pressed(KEY_ESCAPE)
 	if Input.is_action_just_pressed("tech") or (tech_open and esc and not esc_prev):
@@ -2875,6 +3202,7 @@ func _process(dt: float) -> void:
 	if live and Input.is_action_just_pressed("reset"): reload_title = "Сброс на старт"; _reset()
 	if live and Input.is_action_just_pressed("unstick"): _unstick()
 	if live and in_cutscene() and Input.is_action_just_pressed("ui_accept"): skip_intro()
+	if live and Input.is_action_just_pressed("lights"): lights_on = not lights_on; _apply_lights()
 	if live and Input.is_action_just_pressed("interior"):
 		interior_vis = not interior_vis; _apply_interior()
 	if start_t > 0.0:
@@ -2887,7 +3215,7 @@ func _process(dt: float) -> void:
 			if intro_on: intro_on = false; music.race_started()
 	if racing: race_t += dt
 	# запретная зона по высоте: границы не видно и не бьёт, но надо выйти за RIM_GRACE секунд
-	if ship.global_position.y > RIM_Y and not soak:
+	if ship.global_position.y > RIM_Y and not soak and not p_dsq and dsq_t <= 0.0:       # после дисквалификации (и пока идёт её отсчёт) время выше потолка больше не копится
 		rim_t += dt
 		if racing: p_rim_ever = true
 	else: rim_t = maxf(0.0, rim_t - dt * 2.0)
@@ -2896,9 +3224,9 @@ func _process(dt: float) -> void:
 		warn_label.visible = true; warn_label.text = "ДИСКВАЛИФИКАЦИЯ"
 		if dsq_t <= 0.0: _disqualify()
 	elif msg_t > 0.0:
-		msg_t -= dt; warn_label.visible = true; warn_label.text = msg_txt
+		msg_t -= dt; warn_label.visible = false                                    # сообщение рисует HUD (hud_widgets.gd, полоса внизу)
 	elif rim_t > 0.0:
-		warn_label.visible = true; warn_label.text = "Вернитесь в каньон: %d" % int(ceil(RIM_GRACE - rim_t))
+		warn_label.visible = false                                                  # тревогу потолка рисует HUD (hud_widgets.gd)
 		if rim_t >= RIM_GRACE and not p_dsq and not p_fin: dsq_t = 3.0; rim_t = 0.0; _log_event("DISQUALIFIED rim")
 	else: warn_label.visible = false
 	var pq := _track_query(ship.global_position.x, ship.global_position.z)

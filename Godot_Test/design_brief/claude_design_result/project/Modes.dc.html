@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Режимы HUD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1720px; height:1100px; box-sizing:border-box; padding:40px; background:#060A18; color:#F7E6BF; font-family:'Golos Text',sans-serif; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:32px 40px">
+  <div style="display:flex; flex-direction:column; gap:10px">
+    <div style="display:flex; align-items:baseline; gap:12px"><span style="font-family:'Dela Gothic One',sans-serif; font-size:22px; color:#FF8A1E">ПОЛНЫЙ</span><span style="font-size:13px; color:#93A9D9">по умолчанию · уровни 1–4 · состояние 4</span></div>
+    <div style="width:800px; height:450px; overflow:hidden; border-radius:8px; position:relative">
+      <div style="width:1600px; height:900px; transform:scale(0.5); transform-origin:0 0"><dc-import name="Hud" state="4" mode="full" hint-size="1600px,900px"></dc-import></div>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:10px">
+    <div style="display:flex; align-items:baseline; gap:12px"><span style="font-family:'Dela Gothic One',sans-serif; font-size:22px; color:#FF8A1E">МИНИМАЛЬНЫЙ</span><span style="font-size:13px; color:#93A9D9">скорость + горизонт + предупреждения · состояние 2</span></div>
+    <div style="width:800px; height:450px; overflow:hidden; border-radius:8px; position:relative">
+      <div style="width:1600px; height:900px; transform:scale(0.5); transform-origin:0 0"><dc-import name="Hud" state="2" mode="min" hint-size="1600px,900px"></dc-import></div>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:10px">
+    <div style="display:flex; align-items:baseline; gap:12px"><span style="font-family:'Dela Gothic One',sans-serif; font-size:22px; color:#FF8A1E">СТРИМ / ЗАПИСЬ</span><span style="font-size:13px; color:#93A9D9">гонка как зрелище, без приборов · состояние 1</span></div>
+    <div style="width:800px; height:450px; overflow:hidden; border-radius:8px; position:relative">
+      <div style="width:1600px; height:900px; transform:scale(0.5); transform-origin:0 0"><dc-import name="Hud" state="1" mode="stream" hint-size="1600px,900px"></dc-import></div>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:10px">
+    <span style="font-family:'Dela Gothic One',sans-serif; font-size:22px; color:#FF8A1E">ЧТО ОСТАЁТСЯ</span>
+    <div style="display:grid; grid-template-columns:1.6fr repeat(3, minmax(0, 1fr)); font-size:14px; border-radius:10px; overflow:hidden; background:#121A36">
+      <div style="padding:9px 14px; font-weight:800; font-size:11px; letter-spacing:0.06em; color:#93A9D9">ВИДЖЕТ</div><div style="padding:9px 8px; font-weight:800; font-size:11px; letter-spacing:0.06em; color:#93A9D9">ПОЛНЫЙ</div><div style="padding:9px 8px; font-weight:800; font-size:11px; letter-spacing:0.06em; color:#93A9D9">МИНИМ.</div><div style="padding:9px 8px; font-weight:800; font-size:11px; letter-spacing:0.06em; color:#93A9D9">СТРИМ</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Спидометр</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Горизонт</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">● только он</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Курс к трассе, цифры, ввод</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Шкала высоты</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#F2CC40">◐ у границ</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#F2CC40">◐ у границ</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Здоровье / удары</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#F2CC40">◐ при угрозе</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Позиция, соперники</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Время, прогресс</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">● без уровня</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Темп, срезка</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Карта</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Подписи соперников</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15); color:#93A9D9">—</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div>
+      <div style="padding:8px 14px; border-top:1px solid rgba(147,169,217,0.15)">Тревоги, отсчёт, сообщения</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div><div style="padding:8px; border-top:1px solid rgba(147,169,217,0.15)">●</div>
+    </div>
+    <p style="margin:4px 0 0; font-size:13px; line-height:1.5; color:#93A9D9">◐ — виджет появляется за 0,2 с, когда условие наступает (до границы &lt;600 м по высоте или &lt;6 с; угроза удара или новая потеря), и прячется через 2 с после того, как оно прошло. Переключение режимов: Настройки › Интерфейс и быстрая кнопка View/Back на геймпаде (по кругу). «Киборг» по умолчанию предлагает минимальный режим.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1720,"height":1100}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

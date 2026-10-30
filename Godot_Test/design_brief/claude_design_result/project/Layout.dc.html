@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сетка и раскладка HUD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1600px; height:1040px; background:#060A18; color:#F7E6BF; font-family:'Golos Text',sans-serif">
+  <div style="position:relative; width:1600px; height:900px; overflow:hidden">
+    <img src="/_blob/66c7f3020efcb75a2d4815ec28a1740c" alt="" style="position:absolute; left:0; top:0; width:1600px; height:900px; opacity:0.35">
+    <svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute; left:0; top:0" aria-hidden="true">
+      <defs><pattern id="koHatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#F24033" fill-opacity="0.06"></rect><rect width="2" height="10" fill="#F24033" fill-opacity="0.35"></rect></pattern></defs>
+      <rect x="24" y="24" width="1552" height="852" fill="none" stroke="#8CD9F2" stroke-width="1" stroke-dasharray="6 4"></rect>
+      <path d="M420 470 H1180 V760 H420 Z" fill="url(#koHatch)" stroke="#F24033" stroke-width="1.5" stroke-dasharray="6 4"></path>
+      <path d="M560 220 H1040 V470 H560 Z" fill="url(#koHatch)" stroke="#F24033" stroke-width="1.5" stroke-dasharray="6 4"></path>
+      <path d="M800 0 V900 M0 450 H1600" stroke="#8CD9F2" stroke-opacity="0.35" stroke-dasharray="2 6"></path>
+    </svg>
+    <div style="position:absolute; left:580px; top:232px; font-size:13px; font-weight:700; color:#F24033">ЗОНА ОБЗОРА 560–1040 × 220–470 — не закрывать</div>
+    <div style="position:absolute; left:440px; top:480px; font-size:13px; font-weight:700; color:#F24033">КОРАБЛЬ 420–1180 × 470–760 — не закрывать</div>
+    <div style="position:absolute; left:32px; top:880px; font-size:11px; color:#8CD9F2">безопасные поля 24 px (1,5%) · промежуток 12 px</div>
+
+    <sc-for list="{{boxes}}" as="b" hint-placeholder-count="10">
+      <div style="position:absolute; left:{{b.x}}px; top:{{b.y}}px; width:{{b.w}}px; height:{{b.h}}px; box-sizing:border-box; border-radius:{{b.r}}; background:rgba(255,138,30,0.12); box-shadow:inset 0 0 0 1.5px #FF8A1E; padding:6px 8px; overflow:hidden">
+        <div style="font-weight:800; font-size:12px; line-height:15px; color:#F7E6BF">{{b.name}}</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; line-height:14px; color:#FF8A1E">{{b.geo}}</div>
+        <div style="font-size:11px; line-height:14px; color:#93A9D9">{{b.anchor}}</div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:24px; padding:20px 32px 0; font-size:12px; line-height:1.5">
+    <div><b style="color:#FF8A1E">1920×1080</b> — та же раскладка ×1,2 (stretch mode canvas_items, aspect expand). Поля 24 → 29 px.</div>
+    <div><b style="color:#FF8A1E">16:10</b> (1600×1000 в базовых px) — верхние группы на месте, нижние уезжают на +100 по Y, разрыв растёт в середине колонок.</div>
+    <div><b style="color:#FF8A1E">21:9</b> (2100×900) — левые группы привязаны к левому краю, правые к правому, центр по центру; корабль и зона обзора не меняются.</div>
+    <div><b style="color:#FF8A1E">Отступ HUD</b> в настройках: 0–5% от края (для ТВ). Все группы смещаются внутрь, размеры не меняются.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const B = [
+      ['Позиция', 24, 24, 128, 96, 'TL', '10px'],
+      ['Соперники рядом', 164, 24, 320, 96, 'TL', '10px'],
+      ['Время · прогресс', 620, 24, 360, 96, 'TC (центр 800)', '10px'],
+      ['Темп · срезка', 1296, 24, 280, 96, 'TR', '10px'],
+      ['Высота', 24, 132, 128, 452, 'TL', '10px'],
+      ['Здоровье', 1296, 132, 280, 280, 'TR', '10px'],
+      ['Чип удара', 1296, 420, 280, 32, 'TR · только при угрозе', '6px'],
+      ['Тревога', 560, 132, 480, 72, 'TC · по событию', '6px'],
+      ['Скорость', 24, 596, 280, 280, 'BL', '50%'],
+      ['Положение', 316, 676, 216, 200, 'BL', '10px'],
+      ['Карта', 1296, 596, 280, 280, 'BR', '10px'],
+      ['Сообщение', 640, 812, 320, 40, 'BC · ширина по тексту', '6px']
+    ];
+    return { boxes: B.map(b => ({ name: b[0], x: b[1], y: b[2], w: b[3], h: b[4], anchor: b[5], r: b[6], geo: b[1] + ',' + b[2] + ' · ' + b[3] + '×' + b[4] })) };
+  }
+}
+</script>
+</body>
+</html>

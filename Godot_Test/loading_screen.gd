@@ -32,8 +32,8 @@ const TIPS := ["Взлётные держат высоту, тяговые ра�
 
 func _ready() -> void:
 	layer = 300; process_mode = Node.PROCESS_MODE_ALWAYS
-	if FileAccess.file_exists("res://menu_v2/fonts/DelaGothicOne-400.ttf"): f_title = load("res://menu_v2/fonts/DelaGothicOne-400.ttf")
-	if FileAccess.file_exists("res://menu_v2/fonts/GolosText-600.ttf"): f_body = load("res://menu_v2/fonts/GolosText-600.ttf")
+	if ResourceLoader.exists("res://menu_v2/fonts/DelaGothicOne-400.ttf"): f_title = load("res://menu_v2/fonts/DelaGothicOne-400.ttf")
+	if ResourceLoader.exists("res://menu_v2/fonts/GolosText-600.ttf"): f_body = load("res://menu_v2/fonts/GolosText-600.ttf")
 	var root := Control.new(); rootc = root; root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_STOP; add_child(root)
 	bg = TextureRect.new(); bg.set_anchors_preset(Control.PRESET_FULL_RECT); bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE; bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED; root.add_child(bg)
 	shade = ColorRect.new(); shade.set_anchors_preset(Control.PRESET_FULL_RECT); shade.color = Color(0.02, 0.03, 0.06, 0.55); root.add_child(shade)

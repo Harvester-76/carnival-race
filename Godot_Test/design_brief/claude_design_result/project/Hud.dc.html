@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>HUD — полный экран</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position:relative; width:1600px; height:900px; overflow:hidden; background:#C9A878; font-family:'Golos Text',sans-serif; color:#F7E6BF">
+  <img src="{{bg}}" alt="Кадр гонки в каньоне, корабль игрока по центру снизу" style="position:absolute; left:0; top:0; width:1600px; height:900px; display:{{bgDisplay}}">
+
+  <!-- подписи соперников в мире: под всеми плашками HUD -->
+  <sc-if value="{{showTags}}" hint-placeholder-val="{{ true }}">
+    <sc-for list="{{tags}}" as="t" hint-placeholder-count="5">
+      <div style="position:absolute; left:{{t.x}}px; top:{{t.y}}px; transform:{{t.tf}}; opacity:{{t.o}}; display:flex; align-items:center; gap:6px; padding:3px 8px 3px 7px; border-radius:4px; background:rgba(6,10,24,0.55); white-space:nowrap">
+        <span style="width:7px; height:7px; border-radius:50%; background:{{t.dot}}"></span>
+        <span style="max-width:170px; overflow:hidden; text-overflow:ellipsis; font-weight:700; font-size:13px; line-height:16px; color:#F7E6BF">{{t.n}}</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; line-height:16px; color:#93A9D9">{{t.d}}</span>
+      </div>
+    </sc-for>
+  </sc-if>
+
+  <sc-if value="{{show.top}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:24px; top:24px">
+      <dc-import name="WTopLeft" pos="{{s.pos}}" total="{{ 12 }}" ahead="{{s.ahead}}" behind="{{s.behind}}" hint-size="460px,96px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{show.timer}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:620px; top:24px">
+      <dc-import name="WTimer" time="{{s.time}}" progress="{{s.prog}}" to-finish-m="{{s.toFinish}}" level="ЛЮБИМЕЦ БУКМЕКЕРОВ" show-level="{{show.level}}" hint-size="360px,96px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{show.pace}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:1296px; top:24px">
+      <dc-import name="WPace" delta="{{s.pace}}" cut="{{s.cut}}" cut-km="{{s.cutKm}}" hint-size="280px,96px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{show.alt}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:24px; top:132px">
+      <dc-import name="WAltitude" alt="{{s.alt}}" agl="{{s.agl}}" vs="{{s.vs}}" ground-t="{{s.groundT}}" out-left="{{ 6 }}" hint-size="128px,452px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{show.health}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:1296px; top:132px">
+      <dc-import name="WHealth" hp="{{s.hp}}" lost="{{s.lost}}" threat="{{s.threat}}" threat-t="{{s.threatT}}" speed="{{s.speed}}" drift="{{s.att.drift}}" hint-size="280px,320px"></dc-import>
+    </div>
+  </sc-if>
+  <div style="position:absolute; left:24px; top:596px">
+    <dc-import name="WSpeed" speed="{{s.speed}}" hint-size="280px,280px"></dc-import>
+  </div>
+  <sc-if value="{{show.att}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:316px; top:676px">
+      <dc-import name="WAttitude" pitch="{{s.att.pitch}}" roll="{{s.att.roll}}" drift="{{s.att.drift}}" fpv-y="{{s.att.fpvY}}" heading="{{s.att.hdg}}" track="{{s.att.trk}}" cmd-pitch="{{s.att.cp}}" cmd-roll="{{s.att.cr}}" compact="{{show.attCompact}}" hint-size="216px,200px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{show.map}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:1296px; top:596px">
+      <dc-import name="WMap" progress="{{s.prog}}" rivals="{{s.rivals}}" hint-size="280px,280px"></dc-import>
+    </div>
+  </sc-if>
+
+  <!-- тревога: выше потолка -->
+  <sc-if value="{{s.ceilingAlarm}}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; left:560px; top:132px; width:480px; height:72px; box-sizing:border-box; border-radius:6px; background:rgba(6,10,24,0.86); box-shadow:inset 0 0 0 2px #F24033; display:flex; align-items:center; gap:16px; padding:0 20px">
+      <svg width="28" height="26" viewBox="0 0 28 26" aria-hidden="true"><path d="M14 2 L26 24 H2 Z" fill="#F24033" stroke="#060A18" stroke-width="1.5" stroke-linejoin="round"></path><path d="M14 9 V16 M14 19.5 V20" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"></path></svg>
+      <div style="flex:1; display:flex; flex-direction:column; gap:2px">
+        <span style="font-weight:800; font-size:20px; line-height:24px; letter-spacing:0.02em; color:#F7E6BF">ВЕРНИТЕСЬ В КАНЬОН</span>
+        <span style="font-size:13px; line-height:16px; color:#93A9D9">выше потолка 5350 м · иначе дисквалификация</span>
+      </div>
+      <span style="font-family:'Dela Gothic One',sans-serif; font-size:44px; line-height:48px; color:#F24033">6</span>
+    </div>
+  </sc-if>
+
+  <!-- сообщение внизу по центру -->
+  <sc-if value="{{hasMsg}}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; left:800px; top:812px; transform:translateX(-50%); height:40px; box-sizing:border-box; border-radius:6px; background:rgba(6,10,24,0.86); box-shadow:inset 0 0 0 2px {{msgEdge}}; display:flex; align-items:center; gap:12px; padding:0 16px; white-space:nowrap">
+      <span style="font-weight:800; font-size:16px; letter-spacing:0.04em; color:{{msgColor}}">{{msg}}</span>
+      <sc-if value="{{msgKeys}}" hint-placeholder-val="{{ false }}">
+        <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#93A9D9"><span style="width:22px; height:22px; border-radius:50%; background:#F7E6BF; color:#060A18; font-weight:800; font-size:12px; line-height:22px; text-align:center">A</span>/<span style="min-width:22px; height:22px; border-radius:4px; box-shadow:inset 0 0 0 1.5px #93A9D9; color:#F7E6BF; font-weight:700; font-size:12px; line-height:22px; text-align:center">T</span> включить</span>
+      </sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["1","2","3","4","5"],"default":"1"},"mode":{"editor":"enum","options":["full","min","stream"],"default":"full"},"msg":{"editor":"enum","options":["none","stab","return","limit"],"default":"none"},"showBg":{"editor":"boolean","default":true},"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props;
+    const st = String(P.state ?? '1'), mode = P.mode ?? 'full', msgKind = P.msg ?? 'none';
+    const BG = {
+      '1': '/_blob/66c7f3020efcb75a2d4815ec28a1740c', '2': '/_blob/2669f24d4c4171b49d4b807a57122269',
+      '3': '/_blob/ff7928a0c711ec01c2b6e21e99eaa4e1', '4': '/_blob/6d883d0a33fa0043944e53905b3ffbc1',
+      '5': '/_blob/da71cc95e18bcf95bde9a717fb31d3d9'
+    };
+    const S = {
+      '1': { pos: 7, ahead: { name: 'Вега', dist: 340, time: 1.1 }, behind: { name: 'Галлюцинация', dist: 120, time: 0.4 },
+        time: '0:34.2', prog: 0.064, toFinish: 598800, pace: -3.4, cut: 'before', cutKm: 60.2,
+        alt: 1703, agl: 1703, vs: 0, groundT: 99, speed: 1200,
+        att: { pitch: 2, roll: -6, drift: 2, fpvY: -1, hdg: 0, trk: 3, cp: 0, cr: -0.1 },
+        hp: 100, lost: [], threat: 'none', threatT: 3, rivals: [0.07, 0.068, 0.072, 0.075, 0.06, 0.055],
+        tags: [['Ломовой Пегас', 485, 290, 188], ['Звездолов', 476, 750, 236], ['Золотая рыбка', 430, 1196, 190], ['Бешеный Самовар', 433, 300, 380], ['Долгоносик', 429, 1124, 390]] },
+      '2': { pos: 9, ahead: { name: 'Аргамак', dist: 210, time: 0.1 }, behind: { name: 'Чайка', dist: 560, time: 0.3 },
+        time: '0:58.7', prog: 0.19, toFinish: 518800, pace: 6.0, cut: 'in', cutKm: 135.4,
+        alt: 5150, agl: 5150, vs: 180, groundT: 99, speed: 1900,
+        att: { pitch: 14, roll: 0, drift: 1, fpvY: 8, hdg: 0, trk: 1, cp: 0.55, cr: 0 },
+        hp: 100, lost: [], threat: 'top', threatT: 0.6, rivals: [0.192, 0.195, 0.188, 0.2, 0.185],
+        tags: [['Звездолов', 408, 262, 150], ['Маленькое Стремительное Копье', 293, 795, 140], ['Галлюцинация', 401, 1270, 384], ['Бешеный Самовар', 334, 112, 384], ['Аргамак', 412, 1400, 148]] },
+      '3': { pos: 5, ahead: { name: 'Вега', dist: 1300, time: 0.8 }, behind: { name: 'Долгоносик', dist: 80, time: 0.1 },
+        time: '1:28.0', prog: 0.39, toFinish: 388800, pace: 1.8, cut: 'in', cutKm: 5.4,
+        alt: 120, agl: 122, vs: -140, groundT: 0.9, speed: 1600,
+        att: { pitch: -9, roll: 20, drift: 8, fpvY: -4, hdg: -20, trk: -6, cp: 0.4, cr: -0.6 },
+        hp: 94, lost: ['wingL', 'mainL'], threat: 'bottom', threatT: 1.6, rivals: [0.392, 0.394, 0.389, 0.396, 0.385],
+        tags: [['Каракатица', 450, 266, 168], ['Золотая рыбка', 366, 787, 190], ['Галлюцинация', 702, 105, 386], ['Маленькое Стремительное Копье', 480, 360, 404], ['Любовница шторма', 364, 1360, 384]] },
+      '4': { pos: 4, ahead: { name: 'Звёздная пыль', dist: 90, time: 0.1 }, behind: { name: 'Чайка', dist: 700, time: 0.3 },
+        time: '1:52.3', prog: 0.52, toFinish: 308800, pace: -0.6, cut: 'in', cutKm: 106.2,
+        alt: 1700, agl: 1562, vs: 20, groundT: 99, speed: 2100,
+        att: { pitch: 4, roll: 38, drift: 14, fpvY: 2, hdg: 28, trk: 36, cp: 0.1, cr: 0.8 },
+        hp: 100, lost: [], threat: 'right', threatT: 0.9, rivals: [0.521, 0.518, 0.53],
+        tags: [['Звёздная пыль', 90, 916, 128, 'below']] },
+      '5': { pos: 11, ahead: { name: 'Вега', dist: 4800, time: 6.9 }, behind: null,
+        time: '2:28.9', prog: 0.63, toFinish: 238800, pace: 21.0, cut: 'in', cutKm: 36.2,
+        alt: 5407, agl: 5407, vs: 60, groundT: 99, speed: 700,
+        att: { pitch: 22, roll: -4, drift: -3, fpvY: 16, hdg: -45, trk: -40, cp: 0.6, cr: 0.1 },
+        hp: 90, lost: ['wingL', 'wingR', 'lf2', 'lr3', 'mainR'], threat: 'nose', threatT: 1.8, rivals: [0.64, 0.636, 0.655],
+        ceilingAlarm: true,
+        tags: [['Каракатица', 214, 792, 214, 'below'], ['Аргамак', 324, 92, 378], ['Золотая рыбка', 375, 1490, 104, 'below']] }
+    };
+    const s = S[st] || S['1'];
+    s.ceilingAlarm = !!s.ceilingAlarm;
+    const tags = s.tags.map(t => ({
+      n: t[0], d: t[1] + ' м', x: t[2], y: t[3],
+      tf: t[4] === 'below' ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+      o: 1, dot: '#FF8A1E'
+    }));
+    const altWarn = s.alt > 5350 - 600 || s.agl < 400;
+    const threat = s.threat !== 'none';
+    const show = {
+      full: { top: true, timer: true, pace: true, alt: true, health: true, att: true, attCompact: false, map: true, level: true, tags: true },
+      min: { top: false, timer: false, pace: false, alt: altWarn, health: threat, att: true, attCompact: true, map: false, level: false, tags: false },
+      stream: { top: true, timer: true, pace: true, alt: altWarn, health: true, att: false, attCompact: false, map: true, level: false, tags: true }
+    }[mode];
+    const MSG = {
+      stab: ['СТАБИЛИЗАЦИЯ ВЫКЛ', '#F24033', '#F24033', true],
+      return: ['Возврат на трассу доступен через 4 с', '#F7E6BF', 'rgba(147,169,217,0.5)', false],
+      limit: ['Лимит возвратов исчерпан', '#F2CC40', '#F2CC40', false]
+    }[msgKind];
+    return {
+      s, tags, show, showTags: show.tags,
+      bg: BG[st] || BG['1'], bgDisplay: (P.showBg ?? true) ? 'block' : 'none',
+      hasMsg: !!MSG, msg: MSG ? MSG[0] : '', msgColor: MSG ? MSG[1] : '', msgEdge: MSG ? MSG[2] : '', msgKeys: MSG ? MSG[3] : false
+    };
+  }
+}
+</script>
+</body>
+</html>
