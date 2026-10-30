@@ -380,7 +380,7 @@ func _draw_alt() -> void:                                                    # �
 	var vy := v.y
 	c.draw_line(Vector2(tx - 6.0, ymid), Vector2(tx + tw + 6.0, ymid), Color(1, 1, 1, 0.95), 2.5)
 	c.draw_colored_polygon(PackedVector2Array([Vector2(tx + tw + 6.0, ymid), Vector2(tx + tw + 18.0, ymid - 7.0), Vector2(tx + tw + 18.0, ymid + 7.0)]), Color(1, 1, 1, 0.95))
-	var ttc := (rim - p.y) / vy if vy > 1.0 else 99.0                            # до потолка
+	var ttc := (rim - p.y) / vy if (vy > 1.0 and p.y <= rim) else 99.0                            # до потолка
 	var ttg := _alt_ground_time(p, v)                                            # до земли
 	if absf(vy) > 3.0:
 		var al := clampf(absf(vy) / ALT_VS_REF, 0.05, 1.0) * 110.0 * signf(vy)
@@ -394,7 +394,7 @@ func _draw_alt() -> void:                                                    # �
 	var cu := _alt_tc(ttc)
 	c.draw_string(f, Vector2(6, 16), "ПОТОЛОК", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.7))
 	if ttc < 10.0: c.draw_string(f, Vector2(c.size.x - 6.0 - 36.0, 16), "%.0f с" % ttc, HORIZONTAL_ALIGNMENT_RIGHT, 36, 14, cu)
-	if p.y > rim: c.draw_string(f, Vector2(6, 36), "ЗА ПОТОЛКОМ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.95, 0.25, 0.2))
+	if p.y > rim: c.draw_string(f, Vector2(6, 36), "ЗА ПОТОЛКОМ", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.95, 0.25, 0.2))
 	else: c.draw_string(f, Vector2(6, 36), "%d м" % int(rim - p.y), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.95))
 	var cg := _alt_tc(ttg)
 	var by := c.size.y - hd + 14.0
