@@ -152,6 +152,10 @@ var hull_bite_shader: Shader
 var flame_shader: Shader
 var glow_shader: Shader
 var core_shader: Shader
+var marker_core_shader: Shader
+var halo_shader: Shader                                                     # ореол маршевых моторов бота при форсаже: виден издалека искоркой, вблизи скрыт
+var halo_mat: ShaderMaterial
+var marker_shader: Shader                                                  # ореол габаритных огней на концах крыльев: вблизи исчезает, вдали растёт («боке»), чтобы огни были видны издалека
 var blade_shader: Shader                                                    # свет внутри мотора на стенках лопастей (оверлей поверх корпуса мотора)
 var engines := {}            # имя -> {kind, mi, flame, fmat, pos, mats}
 var kind_total := {"main": 0, "lift": 0, "shunt": 0, "nose": 0}
@@ -998,6 +1002,65 @@ void fragment(){
   ALBEDO = col * (0.4 + power * 2.5) * f;
   ALPHA = clamp(0.1 + power * 0.6, 0.0, 1.0);
 }"""
+	marker_shader = Shader.new()
+	marker_shader.code = """shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never, fog_disabled;
+instance uniform vec3 mctr = vec3(0.0);
+instance uniform float big = 0.0;                                                   // 1 = корабль игрока: большой яркий ореол и вблизи
+uniform vec3 col = vec3(1.0, 0.10, 0.01);
+varying float dist;
+varying vec3 cview;
+varying float rad;
+void vertex(){
+  vec3 wc = (MODEL_MATRIX * vec4(mctr, 1.0)).xyz;
+  dist = length(wc - CAMERA_POSITION_WORLD);
+  float k = clamp(dist * 0.0055 / 0.9, 0.5, 12.0);
+  k = mix(k, max(k, 9.0), big);
+  VERTEX = mctr + (VERTEX - mctr) * k;
+  cview = (MODELVIEW_MATRIX * vec4(mctr, 1.0)).xyz;
+  rad = length((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz - cview);
+}
+void fragment(){
+  // гладкий радиальный спад по расстоянию луча до центра: не зависит от полигонов шара
+  vec3 dir = normalize(VERTEX);
+  float d = length(cview - dot(cview, dir) * dir) / rad;
+  float e = 1.0 - smoothstep(0.0, 1.0, d);
+  float a = exp(-d * d * 1.2) * e * e;                                       // плавно к нулю с нулевой производной на краю шара
+  float far = smoothstep(100.0, 700.0, dist);
+  vec3 hot = vec3(1.0, 0.34, 0.12);
+  vec3 cold = vec3(0.95, 0.03, 0.07);
+  vec3 hc = mix(cold, hot, pow(exp(-d * d * 45.0), 0.6));
+  ALBEDO = hc * a * mix(mix(0.55, 0.9, far), 1.0, big) * 2.0;
+  ALPHA = 1.0;
+}"""
+	marker_core_shader = Shader.new()
+	marker_core_shader.code = """shader_type spatial;
+render_mode unshaded;
+void fragment(){
+  // сама лампа: горячий жёлто-белый центр, к краю красный; яркость выше 1, поэтому светится (bloom), а не выглядит покрашенной
+  float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+  float h = pow(nv, 2.5);
+  vec3 c = mix(vec3(1.0, 0.10, 0.03), vec3(1.0, 0.80, 0.50), h);
+  ALBEDO = c * (2.2 + 4.0 * h);
+}"""
+	halo_shader = Shader.new()
+	halo_shader.code = """shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never, fog_disabled;
+instance uniform float pw = 0.0;
+varying float dist;
+void vertex(){
+  dist = length(MODEL_MATRIX[3].xyz - CAMERA_POSITION_WORLD);
+  VERTEX *= clamp(dist * 0.008 / 2.0, 0.3, 14.0);                                  // на экране ~5 px, но не больше 14 радиусов (около 28 единиц)
+}
+void fragment(){
+  float nv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+  float a = pow(nv, 2.2);                                                            // мягкий круг без края шара
+  float far = smoothstep(150.0, 700.0, dist);                                        // вблизи (где видны сами моторы) ореола нет
+  float fl = 0.85 + 0.15 * sin(TIME * 33.0 + dist * 0.01);
+  ALBEDO = vec3(0.30, 0.55, 1.0) * a * pw * far * 2.6 * fl;
+  ALPHA = 1.0;
+}"""
+	halo_mat = ShaderMaterial.new(); halo_mat.shader = halo_shader
 	blade_shader = Shader.new()
 	blade_shader.code = """shader_type spatial;
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never;
@@ -1422,7 +1485,7 @@ func _spawn_bots() -> void:                                                  # �
 				if m.resource_name == "MAT_Engine_Glow": mi.set_surface_override_material(k, glow)
 				elif m.resource_name == "MAT_Engine_Core": mi.set_surface_override_material(k, core); _core_instance_params(mi, k); mi.material_overlay = blade
 			if nm.begins_with("SM_Glass"): mi.material_override = _glass_mat()
-		var bparts := {}; var beng := {}; var btot := {"main": 0, "lift": 0, "shunt": 0}
+		var bparts := {}; var beng := {}; var bhalos := {}; var btot := {"main": 0, "lift": 0, "shunt": 0}
 		for n in rb.get_children():
 			if n is not MeshInstance3D or n.is_queued_for_deletion(): continue
 			var nm2 := String(n.name)
@@ -1437,12 +1500,19 @@ func _spawn_bots() -> void:                                                  # �
 				elif nm2.contains("TakeOff"): kd = "lift"
 				beng[nm2] = {"kind": kd, "pos": (n as MeshInstance3D).transform * (n as MeshInstance3D).get_aabb().get_center()}
 				btot[kd] += 1
+				if kd == "main" and not evo_mode:                               # ореол при форсаже, виден издалека
+					var dc = _engine_disc_center(n as MeshInstance3D)
+					if dc != null:
+						var hm := MeshInstance3D.new(); var sp := SphereMesh.new(); sp.radius = 1.0; sp.height = 2.0; sp.radial_segments = 12; sp.rings = 6
+						hm.mesh = sp; hm.material_override = halo_mat; hm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; hm.position = (n as MeshInstance3D).transform * (dc as Vector3)
+						rb.add_child(hm)
+						bhalos[nm2] = hm
 		var cs := CollisionShape3D.new(); cs.shape = vres.get("shape", bot_hull_shape); rb.add_child(cs)
 		rb.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM; rb.center_of_mass = vres.get("com", ship.center_of_mass / ship_sc)
 		add_child(rb)
 		rb.global_transform = Transform3D(Basis.IDENTITY, _grid_pos(slot, cols))
 		var gg := _bot_genes(i)
-		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "ptot": bparts.size(), "eng": beng, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
+		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "ptot": bparts.size(), "eng": beng, "halos": bhalos, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
 
 func _bot_genes(i: int) -> Dictionary:
 	var lst: Array = []
@@ -1505,6 +1575,7 @@ func _step_bots(dt: float) -> void:
 	var vel_all: Array = [ship.linear_velocity]
 	for b in bots: pos_all.append((b["rb"] as RigidBody3D).global_position); vel_all.append((b["rb"] as RigidBody3D).linear_velocity)
 	if start_t <= 0.0 and racing: bot_run_t += dt
+	for bi0 in bots.size(): _bot_halos(bots[bi0], bi0)
 	for bi in bots.size():
 		var b: Dictionary = bots[bi]
 		var rb: RigidBody3D = b["rb"]
@@ -1878,7 +1949,7 @@ func _build_ship() -> void:
 		var mi := n as MeshInstance3D
 		var nm: String = n.name
 		if nm.begins_with("SM_HexPlate"): n.visible = false
-		_fix_materials(mi, hull_tex, ship_sc)
+		_fix_materials(mi, hull_tex, ship_sc, true)
 		for k in mi.mesh.get_surface_count():
 			var hm := mi.get_surface_override_material(k) as ShaderMaterial
 			if hm != null and hm.shader != null and hm.shader.code.contains("dents"): hull_mats.append(hm)
@@ -1918,10 +1989,16 @@ func _scaled_shape(shp: ConvexPolygonShape3D, sc: float) -> ConvexPolygonShape3D
 		shp.points = pts
 	return shp
 
-func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0) -> void:
+func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0, is_player := false) -> void:
 	for i in mi.mesh.get_surface_count():
 		var m := mi.mesh.surface_get_material(i)
 		if m == null: continue
+		if m.resource_name == "MAT_Marker_Red":                 # сама лампа габаритного огня: светится, а не крашена
+			var rm := ShaderMaterial.new(); rm.shader = marker_core_shader; mi.set_surface_override_material(i, rm)
+			continue
+		if m.resource_name == "MAT_Marker_Glow":                # габаритный огонь: ореол зависит от расстояния до камеры
+			var gm := ShaderMaterial.new(); gm.shader = marker_shader; mi.set_surface_override_material(i, gm); _marker_instance_params(mi, i, is_player)
+			continue
 		if m.resource_name == "Material":                       # обшивка: свои текстуры + шестигранники по формуле
 			var sm := ShaderMaterial.new(); sm.shader = hull_shader
 			var bt: Dictionary = tex.get("bite", {})
@@ -1931,6 +2008,36 @@ func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0) -> voi
 			sm.set_shader_parameter("offset", mi.position / sc); sm.set_shader_parameter("decal", tex["dec"]); sm.set_shader_parameter("dec_o", hull_pos0)
 			if String(mi.name).begins_with("SM_Wing_Bot_") and (tex["alb"] as Texture2D).resource_path.contains("hull_albedo"): sm.set_shader_parameter("wbot", 1.0)       # у «Третьего шанса» и ботов без ливреи: новые полоски на нижних крыльях
 			mi.set_surface_override_material(i, sm)
+
+var marker_geo_cache := {}
+func _marker_instance_params(mi: MeshInstance3D, surf: int, is_player := false) -> void:         # центр шара ореола в осях меша: вокруг него масштабируется ореол
+	var key := "%d:%d" % [mi.mesh.get_instance_id(), surf]
+	if not marker_geo_cache.has(key):
+		var vs: PackedVector3Array = mi.mesh.surface_get_arrays(surf)[Mesh.ARRAY_VERTEX]
+		var c := Vector3.ZERO
+		for v in vs: c += v
+		marker_geo_cache[key] = c / float(maxi(vs.size(), 1))
+	mi.set_instance_shader_parameter("mctr", marker_geo_cache[key]); mi.set_instance_shader_parameter("big", 1.0 if is_player else 0.0)      # у корабля игрока ореолы большие и яркие на любой дистанции
+
+func _engine_disc_center(mi: MeshInstance3D) -> Variant:                    # центр диска сопла в осях меша (из кеша ядра), null если не найден
+	for si in mi.mesh.get_surface_count():
+		var cm := mi.mesh.surface_get_material(si)
+		if cm != null and cm.resource_name == "MAT_Engine_Core":
+			var key := "%d:%d" % [mi.mesh.get_instance_id(), si]
+			if core_geo_cache.has(key): return (core_geo_cache[key] as Array)[0]
+	return null
+
+func _bot_halos(b: Dictionary, bi: int) -> void:                          # форсаж: тяга около максимума, старт («втопить») или догон игрока
+	if not b.has("halos"): return
+	var virt := bool(b.get("virt", false))
+	var pw := 0.0
+	if virt: pw = clampf((_rubber(b) - 1.12) * 3.0, 0.0, 1.0)
+	else: pw = clampf((float(b.get("thr", 0.0)) - 0.9) / 0.1, 0.0, 1.0)
+	pw = maxf(pw, _bot_launch(b, bi))
+	for nm in b["halos"]:
+		var h: MeshInstance3D = b["halos"][nm]
+		if not is_instance_valid(h): continue
+		h.set_instance_shader_parameter("pw", pw if (b["parts"] as Dictionary).has(nm) else 0.0)
 
 func _glass_mat() -> ShaderMaterial:
 	if mat_glass == null:
