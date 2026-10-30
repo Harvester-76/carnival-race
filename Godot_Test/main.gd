@@ -881,6 +881,10 @@ uniform float two_sided = 0.0;                                     // 1 = нак
 uniform float hex_k = 0.35;        // контрастность шестигранников (1 = как было)
 uniform float rear_y = -30.0;
 uniform float rear_x = 9.5;
+uniform float wbot = 0.0;                                           // 1 = нижние крылья: исходные косые полоски убираются, вместо них полоски параллельно задней кромке
+uniform float wb_y = -33.3;                                         // где идут полоски (координата Blender y = −z корабля)
+uniform float wb_x0 = 11.4;
+uniform float wb_x1 = 18.4;                                         // от корпуса до этой |x|
 uniform vec4 dents[8];                                             // вмятины от ударов: xyz — центр в координатах po, w — радиус
 uniform float dent_n = 0.0;
 float h3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
@@ -917,6 +921,20 @@ void fragment(){
   float rear = (1.0 - smoothstep(rear_y - 3.0, rear_y, p.y)) * (1.0 - smoothstep(rear_x - 1.0, rear_x, abs(p.x)));   // задняя часть корпуса (к ней крепятся моторы): шестигранников нет
   line *= (1.0 - rear) * hex_k;
   vec3 base = texture(alb, UV).rgb;
+  if (wbot > 0.5) {
+    float lum = dot(base, vec3(0.3333));
+    float old = 1.0 - smoothstep(0.30, 0.52, lum);                          // тёмные полоски исходной текстуры
+    base = mix(base, vec3(0.86, 0.85, 0.83), old);                          // убираем их
+    float ax = abs(p.x);
+    float inner = smoothstep(wb_x0 - 0.3, wb_x0, ax) * (1.0 - smoothstep(wb_x1, wb_x1 + 0.3, ax));
+    // полосы берём прямо из текстуры: чистый горизонтальный блок полос верхних крыльев в атласе (строки 3042..3137, 32 текселя на единицу модели), поэтому рваность и сколы те же
+    float tx = 300.0 + (ax - 11.4) * 32.0;
+    float ty = 3089.5 + (p.y - wb_y) * 32.0;
+    vec3 stamp = texture(alb, vec2(tx, ty) / 4096.0).rgb;
+    float within = 1.0 - smoothstep(1.55, 1.7, abs(p.y - wb_y));
+    float st = (1.0 - smoothstep(0.30, 0.55, dot(stamp, vec3(0.3333)))) * inner * within;
+    base = mix(base, stamp, st);
+  }
   vec3 ob = vec3(po.x - dec_o.x, -(po.z - dec_o.z), po.y - dec_o.y);   // координаты Blender относительно начала корпуса
   float sd = n.x >= 0.0 ? 1.0 : -1.0;                                   // с левого борта наклейка зеркальная: читается слева направо
   float c0 = sd > 0.0 ? 0.8 : -3.8; float k0 = sd > 0.0 ? 1.0 : 0.78;          // слева наклейка меньше и сдвинута к корме: там круглый люк
@@ -1911,6 +1929,7 @@ func _fix_materials(mi: MeshInstance3D, tex: Dictionary, sc: float = 1.0) -> voi
 				sm.shader = hull_bite_shader; sm.set_shader_parameter("bite_on", 1.0); sm.set_shader_parameter("bite_c", bt["c"]); sm.set_shader_parameter("bite_r", float(bt["r"]))
 			sm.set_shader_parameter("two_sided", 1.0 if tex.get("two_sided", false) else 0.0); sm.set_shader_parameter("alb", tex["alb"]); sm.set_shader_parameter("rgh", tex["rgh"]); sm.set_shader_parameter("mtl", tex["mtl"])
 			sm.set_shader_parameter("offset", mi.position / sc); sm.set_shader_parameter("decal", tex["dec"]); sm.set_shader_parameter("dec_o", hull_pos0)
+			if String(mi.name).begins_with("SM_Wing_Bot_") and (tex["alb"] as Texture2D).resource_path.contains("hull_albedo"): sm.set_shader_parameter("wbot", 1.0)       # у «Третьего шанса» и ботов без ливреи: новые полоски на нижних крыльях
 			mi.set_surface_override_material(i, sm)
 
 func _glass_mat() -> ShaderMaterial:
