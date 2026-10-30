@@ -7,6 +7,12 @@ const DB_MAIN := -4.0
 const DB_SHUNT := -9.0
 const DB_PARK := -10.0
 const PARK_TTI := 3.0                       # с до касания, с которых начинается сигнал
+# Зоны удара: d — направление наружу в осях корабля (x вправо, y вверх, +z назад, нос по -z); сигнал у всех зон один, зона задаёт только панораму лево-право
+const PARK_ZONES := [
+	{"n": "nose", "d": Vector3(0, 0, -1)}, {"n": "rear", "d": Vector3(0, 0, 1)}, {"n": "wing_l", "d": Vector3(-1, 0, 0)},
+	{"n": "wing_r", "d": Vector3(1, 0, 0)}, {"n": "top", "d": Vector3(0, 1, 0)}, {"n": "belly", "d": Vector3(0, -1, 0)}]
+const PARK_FACING_BIAS := 0.1               # с: зона, обращённая по ходу движения, выигрывает у боковых при почти равном времени до касания
+const PARK_HYST := 0.06                     # с: текущая зона не меняется, пока другая не опередит её меньше чем на столько
 const CRASH_DB := {"crash_engine": -2.0, "crash_wing": -3.0, "crash_glass": -5.0, "crash_small": -7.0, "crash_hull": -6.0, "crash_big": -1.0}
 
 var m: Node                                 # main.gd
@@ -20,6 +26,10 @@ var lv_main := 0.0
 var lv_shunt := 0.0
 var park_phase := 0.0
 var park_tti := 99.0
+var park_zone := -1                         # номер зоны в PARK_ZONES, которая заденет препятствие первой (-1: опасности нет); читает панель здоровья
+var park_on := false                        # сейчас «пик» сигнала (для мигания зоны на панели здоровья)
+var park_pan := 0.0                         # панорама сигнала: -1 слева, +1 справа
+var park_panner: AudioEffectPanner
 var pending: Array = []                     # отлетевшие детали за последние мгновения: решаем, какой звук играть, когда набралась пачка
 var pending_t := 0.0
 
@@ -32,6 +42,11 @@ func setup(main_node: Node) -> void:
 		if n in ["engine_main", "engine_shunt", "parktronic"]: st.loop_mode = AudioStreamWAV.LOOP_FORWARD; st.loop_begin = 0; st.loop_end = st.data.size() / 2
 		streams[n] = st
 	p_main = _loop_player("engine_main"); p_shunt = _loop_player("engine_shunt"); p_park = _loop_player("parktronic")
+	var bi := AudioServer.get_bus_index("ParkSensor")                          # своя шина: панорама сигнала лево-право (создаётся один раз, при перезапуске гонки берётся прежняя)
+	if bi < 0:
+		bi = AudioServer.bus_count; AudioServer.add_bus(); AudioServer.set_bus_name(bi, "ParkSensor"); AudioServer.set_bus_send(bi, "Master")
+		AudioServer.add_bus_effect(bi, AudioEffectPanner.new())
+	park_panner = AudioServer.get_bus_effect(bi, 0) as AudioEffectPanner; p_park.bus = "ParkSensor"
 	for i in 8:
 		var pl := AudioStreamPlayer.new(); add_child(pl); pool.append(pl)
 
@@ -98,27 +113,46 @@ func _process(dt: float) -> void:
 	p_shunt.pitch_scale = 0.88 + 0.3 * lv_shunt
 	# сигнал приближения: чем ближе земля или стена по курсу, тем чаще писк
 	var tti := 99.0
-	if live and m.racing and not m.p_fin: tti = _time_to_obstacle()
+	var zone := -1; var sc_pan := 0.0
+	if live and m.racing and not m.p_fin:
+		var sc := _scan_obstacle(); tti = float(sc["t"]); zone = int(sc["zone"]); sc_pan = float(sc["pan"])
 	park_tti = lerpf(park_tti, tti, 1.0 - exp(-minf(dt, 0.1) * 12.0)) if tti < park_tti else tti
 	if park_tti < PARK_TTI:
+		if zone >= 0: park_zone = zone
+		park_pan = lerpf(park_pan, float(sc_pan), 1.0 - exp(-minf(dt, 0.1) * 10.0)); park_panner.pan = park_pan
 		var iv := remap(clampf(park_tti, 0.45, PARK_TTI), 0.45, PARK_TTI, 0.1, 0.9)
 		park_phase += dt
 		var on := park_tti < 0.5 or fmod(park_phase, iv) < iv * 0.5
+		park_on = on
 		p_park.volume_db = (DB_PARK + vdb + (2.0 if park_tti < 1.0 else 0.0)) if on else -80.0
 		p_park.pitch_scale = 1.0 + (PARK_TTI - park_tti) * 0.12
 	else:
-		p_park.volume_db = -80.0; park_phase = 0.0
+		p_park.volume_db = -80.0; park_phase = 0.0; park_zone = -1; park_on = false
 
-func _time_to_obstacle() -> float:                                           # через сколько секунд корабль заденет землю или стену, если полетит как летит
+func _scan_obstacle() -> Dictionary:                                         # через сколько секунд и какой частью корабль заденет землю или стену, если полетит как летит
 	var v: Vector3 = m.ship.linear_velocity; var sp := v.length()
-	if sp < 80.0: return 99.0
-	var p: Vector3 = m.ship.global_position
-	var t_min := 99.0
-	for tt in [0.4, 0.8, 1.3, 2.0, 3.0]:                                       # земля: высота рельефа под предсказанной точкой
-		var q: Vector3 = p + v * float(tt)
-		if q.y - float(m.height(q.x, q.z)) < 30.0: t_min = minf(t_min, float(tt)); break
+	if sp < 80.0: return {"t": 99.0, "zone": -1, "pan": 0.0}
+	var tr: Transform3D = m.ship.global_transform
+	var vd := v / sp
+	var vl: Vector3 = tr.basis.orthonormalized().inverse() * vd                 # направление полёта в осях корабля
+	var c: Vector3 = m.hull_aabb.get_center(); var ext: Vector3 = m.hull_aabb.size * 0.5
 	var L := minf(sp * PARK_TTI, 2500.0)
-	var rq := PhysicsRayQueryParameters3D.create(p, p + v / sp * L, 1)
-	var hit: Dictionary = m.get_world_3d().direct_space_state.intersect_ray(rq)
-	if not hit.is_empty(): t_min = minf(t_min, (hit["position"] as Vector3).distance_to(p) / sp)
-	return t_min
+	var space: PhysicsDirectSpaceState3D = m.get_world_3d().direct_space_state
+	var best := 99.0; var best_i := -1; var best_t := 99.0; var cur_score := 99.0; var cur_t := 99.0
+	for i in PARK_ZONES.size():
+		var dl: Vector3 = PARK_ZONES[i]["d"]
+		var wp: Vector3 = tr * (c + dl * ext)                                    # точка на краю корпуса в этой зоне
+		var tz := 99.0
+		for tt in [0.4, 0.8, 1.3, 2.0, 3.0]:                                     # земля: высота рельефа под предсказанной точкой зоны
+			var q: Vector3 = wp + v * float(tt)
+			if q.y - float(m.height(q.x, q.z)) < 30.0: tz = float(tt); break
+		var hit: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(wp, wp + vd * L, 1))
+		if not hit.is_empty(): tz = minf(tz, (hit["position"] as Vector3).distance_to(wp) / sp)
+		if tz >= 99.0: continue
+		var score := tz + PARK_FACING_BIAS * (1.0 - maxf(vl.dot(dl), 0.0))
+		if score < best: best = score; best_i = i; best_t = tz
+		if i == park_zone: cur_score = score; cur_t = tz
+	if best_i >= 0 and park_zone >= 0 and cur_score < best + PARK_HYST: best_i = park_zone; best_t = cur_t    # без дребезга между зонами
+	if best_i < 0: return {"t": 99.0, "zone": -1, "pan": 0.0}
+	var pan := clampf(vl.x * 4.0 + float((PARK_ZONES[best_i]["d"] as Vector3).x) * 0.9, -1.0, 1.0)     # с какой стороны корабля ожидается удар
+	return {"t": best_t, "zone": best_i, "pan": pan}

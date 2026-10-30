@@ -162,8 +162,8 @@ func _build_hud() -> void:
 	var bl := Control.new(); bl.set_anchors_preset(Control.PRESET_BOTTOM_LEFT); bl.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bl)
 	lbl_speed = _lbl("0", 76, CREAM, bl, Vector2(28, -170))
 	lbl_alt = _lbl("", 22, Color(1, 1, 1, 0.85), bl, Vector2(34, -62))
-	var bc := Control.new(); bc.set_anchors_preset(Control.PRESET_CENTER_BOTTOM); bc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bc)
-	dmg_ctl = Control.new(); dmg_ctl.position = Vector2(-175, -104); dmg_ctl.size = Vector2(350, 92); dmg_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bc.add_child(dmg_ctl)
+	var bc := Control.new(); bc.set_anchors_preset(Control.PRESET_TOP_RIGHT); bc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bc)
+	dmg_ctl = Control.new(); dmg_ctl.position = Vector2(-DMG_W - 24.0, 24.0); dmg_ctl.size = Vector2(DMG_W, DMG_H); dmg_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bc.add_child(dmg_ctl)
 	dmg_ctl.draw.connect(_draw_damage)
 	var br := Control.new(); br.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT); br.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(br)
 	map_ctl = Control.new(); map_ctl.position = Vector2(-292, -292); map_ctl.size = Vector2(268, 268); map_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; br.add_child(map_ctl)
@@ -171,28 +171,120 @@ func _build_hud() -> void:
 	var cc := Control.new(); cc.set_anchors_preset(Control.PRESET_CENTER); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(cc)
 	lbl_count = _lbl("", 200, ORANGE, cc, Vector2(-120, -170)); lbl_count.add_theme_constant_override("outline_size", 22)
 
-func _draw_damage() -> void:                                                 # здоровье корабля: общий процент + состояние моторов по группам
+const DMG_W := 268.0                                                         # панель здоровья: квадратная, того же размера, что карта трассы; в правом верхнем углу (под корабль не попадает)
+const DMG_H := 268.0
+const VEL_REF := 900.0                                                       # м/с, при которых стрелка скорости на схеме достигает полной длины
+const VEL_LEN := 70.0                                                        # полная длина стрелки, пикс.
+var plan_ship_id := 0                                                        # какому кораблю принадлежит схема (при смене корабля строится заново)
+var plan_polys := {}                                                         # деталь -> контур вида сверху (выпуклая оболочка), в координатах панели
+var plan_hull := PackedVector2Array()                                        # контур корпуса вида сверху
+var plan_box := Rect2()                                                      # рамка схемы целиком (для зон удара)
+var plan_wing_l := Vector2()                                                 # точки у внешних краёв левых и правых крыльев (для дуг зон удара)
+var plan_wing_r := Vector2()
+
+func _plan_build() -> void:                                                  # схема «вид сверху»: контуры корпуса и деталей из настоящих мешей корабля (выпуклая оболочка проекции на плоскость XZ)
+	var sh: Node3D = main.ship
+	plan_ship_id = sh.get_instance_id(); plan_polys.clear(); plan_hull = PackedVector2Array()
+	var inv := sh.global_transform.affine_inverse()
+	var raw := {}
+	var lo := Vector2(1e12, 1e12); var hi := Vector2(-1e12, -1e12)
+	for ch in sh.get_children():
+		if ch is not MeshInstance3D: continue
+		var nm: String = ch.name
+		if not (nm == "SM_Hull_Body" or nm.begins_with("SM_Wing_") or nm.begins_with("SM_Engine_")): continue
+		var mi := ch as MeshInstance3D
+		if mi.mesh == null: continue
+		var tr: Transform3D = inv * mi.global_transform
+		var pts := PackedVector2Array()
+		for k in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(k)
+			var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var stp := maxi(1, vs.size() / 1500)                                 # хватает 1500 вершин на деталь: оболочка выпуклая
+			for vi in range(0, vs.size(), stp):
+				var w := tr * vs[vi]; pts.append(Vector2(w.x, w.z))
+		if pts.size() < 3: continue
+		var hl := Geometry2D.convex_hull(pts)
+		if hl.size() > 1 and hl[0] == hl[hl.size() - 1]: hl.remove_at(hl.size() - 1)
+		raw[nm] = hl
+		for q in hl: lo = lo.min(q); hi = hi.max(q)
+	var sz := hi - lo
+	if sz.x <= 0.0 or sz.y <= 0.0: return
+	var area := Rect2(34.0, 58.0, DMG_W - 68.0, 184.0)                   # поле схемы внутри панели; вокруг остаётся место под дуги зон удара
+	var k2 := minf(area.size.x / sz.x, area.size.y / sz.y)
+	var off := area.position + (area.size - sz * k2) * 0.5
+	for nm in raw:
+		var out := PackedVector2Array()
+		for q in raw[nm]: out.append(off + (q - lo) * k2)                        # нос (−z) вверху, правый борт справа
+		if nm == "SM_Hull_Body": plan_hull = out
+		else: plan_polys[nm] = out
+	plan_box = Rect2(off, sz * k2)
+	var wl := Rect2(); var wr := Rect2(); var hl_ := false; var hr_ := false
+	for nm in plan_polys:                                                        # крылья: слева и справа от оси корабля
+		if not String(nm).begins_with("SM_Wing_"): continue
+		var pts: PackedVector2Array = plan_polys[nm]
+		var rc := Rect2(pts[0], Vector2.ZERO)
+		for q in pts: rc = rc.expand(q)
+		if rc.get_center().x < plan_box.get_center().x: wl = rc if not hl_ else wl.merge(rc); hl_ = true
+		else: wr = rc if not hr_ else wr.merge(rc); hr_ = true
+	plan_wing_l = Vector2(wl.position.x if hl_ else plan_box.position.x, wl.get_center().y if hl_ else plan_box.get_center().y)
+	plan_wing_r = Vector2(wr.end.x if hr_ else plan_box.end.x, wr.get_center().y if hr_ else plan_box.get_center().y)
+
+func _draw_zone_arcs(c: Control, at: Vector2, ang: float, col: Color) -> void:  # три дуги «парктроника» от точки at в направлении ang
+	for k in 3:
+		c.draw_arc(at, 7.0 + 7.0 * k, ang - 0.65, ang + 0.65, 14, Color(col.r, col.g, col.b, col.a * (1.0 - 0.22 * k)), 3.5, true)
+
+func _draw_damage() -> void:                                                 # здоровье корабля: общий процент + схема «вид сверху» с моторами и зонами будущего удара
 	var c := dmg_ctl; var f := ThemeDB.fallback_font
+	if plan_ship_id != main.ship.get_instance_id(): _plan_build()
 	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0, 0, 0, 0.45))
 	var hp: float = main.ship_health()
 	var hc := Color(0.35, 0.9, 0.45) if hp > 0.66 else (Color(0.95, 0.8, 0.25) if hp > 0.33 else Color(0.95, 0.25, 0.2))
-	c.draw_string(f, Vector2(10, 20), "ЗДОРОВЬЕ", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.85))
-	c.draw_string(f, Vector2(c.size.x - 10 - 80, 22), "%d%%" % int(round(hp * 100.0)), HORIZONTAL_ALIGNMENT_RIGHT, 80, 22, hc)
-	c.draw_rect(Rect2(10, 28, c.size.x - 20, 6), Color(1, 1, 1, 0.15)); c.draw_rect(Rect2(10, 28, (c.size.x - 20) * hp, 6), hc)
-	var groups := [["main", "Тяговые"], ["lift", "Взлётные"], ["shunt", "Маневровые"]]
-	var x := 10.0
-	for g in groups:
-		var names := []
-		for nm in main.engines: if main.engines[nm]["kind"] == g[0]: names.append(nm)
-		names.sort()
-		var w := 17.0 * names.size()
-		c.draw_string(f, Vector2(x, 52), g[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, 0.7))
-		var i := 0
-		for nm in names:
-			var ok: bool = main.parts.has(nm)
-			c.draw_rect(Rect2(x + i * 17.0, 58, 14, 26), Color(0.35, 0.9, 0.45, 0.9) if ok else Color(0.9, 0.2, 0.15, 0.9))
-			i += 1
-		x += maxf(w, 78.0) + 10.0
+	c.draw_string(f, Vector2(10, 22), "ЗДОРОВЬЕ", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.85))
+	c.draw_string(f, Vector2(c.size.x - 10 - 80, 24), "%d%%" % int(round(hp * 100.0)), HORIZONTAL_ALIGNMENT_RIGHT, 80, 22, hc)
+	c.draw_rect(Rect2(10, 32, c.size.x - 20, 6), Color(1, 1, 1, 0.15)); c.draw_rect(Rect2(10, 32, (c.size.x - 20) * hp, 6), hc)
+	var grid := Color(0.55, 0.85, 0.95, 0.10)                                    # сетка схемы
+	for gx in range(10, int(c.size.x - 9.0), 20): c.draw_line(Vector2(gx, 48), Vector2(gx, c.size.y - 10), grid, 1.0)
+	for gy in range(48, int(c.size.y - 9.0), 20): c.draw_line(Vector2(10, gy), Vector2(c.size.x - 10, gy), grid, 1.0)
+	var sfx = main.ship_sfx
+	var zn := int(sfx.park_zone) if sfx != null else -1
+	var zname: String = String(sfx.PARK_ZONES[zn]["n"]) if zn >= 0 else ""
+	var zon: bool = zn >= 0 and bool(sfx.park_on)                                # зона угрозы в фазе «горит» (мигает в такт писку парктроника)
+	var zc := Color(0.95, 0.8, 0.25, 0.95) if (sfx == null or float(sfx.park_tti) > 1.2) else Color(0.95, 0.25, 0.2, 0.95)     # янтарный дальше от касания, красный ближе
+	var edge := Color(0.55, 0.85, 0.95, 0.75)
+	if plan_hull.size() > 2:
+		var top_hit: bool = zon and zname == "top"                               # угроза сверху: мигает весь корпус
+		c.draw_colored_polygon(plan_hull, Color(zc.r, zc.g, zc.b, 0.6) if top_hit else Color(0.55, 0.85, 0.95, 0.10))
+		var pl := plan_hull.duplicate(); pl.append(pl[0]); c.draw_polyline(pl, zc if top_hit else edge, 3.0 if top_hit else 1.5, true)
+	for nm in plan_polys:                                                        # крылья и моторы: целые зелёные, потерянные красные
+		var poly: PackedVector2Array = plan_polys[nm]
+		if poly.size() < 3: continue
+		var ok: bool = main.parts.has(nm)
+		var is_eng: bool = String(nm).begins_with("SM_Engine_")
+		var col := Color(0.35, 0.9, 0.45) if ok else Color(0.9, 0.2, 0.15)
+		if ok and zon and zname == "belly" and String(main.engines.get(nm, {}).get("kind", "")) == "lift": col = Color(zc.r, zc.g, zc.b)     # угроза снизу: мигают взлётные моторы
+		c.draw_colored_polygon(poly, Color(col.r, col.g, col.b, (0.75 if is_eng else 0.25) if ok else 0.55))
+		var pl2 := poly.duplicate(); pl2.append(pl2[0]); c.draw_polyline(pl2, Color(col.r, col.g, col.b, 0.9 if (ok or is_eng) else 0.8), 1.2, true)
+	# зоны будущего удара у носа, хвоста и крыльев: дуги, мигают в такт сигналу парктроника
+	if zon:
+		var b := plan_box; var mid := b.get_center()
+		match zname:
+			"nose": _draw_zone_arcs(c, Vector2(mid.x, b.position.y - 2.0), -PI / 2.0, zc)
+			"rear": _draw_zone_arcs(c, Vector2(mid.x, b.end.y + 2.0), PI / 2.0, zc)
+			"wing_l": _draw_zone_arcs(c, plan_wing_l + Vector2(-2.0, 0.0), PI, zc)
+			"wing_r": _draw_zone_arcs(c, plan_wing_r + Vector2(2.0, 0.0), 0.0, zc)
+	# вектор скорости в горизонтальной плоскости корабля: стрелка от центра схемы, длина по скорости, наклон показывает снос
+	var vl: Vector3 = main.ship.global_transform.basis.orthonormalized().inverse() * main.ship.linear_velocity
+	var hv := Vector2(vl.x, vl.z)                                                # x вправо, z назад: нос схемы вверху
+	var hs := hv.length()
+	var ctr := plan_box.get_center()
+	if hs > 15.0:
+		var tip := ctr + hv / hs * clampf(hs / VEL_REF, 0.08, 1.0) * VEL_LEN
+		var vcol := Color(1, 1, 1, 0.95)
+		c.draw_line(ctr, tip, Color(0, 0, 0, 0.5), 5.0, true); c.draw_line(ctr, tip, vcol, 2.5, true)
+		var dir := (tip - ctr).normalized()
+		var side := Vector2(-dir.y, dir.x)
+		c.draw_colored_polygon(PackedVector2Array([tip + dir * 5.0, tip - dir * 8.0 + side * 6.0, tip - dir * 8.0 - side * 6.0]), vcol)
+	c.draw_circle(ctr, 3.0, Color(1, 1, 1, 0.9))
 
 func _map_setup() -> void:
 	var lo := Vector2(1e12, 1e12); var hi := Vector2(-1e12, -1e12)
