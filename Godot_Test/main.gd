@@ -4,6 +4,7 @@ extends Node3D
 # Моторы: взлётные (днище) держат высоту над уровнем моря и тянут вдоль «верха» корабля; тяговые (корма) тянут вперёд, без тормоза;
 # маневровые (концы крыльев, 4 шт.) дают вектор тяги, который задаёт пилот. Атмосферы нет: инерция почти не гасится.
 
+const APP_VERSION := "0.1.2"
 const DETACH_PREFIX := ["SM_Engine_", "SM_Wing_", "SM_Spotlight_", "SM_Glass_", "SM_Hatch_", "SM_Foot_"]
 const CAM_MODES := ["chase", "far", "side", "free", "right", "cockpit"]
 const CAM_NAMES := ["Сзади", "Далеко сзади", "Сбоку слева", "Облёт корабля", "Сбоку справа", "От первого лица"]
@@ -320,7 +321,7 @@ const LEVEL_ROLL := [2.5, 1.5, 0.0, 0.0, 0.0]            # самовыравн�
 var prev_lvl := -1
 func _lvl() -> int: return clampi(int(cfg["level"]), 0, 4)
 const DEADZONES := [0.05, 0.08, 0.12, 0.18, 0.25]
-var cfg := {"hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "stats": {}, "ship": 0, "ach": {}, "rec": {}}
+var cfg := {"version": APP_VERSION, "hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "stats": {}, "ship": 0, "ach": {}, "rec": {}}
 var esc_prev := false
 var menu_open := false
 var menu_i := 0
@@ -2481,7 +2482,7 @@ func _load_cfg() -> void:
 	var has_cf := cf.load(CFG_PATH) == OK
 	for ua in OS.get_cmdline_user_args():
 		if ua.begins_with("tuning="): tune.path_override = ua.substr(7)
-	if not tune.load_file() and has_cf:                       # перенос прежних настроек взлётных
+	if not tune.load_file() and has_cf:
 		for k in ["lift_max", "lift_boost", "hold_kp", "hold_kd", "lift_cos", "lift_side"]:
 			if cf.has_section_key("controls", k): tune.v[k] = float(cf.get_value("controls", k))
 		if cf.has_section_key("controls", "lift_ramp"): tune.v["lift.time"] = float(cf.get_value("controls", "lift_ramp"))
@@ -2492,9 +2493,31 @@ func _load_cfg() -> void:
 	for k in cfg: cfg[k] = cf.get_value("controls", k, cfg[k])
 	scheme = int(cf.get_value("controls", "scheme", scheme))
 	cam_mode = clampi(int(cfg["cam_view"]), 0, CAM_MODES.size() - 1)
-	var stored := String(cf.get_value("controls", "sig", "")); var side := _read_sig_file(); var now := _progress_sig()
-	var ok := (stored == now and (side == "" or side == now)) or (stored == "" and (side == "" or side == now))        # без подписи — старый файл (подпишем при сохранении)
-	if not ok and not (evo_mode or test_mode or soak or shot_mode):          # прогресс правили руками: всё обнуляем, ui выдаст взамен «Мамкин хацкер»
+	
+	var stored := String(cf.get_value("controls", "sig", ""))
+	var side := _read_sig_file()
+	
+	# Считываем версию из файла. Если её там нет (v0.1.1 и ниже) — считаем её "0.1.1"
+	var file_version := String(cf.get_value("controls", "version", "0.1.1"))
+	
+	# 1. Сначала проверяем по новому стабильному алгоритму v0.1.2
+	var now := _progress_sig()
+	var ok := (stored == now and (side == "" or side == now)) or (stored == "" and (side == "" or side == now))
+	
+	# 2. Легаси-проверку запускаем ТОЛЬКО если файл пришёл из старых версий (ниже 0.1.2)
+	if not ok and stored != "" and file_version.naturalcasecmp_to("0.1.2") < 0:
+		Engine.set_meta("use_legacy_sig", true)
+		var legacy_now := _progress_sig()
+		Engine.remove_meta("use_legacy_sig")
+		
+		if stored == legacy_now and (side == "" or side == legacy_now):
+			ok = true
+			# Старое сохранение успешно распознано! 
+			# Перезаписываем его. Функция _save_cfg() автоматически добавит "version": "0.1.2" и чистый хэш
+			_save_cfg() 
+			print("Выполнена безопасная миграция файла сохранения с версии " + file_version + " на " + APP_VERSION)
+
+	if not ok and not (evo_mode or test_mode or soak or shot_mode):
 		cfg["ach"] = {}; cfg["rec"] = {}; cfg["stats"] = {}; tamper_flag = true; _save_cfg()
 	elif stored == "": _save_cfg()
 
@@ -2512,8 +2535,14 @@ func _canon(v) -> String:
 		var s2 := "["
 		for e in v: s2 += _canon(e) + ","
 		return s2 + "]"
-	if v is float or v is int: return "%.9g" % float(v)
+	if v is float or v is int: 
+		# Если включен режим миграции, вызываем оригинальный проблемный вариант
+		if Engine.has_meta("use_legacy_sig"):
+			return "%.9g" % float(v)
+		return String.num(float(v), 9)
 	return str(v)
+
+
 
 func _progress_sig() -> String:
 	return (SIG_SALT + _canon({"ach": cfg.get("ach", {}), "rec": cfg.get("rec", {}), "stats": cfg.get("stats", {})})).sha256_text()
@@ -2525,6 +2554,7 @@ func _read_sig_file() -> String:
 
 func _save_cfg() -> void:
 	var cf := ConfigFile.new()
+	cfg["version"] = APP_VERSION # Принудительно пишем актуальную версию перед хэшированием
 	for k in cfg: cf.set_value("controls", k, cfg[k])
 	cf.set_value("controls", "scheme", scheme)
 	var sig := _progress_sig(); cf.set_value("controls", "sig", sig)
