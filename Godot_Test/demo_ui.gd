@@ -16,21 +16,14 @@ var desc_lbl: Label
 var hint_lbl: Label
 var dim: ColorRect
 var hud_root: Control
-var lbl_rank: Label
-var lbl_time: Label
-var lbl_speed: Label
-var lbl_alt: Label
-var lbl_lvl: Label
+var hud: HudWidgets                                                          # виджеты HUD по дизайну Claude Design (hud_widgets.gd)
+var cnt_pulse := 0.0
+var cnt_last := 0
 var lbl_count: Label
 var lbl_skip: Label
-var lbl_stab: Label
 var ov_ctl: Control
 var ov_off := Vector2.ZERO
 var ov_sc := 1.0
-var prog_bar: ColorRect
-var prog_bg: ColorRect
-var dmg_ctl: Control
-var map_ctl: Control
 var res_panel: Control
 var res_title: Label
 var res_rows: Array = []
@@ -43,7 +36,6 @@ var last_count := 99
 var map_b := Rect2()
 var map_s := 1.0
 var marker_root: Control
-var marker_lbls: Array = []
 var skin: MenuSkin
 var about_link := 0
 var link_cur := {}                                                           # открытая в диалоге ссылка: {name, url, qr}
@@ -105,7 +97,7 @@ const ACH := [
 const DEV_RECORD := 137.36                                                  # рекорд разработчика, с (2:17.36, «Дальнобойщик»): один на все уровни и корабли; обновляется с версиями игры
 const OS_ACH := {"Windows": "os_win", "macOS": "os_mac", "Linux": "os_linux", "FreeBSD": "os_linux", "NetBSD": "os_linux", "OpenBSD": "os_linux", "BSD": "os_linux", "Android": "os_android", "iOS": "os_ios"}
 const MUSIC_ALL := ["tuman.mp3", "radium.mp3", "avenger.mp3", "globacide.mp3", "retribution.mp3", "results.mp3"]
-const PAGES_ALL := ["settings", "controls", "sound", "camera", "keys", "pad", "advanced", "ach", "about", "project", "exit"]
+const PAGES_ALL := ["settings", "controls", "sound", "camera", "interface", "keys", "pad", "advanced", "ach", "about", "project", "exit"]
 const PROJECT_SECTIONS := [
 	{"t": "О проекте", "body": "Карнавальская Гонка — игра по мотивам цикла Ольги Громыко «Космоолухи»: гонка транспортных кораблей по гигантскому каньону планеты Карнавал, где побеждает не самый быстрый, а самый хитрый, везучий и живучий. Главная цель — передать дух книжных гонок: ветвящуюся трассу, где путь выбирают на ходу, подножки соперникам, обвалы, тупики и отыгрыш ролей.\n\nСейчас перед вами демо-прототип на движке Godot. Он нужен, чтобы обкатать управление кораблём, поведение соперников и показать идею. Полноценная игра будет делаться на Unreal Engine."},
 	{"t": "Режимы игры", "body": "Тренировочный режим. Гонка с ботами. Можно выбрать участок реальной трассы из книги длиной 3–5 минут игрового времени и отрабатывать именно его. Правила выбывания (застрял, перевёрнут, вылетел за кромку) задаются отдельно для каждого режима и хранятся как данные, а не зашиты в код.\n\nRP-режим. Игра служит средой для ролевой игры: гонка идёт по всей трассе целиком. Сломанный корабль не дисквалифицируется автоматически, он ждёт эвакуации, а решения (штраф, возврат на трассу, дисквалификация) принимают живые судьи.\n\nСетевая гонка без RP: правила применяет автомат. В далёкой перспективе возможна ролевая игра (RPG)."},
@@ -133,10 +125,10 @@ func _ready() -> void:
 	_apply_volume()                                                            # общая громкость из настроек действует с запуска, а не только после её изменения
 	sfx = UiSfx.new(); sfx.cfg = main.cfg; add_child(sfx)
 	root = Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.mouse_filter = Control.MOUSE_FILTER_IGNORE; add_child(root)
+	marker_root = Control.new(); marker_root.set_anchors_preset(Control.PRESET_FULL_RECT); marker_root.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(marker_root); root.move_child(marker_root, 0)
 	_build_hud(); _build_menu(); _build_results()
 	call_deferred("_check_platform"); call_deferred("_check_derived"); call_deferred("_apply_tamper")
 	skin = MenuSkin.new(); root.add_child(skin); skin.visible = false
-	marker_root = Control.new(); marker_root.set_anchors_preset(Control.PRESET_FULL_RECT); marker_root.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(marker_root); root.move_child(marker_root, 0)
 	_show_state("hud")
 
 func _lbl(text: String, size: int, col: Color, parent: Control, pos := Vector2.ZERO) -> Label:
@@ -148,51 +140,13 @@ func _lbl(text: String, size: int, col: Color, parent: Control, pos := Vector2.Z
 # ---------- HUD ----------
 func _build_hud() -> void:
 	ov_ctl = Control.new(); ov_ctl.set_anchors_preset(Control.PRESET_FULL_RECT); ov_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; ov_ctl.visible = false; root.add_child(ov_ctl); ov_ctl.draw.connect(_draw_ov)
-	lbl_stab = _lbl("СТАБИЛИЗАЦИЯ ВЫКЛ  (A / T — включить)", 26, Color(1.0, 0.35, 0.25), root, Vector2(520, 800)); lbl_stab.visible = false
 	lbl_skip = _lbl("A / Enter — пропустить заставку", 24, Color(1, 1, 1, 0.8), root, Vector2(1030, 835)); lbl_skip.visible = false
 	hud_root = Control.new(); hud_root.set_anchors_preset(Control.PRESET_FULL_RECT); hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(hud_root)
-	var tl := Control.new(); tl.position = Vector2(28, 18); tl.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(tl)
-	_lbl("ПОЗИЦИЯ", 16, Color(1, 1, 1, 0.65), tl, Vector2(2, 0))
-	lbl_rank = _lbl("1/11", 70, CREAM, tl, Vector2(0, 14))
-	var tc := Control.new(); tc.set_anchors_preset(Control.PRESET_CENTER_TOP); tc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(tc)
-	lbl_time = _lbl("0:00.0", 44, CREAM, tc, Vector2(-80, 14))
-	prog_bg = ColorRect.new(); prog_bg.color = Color(0, 0, 0, 0.45); prog_bg.position = Vector2(-220, 72); prog_bg.size = Vector2(440, 8); tc.add_child(prog_bg)
-	prog_bar = ColorRect.new(); prog_bar.color = ORANGE; prog_bar.position = Vector2(-220, 72); prog_bar.size = Vector2(0, 8); tc.add_child(prog_bar)
-	lbl_lvl = _lbl("", 16, Color(1, 1, 1, 0.55), tc, Vector2(-220, 86))
-	var bl := Control.new(); bl.set_anchors_preset(Control.PRESET_BOTTOM_LEFT); bl.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bl)
-	lbl_speed = _lbl("0", 76, CREAM, bl, Vector2(28, -170))
-	lbl_alt = _lbl("", 22, Color(1, 1, 1, 0.85), bl, Vector2(34, -62))
-	var bc := Control.new(); bc.set_anchors_preset(Control.PRESET_CENTER_BOTTOM); bc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(bc)
-	dmg_ctl = Control.new(); dmg_ctl.position = Vector2(-175, -104); dmg_ctl.size = Vector2(350, 92); dmg_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; bc.add_child(dmg_ctl)
-	dmg_ctl.draw.connect(_draw_damage)
-	var br := Control.new(); br.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT); br.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(br)
-	map_ctl = Control.new(); map_ctl.position = Vector2(-292, -292); map_ctl.size = Vector2(268, 268); map_ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE; br.add_child(map_ctl)
-	map_ctl.draw.connect(_draw_map)
+	hud = HudWidgets.new(); hud_root.add_child(hud); hud.setup(main, self)
 	var cc := Control.new(); cc.set_anchors_preset(Control.PRESET_CENTER); cc.mouse_filter = Control.MOUSE_FILTER_IGNORE; hud_root.add_child(cc)
-	lbl_count = _lbl("", 200, ORANGE, cc, Vector2(-120, -170)); lbl_count.add_theme_constant_override("outline_size", 22)
-
-func _draw_damage() -> void:                                                 # здоровье корабля: общий процент + состояние моторов по группам
-	var c := dmg_ctl; var f := ThemeDB.fallback_font
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0, 0, 0, 0.45))
-	var hp: float = main.ship_health()
-	var hc := Color(0.35, 0.9, 0.45) if hp > 0.66 else (Color(0.95, 0.8, 0.25) if hp > 0.33 else Color(0.95, 0.25, 0.2))
-	c.draw_string(f, Vector2(10, 20), "ЗДОРОВЬЕ", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.85))
-	c.draw_string(f, Vector2(c.size.x - 10 - 80, 22), "%d%%" % int(round(hp * 100.0)), HORIZONTAL_ALIGNMENT_RIGHT, 80, 22, hc)
-	c.draw_rect(Rect2(10, 28, c.size.x - 20, 6), Color(1, 1, 1, 0.15)); c.draw_rect(Rect2(10, 28, (c.size.x - 20) * hp, 6), hc)
-	var groups := [["main", "Тяговые"], ["lift", "Взлётные"], ["shunt", "Маневровые"]]
-	var x := 10.0
-	for g in groups:
-		var names := []
-		for nm in main.engines: if main.engines[nm]["kind"] == g[0]: names.append(nm)
-		names.sort()
-		var w := 17.0 * names.size()
-		c.draw_string(f, Vector2(x, 52), g[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, 0.7))
-		var i := 0
-		for nm in names:
-			var ok: bool = main.parts.has(nm)
-			c.draw_rect(Rect2(x + i * 17.0, 58, 14, 26), Color(0.35, 0.9, 0.45, 0.9) if ok else Color(0.9, 0.2, 0.15, 0.9))
-			i += 1
-		x += maxf(w, 78.0) + 10.0
+	lbl_count = _lbl("", 200, ORANGE, cc, Vector2(-300, -250)); lbl_count.add_theme_constant_override("outline_size", 10)      # отсчёт: Dela 200, обводка ink 10
+	lbl_count.add_theme_font_override("font", load("res://menu_v2/fonts/DelaGothicOne-400.ttf")); lbl_count.add_theme_color_override("font_outline_color", Color("060A18"))
+	lbl_count.size = Vector2(600, 260); lbl_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; lbl_count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; lbl_count.pivot_offset = Vector2(300, 130)
 
 func _map_setup() -> void:
 	var lo := Vector2(1e12, 1e12); var hi := Vector2(-1e12, -1e12)
@@ -200,31 +154,6 @@ func _map_setup() -> void:
 	var sz := hi - lo
 	map_s = minf(240.0 / maxf(sz.x, 1.0), 240.0 / maxf(sz.y, 1.0))
 	map_b = Rect2(lo, sz)
-
-func _mp(p: Vector2) -> Vector2:
-	return Vector2(14.0, 14.0) + (p - map_b.position) * map_s + Vector2((240.0 - map_b.size.x * map_s) * 0.5, (240.0 - map_b.size.y * map_s) * 0.5)
-
-func _draw_map() -> void:
-	var c := map_ctl
-	if map_b.size == Vector2.ZERO: _map_setup()
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0, 0, 0, 0.4))
-	var pts := PackedVector2Array()
-	var step := 3
-	for i in range(0, main.trk_pts.size(), step): pts.append(_mp(main.trk_pts[i]))
-	if pts.size() > 1: c.draw_polyline(pts, Color(0.95, 0.85, 0.65, 0.85), 3.0, true)
-	for br in main.branches:
-		var bp := PackedVector2Array(); for p in (br["pts"] as PackedVector2Array): bp.append(_mp(p))
-		if bp.size() > 1: c.draw_polyline(bp, Color(1.0, 0.55, 0.2, 0.95), 2.0, true)
-	var s0: float = main.s0 if main.s0 >= 0.0 else 0.0
-	c.draw_circle(_mp((main._track_at(s0) as Array)[0]), 5.0, Color(0.3, 1.0, 0.4))
-	c.draw_circle(_mp((main._track_at(s0 + main.race_len) as Array)[0]), 5.0, Color(1.0, 0.25, 0.2))
-	for b in main.bots:
-		var q := (b["rb"] as RigidBody3D).global_position
-		c.draw_circle(_mp(Vector2(q.x, q.z)), 3.0, Color(0.6, 0.75, 1.0, 0.9) if not b["fin"] else Color(0.6, 0.6, 0.6, 0.6))
-	var sp: Vector3 = main.ship.global_position; var fw: Vector3 = -main.ship.global_transform.basis.z
-	var pp := _mp(Vector2(sp.x, sp.z)); var d := Vector2(fw.x, fw.z).normalized()
-	var n := Vector2(-d.y, d.x)
-	c.draw_colored_polygon(PackedVector2Array([pp + d * 9.0, pp - d * 6.0 + n * 5.0, pp - d * 6.0 - n * 5.0]), Color(1, 1, 1))
 
 func _ovp(p: Vector2) -> Vector2:
 	return ov_off + (p - map_b.position) * ov_sc
@@ -375,7 +304,7 @@ func _page_items() -> Array:
 				var has: bool = got.has(a["id"])
 				it.append({"id": a["id"], "title": a["title"], "cond": a["cond"], "st": "got" if has else ("hidden" if a.get("hidden", false) else "lock"), "when": String(got.get(a["id"], "")), "prog": "" if has else _ach_prog(String(a["id"]))})
 		"settings":
-			it = [{"t": "Управление", "kind": "action", "a": func(): goto_page("controls")}, {"t": "Звук", "kind": "action", "a": func(): goto_page("sound")}, {"t": "Камера", "kind": "action", "a": func(): goto_page("camera")}, back]
+			it = [{"t": "Управление", "kind": "action", "a": func(): goto_page("controls")}, {"t": "Звук", "kind": "action", "a": func(): goto_page("sound")}, {"t": "Камера", "kind": "action", "a": func(): goto_page("camera")}, {"t": "Интерфейс", "kind": "action", "d": "Режим HUD, прозрачность панелей, отступ от края экрана и что показывать.", "a": func(): goto_page("interface")}, back]
 		"controls":
 			it = [{"t": "Схема геймпада:  ◀ %d ▶" % (main.scheme + 1), "l": "Схема геймпада", "kind": "choice", "val": "%d" % (main.scheme + 1), "cw": 80.0, "cfs": 28, "d": "Схема 1: левый стик — тангаж (вверх-вниз) и крен (влево-вправо), бамперы LB/RB — рыскание, правый стик — маневровые (всё переназначается). Схема 2: каждый стик управляет своим бортом маневровых.", "s": func(_d): _flip_scheme(), "a": func(): _flip_scheme()},
 				_bool_item("Левый стик, влево-вправо: инверсия", "inv_lx"), _bool_item("Левый стик, вверх-вниз: инверсия", "inv_ly"),
@@ -413,6 +342,15 @@ func _page_items() -> Array:
 				_num_item("Музыка в меню", func(): return float(main.cfg["menu_music"]), func(x): _set_menu_music(x), 0.1, 0.0, 1.0, "Громкость музыки в главном меню и на экране результатов.", "%.1f"),
 				_num_item("Звуки корабля", func(): return float(main.cfg["ship_sfx"]), func(x): _set_cfg("ship_sfx", x), 0.1, 0.0, 1.0, "Гул моторов, маневровые, сигнал приближения к земле и взрывы при ударах.", "%.1f"),
 				_num_item("Звуки интерфейса", func(): return float(main.cfg["sfx"]), func(x): _set_sfx(x), 0.1, 0.0, 1.0, "Щелчки, переключатели и сигналы меню.", "%.1f"), back]
+		"interface":
+			var hmn := ["Полный", "Минимальный", "Стрим"]
+			var hm := clampi(int(main.cfg.get("hud_mode", 0)), 0, 2)
+			it = [{"t": "Режим HUD:  ◀ %s ▶" % hmn[hm], "l": "Режим HUD", "kind": "choice", "val": hmn[hm], "cw": 300.0, "cfs": 26, "d": "Полный: все приборы. Минимальный: скорость, горизонт и предупреждения, остальное появляется на 2 с, когда нужно. Стрим: без приборов, гонка как зрелище. В гонке переключается клавишей F2.", "s": func(d): _change_hud_mode(d), "a": func(): _change_hud_mode(1)},
+				_num_item("Прозрачность панелей", func(): return float(main.cfg["hud_alpha"]), func(x): _set_cfg("hud_alpha", x), 0.04, 0.0, 1.0, "Насколько плотно залиты тёмные плашки виджетов HUD: 0 — прозрачные, 1 — непрозрачные. По умолчанию 0,72.", "%.2f"),
+				_num_item("Отступ HUD от края, %", func(): return float(main.cfg["hud_margin"]), func(x): _set_cfg("hud_margin", x), 0.5, 0.0, 5.0, "Для телевизоров, где обрезаются края: HUD немного сжимается к центру, чтобы целиком вписаться в экран с отступом. 5% — размеры около 90%. По умолчанию 0.", "%.1f"),
+				_bool_item("Уровень сложности в HUD", "hud_level", "Подпись уровня под полосой прогресса (в режиме «Стрим» скрыта всегда)."),
+				_bool_item("Чип удара под здоровьем", "hud_chip", "Строка словами «УДАР: ПРАВОЕ КРЫЛО · 0,9 с» под панелью здоровья. Выключите, если хватает дуг и подсветки на самой схеме."),
+				{"t": "Сбросить интерфейс", "d": "Вернуть режим, прозрачность, отступ и переключатели HUD к значениям по умолчанию.", "a": func(): _reset_hud()}, back]
 		"camera":
 			var cvn: String = main.CAM_NAMES[clampi(int(main.cfg["cam_view"]), 0, main.CAM_NAMES.size() - 1)]
 			it = [{"t": "Вид камеры:  ◀ %s ▶" % cvn, "l": "Вид камеры", "kind": "choice", "val": cvn, "cw": 320.0, "cfs": 26, "d": "Какой вид камеры включается в начале гонки. Во время гонки его можно менять клавишей камеры. «От первого лица» — из кабины, камера жёстко закреплена на корабле.", "s": func(d): _change_cam_view(d), "a": func(): _change_cam_view(1)},
@@ -454,6 +392,16 @@ func _ach_prog(id: String) -> String:
 		"vet25": return "%d / 25" % int(st.get("finishes", 0))
 		"collector": return "%d / 20" % mini(_ach_count_others(), 20)
 	return ""
+
+func _change_hud_mode(d: int) -> void:
+	main.cfg["hud_mode"] = posmod(int(main.cfg.get("hud_mode", 0)) + d, 3)
+	if hud != null: hud.mode = int(main.cfg["hud_mode"])
+	main._save_cfg(); _refresh_items()
+
+func _reset_hud() -> void:
+	main.cfg["hud_mode"] = 0; main.cfg["hud_alpha"] = 0.72; main.cfg["hud_margin"] = 0.0; main.cfg["hud_level"] = true; main.cfg["hud_chip"] = true
+	if hud != null: hud.mode = 0
+	main._save_cfg(); sfx.play("back"); _refresh_items()
 
 func _tog(key: String) -> void:
 	main.cfg[key] = not main.cfg[key]; main._save_cfg()
@@ -513,7 +461,7 @@ func goto_page(p: String) -> void:
 
 func back_page() -> void:
 	capturing = ""; pm_sel = ""; sfx.play("back"); check_custom()
-	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
+	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
 	if page.begins_with("organ:"): page = "advanced"
 	elif page == "main": return
 	else: page = parent.get(page, "main")
@@ -530,6 +478,7 @@ func _page_title() -> String:
 		"advanced": return "УПРАВЛЕНИЕ › РАСШИРЕННЫЕ"
 		"sound": return "НАСТРОЙКИ › ЗВУК"
 		"camera": return "НАСТРОЙКИ › КАМЕРА"
+		"interface": return "НАСТРОЙКИ › ИНТЕРФЕЙС"
 		"ach": return "ДОСТИЖЕНИЯ"
 		"about": return "ОБ ИГРЕ"
 		"project": return "ОБ ИГРЕ › О ПРОЕКТЕ"
@@ -1097,60 +1046,8 @@ func _update_results() -> void:
 	skin.res["ach"] = fin_info.get("ach", [])
 
 # ---------- Маркеры соперников: подписи одного размера независимо от расстояния ----------
-const MARKER_MAX_DIST := 40000.0                                               # дальше этого расстояния (м) корабль уже меньше пикселя: подпись скрыта; последняя четверть — плавное затухание
-const MARKER_LOS_MIN := 1500.0                                                 # ближе этого подпись всегда показывается, видимость по рельефу проверяется только дальше
-var marker_los: Dictionary = {}                                                # номер бота -> [время проверки, виден]
-
-# Виден ли бот из камеры: луч камера -> бот не должен уходить под рельеф (стены каньона, повороты). Результат кешируется на 0.15 с
-func _marker_visible(i: int, from: Vector3, to: Vector3) -> bool:
-	var now := Time.get_ticks_msec() / 1000.0
-	var c = marker_los.get(i)
-	if c != null and now - float(c[0]) < 0.15: return bool(c[1])
-	var vis := true
-	var n := clampi(int(from.distance_to(to) / 500.0), 4, 80)
-	for k in range(1, n):                                                       # концы луча не берём: рельеф под самой камерой и под ботом не считается
-		var q := from.lerp(to, float(k) / float(n))
-		if main.height(q.x, q.z) > q.y - 4.0: vis = false; break
-	marker_los[i] = [now, vis]
-	return vis
-
-func _update_markers() -> void:
-	var cam: Camera3D = main.cam
-	var show := state in ["hud", "pause", "results"] and cam != null
-	marker_root.visible = show
-	if not show: return
-	while marker_lbls.size() < main.bots.size():
-		var l := _lbl("", 17, CREAM, marker_root); l.add_theme_constant_override("outline_size", 5); marker_lbls.append(l)
-	var vs: Vector2 = get_viewport().get_visible_rect().size
-	var sc := Vector2(vs.x / maxf(1.0, float(get_viewport().size.x)), vs.y / maxf(1.0, float(get_viewport().size.y)))
-	var me: Vector3 = main.ship.global_position
-	for i in main.bots.size():
-		var b: Dictionary = main.bots[i]; var l: Label = marker_lbls[i]
-		var p: Vector3 = (b["rb"] as RigidBody3D).global_position + Vector3(0, 28, 0)
-		if cam.is_position_behind(p): l.visible = false; continue
-		var d := me.distance_to(p)
-		if d > MARKER_MAX_DIST: l.visible = false; continue                      # улетел далеко (например, со старта): подпись только мешает
-		if d > MARKER_LOS_MIN and not _marker_visible(i, cam.global_position, p): l.visible = false; continue     # закрыт стеной каньона: корабля не видно, подписи тоже
-		l.modulate.a = clampf((MARKER_MAX_DIST - d) / (MARKER_MAX_DIST * 0.25), 0.0, 1.0)
-		var sp := cam.unproject_position(p) * sc
-		if sp.x < 0.0 or sp.y < 0.0 or sp.x > vs.x or sp.y > vs.y: l.visible = false; continue          # подпись только у кораблей в поле зрения
-		l.text = "%s  %s" % [b["name"], ("%d м" % int(d)) if d < 1000.0 else ("%.1f км" % (d / 1000.0))]
-		l.reset_size()
-		var half := l.size * 0.5
-		sp = Vector2(clampf(sp.x, half.x + 8.0, vs.x - half.x - 8.0), clampf(sp.y, half.y + 8.0, vs.y - half.y - 8.0))
-		l.position = sp - Vector2(half.x, l.size.y)
-		l.add_theme_color_override("font_color", Color(0.65, 0.65, 0.65) if b["fin"] else (ORANGE if main.rank > 1 and float(b["prog"]) > float(main.p_prog) else CREAM))
-		l.visible = true
-	var placed: Array = []                                                      # разводим перекрывающиеся подписи по вертикали
-	for l2 in marker_lbls:
-		if not (l2 as Label).visible: continue
-		var lab: Label = l2; var rect := Rect2(lab.position, lab.size)
-		for _k in 6:
-			var hit := false
-			for r in placed:
-				if rect.intersects(r): lab.position.y = (r as Rect2).end.y + 2.0; rect = Rect2(lab.position, lab.size); hit = true; break
-			if not hit: break
-		placed.append(rect)
+func _update_markers() -> void:                                                # подписи соперников рисует hud_widgets.gd (слой marker_root)
+	marker_root.visible = state in ["hud", "pause", "results"] and main.cam != null
 
 # ---------- Каждый кадр ----------
 func _process(_dt: float) -> void:
@@ -1160,26 +1057,24 @@ func _process(_dt: float) -> void:
 		if left <= 0.0: toast_lbl.visible = false
 		else: toast_lbl.modulate.a = clampf(left / 0.8, 0.0, 1.0)
 	_update_markers()
-	# HUD
-	var v: float = main.ship.linear_velocity.length()
-	lbl_rank.text = "%d/%d" % [main.rank, main.bots.size() + 1]
-	var t: float = main.race_t
-	lbl_time.text = "%d:%04.1f" % [int(t) / 60, fmod(t, 60.0)]
-	lbl_speed.text = "%d м/с" % int(v)
-	lbl_alt.text = "высота %d м   ·   %d км/ч" % [int(main.ship.global_position.y), int(v * 3.6)]
-	lbl_lvl.text = "Уровень: " + main.LEVEL_NAMES[main._lvl()]
-	prog_bar.size.x = 440.0 * clampf(float(main.p_prog) / main.race_len, 0.0, 1.0) if main.race_len < 1e11 else 0.0
-	dmg_ctl.queue_redraw(); map_ctl.queue_redraw()
 	# обратный отсчёт
 	if state in ["hud", "pause"]: hud_root.visible = not main.in_cutscene()
 	lbl_skip.visible = state == "hud" and main.in_cutscene()
-	lbl_stab.visible = state == "hud" and not main.assist and int(main.cfg["level"]) < 4 and not main.in_cutscene()
 	ov_ctl.visible = state == "hud" and main.intro_t() < 7.0
 	if ov_ctl.visible: ov_ctl.queue_redraw()
 	var cnt: int = int(ceil(main.start_t)) if main.start_t > 0.0 and main.start_t <= 6.0 and state == "hud" else 0
-	if cnt > 0: lbl_count.text = str(cnt); lbl_count.visible = true; go_t = 0.9; last_count = cnt
-	elif go_t > 0.0 and state == "hud": go_t -= _dt if _dt > 0.0 else 0.016; lbl_count.text = "СТАРТ!"; lbl_count.visible = true
-	else: lbl_count.visible = false
+	if cnt > 0:
+		if cnt != cnt_last: cnt_pulse = 0.25; cnt_last = cnt                  # на каждой цифре масштаб 1,3 → 1,0 за 0,25 с
+		lbl_count.add_theme_font_size_override("font_size", 200); lbl_count.text = str(cnt); lbl_count.visible = true; go_t = 0.9; last_count = cnt
+	elif go_t > 0.0 and state == "hud":
+		go_t -= _dt if _dt > 0.0 else 0.016
+		if cnt_last != -1: cnt_pulse = 0.25; cnt_last = -1
+		lbl_count.add_theme_font_size_override("font_size", 120); lbl_count.text = "СТАРТ!"; lbl_count.visible = true
+		lbl_count.modulate.a = clampf(go_t / 0.3, 0.0, 1.0)                    # «СТАРТ!» держится 0,8 с и гаснет 0,3 с
+	else: lbl_count.visible = false; lbl_count.modulate.a = 1.0; cnt_last = 0
+	cnt_pulse = maxf(cnt_pulse - (_dt if _dt > 0.0 else 0.016), 0.0)
+	var pk := 1.0 + 0.3 * (1.0 - pow(1.0 - cnt_pulse / 0.25, 2.0)) if cnt_pulse > 0.0 else 1.0
+	lbl_count.scale = Vector2(pk, pk)
 	# финиш -> результаты
 	if state == "hud" and main.p_fin and res_t_show < 0.0: res_t_show = Time.get_ticks_msec() / 1000.0 + 2.5
 	if state == "hud" and res_t_show > 0.0 and Time.get_ticks_msec() / 1000.0 >= res_t_show:

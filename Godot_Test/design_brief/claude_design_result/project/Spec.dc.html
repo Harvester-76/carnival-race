@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Спецификация реализации HUD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1600px; height:2200px; box-sizing:border-box; padding:48px 56px; background:#060A18; color:#F7E6BF; font-family:'Golos Text',sans-serif; font-size:13px; line-height:1.55">
+  <div style="display:flex; align-items:baseline; gap:20px; margin-bottom:24px">
+    <h1 style="margin:0; font-family:'Dela Gothic One',sans-serif; font-weight:400; font-size:36px; color:#F7E6BF">Спецификация <span style="color:#FF8A1E">для Godot</span></h1>
+    <span style="color:#93A9D9">Все координаты — px при 1600×900, от левого верхнего угла виджета, если не сказано иное. Цвета — #RRGGBBAA.</span>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:28px 48px">
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">0 · ОБЩЕЕ</h2>
+      <p style="margin:0 0 6px"><b>Плашка</b> = StyleBoxFlat: bg <code style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">#060A18B8</code>, border 1 <code style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">#93A9D947</code>, corner 10. Тревога: bg <code style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">#060A18DB</code>, border 2 warn/danger, corner 6.</p>
+      <p style="margin:0 0 6px"><b>Обводка под яркими линиями</b>: та же линия ink, толщина +3…+5 px, рисуется первой. Так стрелки и маркеры читаются и на небе горизонта, и на песке.</p>
+      <p style="margin:0 0 6px"><b>Штриховка</b>: PNG 6×6 (полоса 2 px ink 55% под 45°) → draw_texture_rect(tile=true) поверх заливки. Пунктир — draw_dashed_line(dash 4, gap 3).</p>
+      <p style="margin:0 0 6px"><b>Дуги</b>: draw_arc(antialiased=true, point_count = 48 на 270°). Скругление горизонта — Panel с StyleBox corner 12 и clip_children = CLIP_CHILDREN_ONLY.</p>
+      <p style="margin:0"><b>Шрифты</b>: Dela Gothic One 400; Golos Text 600/700/800; JetBrains Mono 500/700/800. Подписи ВЕРХНИМ регистром, letter-spacing +0,06 em (≈ +1 px при 11). Минимальный кегль — 11.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">1 · ПОЗИЦИЯ — (24, 24) 128×96</h2>
+      <p style="margin:0 0 6px">«ПОЗИЦИЯ» (12, 12) Golos 700/11 steel. Число — Dela 40 cream, верх 34, высота строки 44; «/12» Golos 700/18 steel по общей базовой линии, отступ 2.</p>
+      <p style="margin:0">Обгон: число и border 2 px → good на 0,6 с (ease-out назад). Потеря места: то же оранжевым.</p>
+      <h2 style="margin:16px 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">2 · СОПЕРНИКИ — (164, 24) 320×96</h2>
+      <p style="margin:0 0 6px">Строки y 8 и 48, высота 36. Треугольник 12×10 x 12 (▲ orange / ▼ cyan). Имя: x 32, Golos 600/16 cream, ширина ≤ 132, обрезка «…». Дистанция: правый край 236, mono 700/15. Время: правый край 308, mono 700/15. Цвет чисел = цвет треугольника.</p>
+      <p style="margin:0">Время &lt; 0,5 с: подложка строки orange/cyan 16%, r 6. Нет соперника в 6 км: строка «дальше 6 км» steel. Нет обоих: плашка скрыта.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">3 · ВРЕМЯ И ПРОГРЕСС — (620, 24) 360×96</h2>
+      <p style="margin:0 0 6px">Время: mono 700/36 cream, по центру, верх 8, формат <span style="font-family:'JetBrains Mono',monospace">M:SS.d</span>. Полоса (16, 56) 328×6 r 3: трек steel 20%, заливка orange. Отметки четвертей x 98/180/262 ink 70% 1 px. Срезки: черта 2 px orange 75% на y 67.</p>
+      <p style="margin:0">Низ y 72: слева уровень (cap 11 steel, скрыт в «стриме»), справа «ДО ФИНИША» cap + mono 700/13 cream. &lt; 1 км — в метрах.</p>
+      <h2 style="margin:16px 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">4 · ТЕМП И СРЕЗКА — (1296, 24) 280×96</h2>
+      <p style="margin:0 0 6px">«К РЕКОРДУ» / «К РАЗРАБОТЧИКУ» (12, 12). Чип (12, 32) h 20 r 4 pad 8: «ВПЕРЕДИ» good/ink или «ПОЗАДИ» danger/white. Значение — правый край 268, mono 800/28, слева стрелка 14×12 того же цвета.</p>
+      <p style="margin:0">Разделитель y 62. Строка y 70, по правому краю: значок развилки 14, текст Golos 600/13, км mono 700/13. До срезки — steel + cream; внутри срезки — всё orange. До 2% и 5 с: «—» steel, чипа нет.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">5 · ШКАЛА ВЫСОТЫ — (24, 132) 128×452</h2>
+      <p style="margin:0 0 6px">Шапка 0–52, лента 58–394, подвал 400–452. Масштаб k = 0,168 px/м, Y(h) = 226 − (h − alt)·k, обрезка по 58…394. Лента x 46–78 на ink-2.</p>
+      <p style="margin:0 0 6px">Зоны: коридор good 32%; 300 м под потолком и 80–250 м над землёй — warn 85%; выше потолка и 0–80 м — danger со штриховкой; земля — ground #4A3220 со штриховкой terrain 35%, кромка 2 px terrain.</p>
+      <p style="margin:0 0 6px">Деления 100 м: x 41–46, 1 px steel 60%. 500 м: x 38–46, 2 px steel + подпись mono 500/11 справа по x 38. Потолок: x 40–86, 4 px danger. Рельеф +1/+2/+3 с: шевроны x 81–88, ±4 по Y, 2,5 px terrain.</p>
+      <p style="margin:0">Маркер: линия x 42–82 белая 2; треугольник (82,226)(92,220)(92,232). Верт. скорость (94, 218) mono 700/12. Стрелка x 62, 4 px, длина = clamp(vs/300)·110, голова 12×10. Цвет по t до границы: &lt;3 с danger, &lt;6 с warn, иначе белый. Шапка выше потолка — заливка danger, «ЗА ПОТОЛКОМ», +м, отсчёт. Подвал: t касания ≤ 6 с — чип времени, &lt; 3 с — заливка danger.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">6 · СПИДОМЕТР — (24, 596) 280×280</h2>
+      <p style="margin:0 0 6px">Подложка — круг r 140. Дуга: центр (140,140), r 118, ширина 12, от 135° по часовой на 270°; f = v/2400. Зоны 0–0,35 good · 0,35–0,65 warn · 0,65–0,85 orange · 0,85–1 danger; зазоры 1°. Вся шкала α 0,28, до f — α 1.</p>
+      <p style="margin:0 0 6px">Деления каждые 100: r 102–109, 1 px steel 60%; каждые 500: r 98–109, 2 px cream; подписи r 84 mono 500/11 steel. <b>Стрелки через центр нет</b>: указатель — отрезок r 100–132, белый 4 px (ink 9 под ним), скруглённый. Метка 2300: r 126–136, белая 3.</p>
+      <p style="margin:0">Число: mono 800/56 cream, строка 106–162, по центру; округление до 10 м/с, сглаживание отображаемого значения lerp 12/с. «М/С» Golos 700/13 steel y 170; км/ч mono 500/13 steel y 226. ≥ 2290: чип «ПРЕДЕЛ» (104,194) 72×20 danger.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">7 · ПОЛОЖЕНИЕ — (316, 676) 216×200</h2>
+      <p style="margin:0 0 6px"><b>Курс к трассе</b>: подпись (12, 7); база y 44, x 30–186, 1,3 px/°. Деления 10°: y 40–44; 0/±30/±60: y 37–44, 2 px. Подписи mono 11 по центру над делением, y 22 — все внутри плашки. Нос — треугольник warn (x,45)(x±5,53); полёт — ромб good 10×10 на базе. За ±60 — прижать к краю.</p>
+      <p style="margin:0 0 6px"><b>Горизонт</b> (12, 54) 192×110 r 12, центр (108, 109), 2,2 px/°, поворот −крен. Небо #2F6FC2, земля #8A5428, линия белая 2. Лестница: 10° — 40 px, 5° — 20 px, 1,5 px; выше горизонта сплошные, ниже — пунктир 5/3; подписи ±10/20/30 mono 11.</p>
+      <p style="margin:0 0 6px">Шкала крена: дуга r 46 ±60°, деления r 46–51 (10, 20, 45) и 46–54 (0, 30, 60). Указатель — треугольник warn (108,64)(103,72)(113,72), поворот +крен; под ним трапеция скольжения, сдвиг clamp(снос·0,8, ±10). Символ корабля warn 3,5. Вектор полёта: кружок r 5 + усы 7, good 2,5; x = 108 + снос·2,2, y = 109 − γ·2,2.</p>
+      <p style="margin:0">Ввод (вместо крестика 80×80): трек x 197, y 72–146, точка cyan r 4, y = 109 − тангаж·34; трек y 157, x 52–164, x = 108 + крен·54. Цифры y 172: три ячейки по 64 — cap 11 + mono 700/13; |снос| ≥ 10° → warn.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">8 · ЗДОРОВЬЕ — (1296, 132) 280×280 + чип</h2>
+      <p style="margin:0 0 6px">«ЗДОРОВЬЕ» (12, 12); % — правый край 268, mono 800/20, цвет: &gt;66 good, &gt;33 warn, иначе danger. Полоса (12, 34) 256×6, засечки ink на 33/66%. Сетка 16 px steel 8%.</p>
+      <p style="margin:0 0 6px">Схема (локальные координаты; в виджете: перенос в (140,164), масштаб 0,88 вокруг (140,157)):<br>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8CD9F2">корпус 140,60 151,72 157,96 158,200 163,236 117,236 122,200 123,96 129,72<br>крыло L 123,148 66,192 64,212 122,204 · законцовка L 55,174 10×48 r5 (R зеркально)<br>маршевые 118/133.5/149, y 236, 13×12 · 13×17 · 13×12 r2<br>взлётные r5.5: (140,90) (133,103) (147,103) (132,176) (148,176) (132,191) (148,191)</span></p>
+      <p style="margin:0 0 6px">Цело: крыло good 30% + контур good 2; мотор good 90% + контур ink 1,5. Потеряно: без заливки, пунктир danger 4/3 + крест danger 2,5 (ink 5). Корпус: cyan 8% + контур cyan 2.</p>
+      <p style="margin:0">Удар: дуги r 8/15/22, 3,5 px (ink 6,5), центры и сектора: нос (140,56) −130…−50°; хвост (140,258) 50…130°; лево (50,198) 140…220°; право (230,198) −40…40°. Сверху — корпус цветом α 0,5 + контур 3,5. Снизу — взлётные цветом + кольца r 9. Чип (0, 288) 280×32 r 6: значок, «УДАР: ПРАВОЕ КРЫЛО» Golos 800/14, секунды mono 800/15.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">9 · КАРТА — (1296, 596) 280×280</h2>
+      <p style="margin:0 0 6px">«ТРАССА» (12, 12) + % пути mono 700/13 (12, 28). Трасса вписывается в прямоугольник (24…256, 22…262) с сохранением пропорций. Подложка трассы ink 60% 6 px; пройдено steel 55% 3 px; впереди cream 3 px; срезки orange 3 px пунктир 5/3.</p>
+      <p style="margin:0">Соперники — точки r 3,5 steel + ink 1,5. Игрок — треугольник orange (нос 9, хвост 6, ширина 12) + ink 2, ореол r 12 orange 22%. Финиш r 6,5 danger + белая окантовка 2 + шашечки 5×5; «ФИНИШ» cap 11. Старт — белая черта 14 px.</p>
+      <h2 style="margin:16px 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">10 · ПОДПИСИ СОПЕРНИКОВ</h2>
+      <p style="margin:0">Чип h 22, pad 3/8, r 4, ink 55%: точка 7 (orange впереди / cyan позади), имя Golos 700/13 cream ≤ 170 px, дистанция mono 700/12 steel. Якорь — низ по центру, 12 px над верхом проекции корабля; если чип выше y 132 — переворот под корабль. Максимум 6 чипов, ближайшие. Позади и &lt; 1 с — рамка cyan 1,5. Слой — под плашками HUD.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">11 · СООБЩЕНИЯ</h2>
+      <p style="margin:0 0 6px">Отсчёт: Dela 200 orange, outline 10 ink, центр (800, 340); на каждой цифре масштаб 1,3→1,0 за 0,25 с (ease-out), гашение последние 0,2 с. «СТАРТ!» Dela 120, 0,8 с + гашение 0,3 с.</p>
+      <p style="margin:0 0 6px">Тревога потолка: (560, 132) 480×72 r 6, ink 86%, рамка 2 danger, пульс рамки α 1↔0,4 2 Гц. Значок 28×26 на x 20; «ВЕРНИТЕСЬ В КАНЬОН» Golos 800/20; строка 13 steel; отсчёт Dela 44 danger справа.</p>
+      <p style="margin:0">Сообщение внизу: центр x 800, y 812, h 40, pad 16, r 6, Golos 800/16. Стабилизация выкл — рамка/текст danger + значки A / T. Возврат — рамка steel 50%. Лимит — warn. Живёт 2,5 с, одно за раз.</p>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 8px; font-size:14px; font-weight:800; letter-spacing:0.06em; color:#FF8A1E">12 · ТАЙМИНГИ</h2>
+      <div style="display:grid; grid-template-columns:1fr auto; gap:4px 16px">
+        <span>Мигание удара: «горит»</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">50% интервала писка (0,9→0,1 с), &lt;0,5 с — постоянно</span>
+        <span>Смена янтарь → красный</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">t ≤ 1,2 с, без анимации</span>
+        <span>Число дуг</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">&gt;2 с — 1 · 1,2–2 с — 2 · &lt;1,2 с — 3</span>
+        <span>Появление виджета (режимы)</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">α 0→1 за 0,2 с; скрытие через 2 с, 0,3 с</span>
+        <span>Вспышка позиции</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">0,6 с ease-out</span>
+        <span>Чип удара / сообщения</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">появление 0,15 с, гашение 0,3 с</span>
+        <span>Темп</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">обновлять 4 раза в секунду</span>
+        <span>Дистанции</span><span style="font-family:'JetBrains Mono',monospace; color:#8CD9F2">&lt;1 км — шаг 10 м, иначе 0,1 км</span>
+      </div>
+    </section>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":2200}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

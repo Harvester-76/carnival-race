@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Прибор положения</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position:relative; width:216px; height:200px; font-family:'Golos Text',sans-serif; color:#F7E6BF">
+  <div style="position:absolute; left:0; top:0; width:216px; height:200px; border-radius:10px; background:rgba(6,10,24,0.72); box-shadow:inset 0 0 0 1px rgba(147,169,217,0.28)"></div>
+
+  <sc-if value="{{showTape}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:12px; top:7px; font-weight:700; font-size:11px; line-height:13px; letter-spacing:0.06em; color:#93A9D9">КУРС К ТРАССЕ</div>
+    <div style="position:absolute; left:20px; top:22px; width:20px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:13px; color:#93A9D9">−60</div>
+    <div style="position:absolute; left:59px; top:22px; width:20px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:13px; color:#93A9D9">−30</div>
+    <div style="position:absolute; left:98px; top:22px; width:20px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:13px; color:#F7E6BF">0</div>
+    <div style="position:absolute; left:137px; top:22px; width:20px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:13px; color:#93A9D9">30</div>
+    <div style="position:absolute; left:176px; top:22px; width:20px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:13px; color:#93A9D9">60</div>
+  </sc-if>
+
+  <svg width="216" height="200" viewBox="0 0 216 200" style="position:absolute; left:0; top:0" aria-hidden="true">
+    <defs>
+      <clipPath id="hzClip"><rect x="12" y="54" width="192" height="110" rx="12"></rect></clipPath>
+    </defs>
+    <g style="display:{{tapeDisplay}}">
+      <path d="M30 44 H186" stroke="#93A9D9" stroke-opacity="0.6" stroke-width="1"></path>
+      <path d="M43 40 V44 M56 40 V44 M82 40 V44 M95 40 V44 M121 40 V44 M134 40 V44 M160 40 V44 M173 40 V44" stroke="#93A9D9" stroke-opacity="0.6" stroke-width="1"></path>
+      <path d="M30 37 V44 M69 37 V44 M147 37 V44 M186 37 V44" stroke="#93A9D9" stroke-width="2"></path>
+      <path d="M108 36 V44" stroke="#F7E6BF" stroke-width="2"></path>
+      <path d="{{trkDiamond}}" fill="#59E673" stroke="#060A18" stroke-width="1.5"></path>
+      <path d="{{hdgTri}}" fill="#F2CC40" stroke="#060A18" stroke-width="1.5"></path>
+    </g>
+    <g clip-path="url(#hzClip)">
+      <g transform="rotate({{rollNeg}} 108 109) translate(0 {{pitchPx}})">
+        <rect x="-200" y="-600" width="616" height="709" fill="#2F6FC2"></rect>
+        <rect x="-200" y="109" width="616" height="700" fill="#8A5428"></rect>
+        <path d="M-200 109 H416" stroke="#FFFFFF" stroke-width="2"></path>
+        <path d="M88 87 H128 M98 98 H118 M88 65 H128 M98 76 H118 M88 43 H128 M98 54 H118 M98 32 H118" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="1.5"></path>
+        <path d="M88 131 H128 M98 120 H118 M88 153 H128 M98 142 H118 M88 175 H128 M98 164 H118 M98 186 H118" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="1.5" stroke-dasharray="5 3"></path>
+        <text x="84" y="91" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">10</text>
+        <text x="132" y="91" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">10</text>
+        <text x="84" y="69" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">20</text>
+        <text x="132" y="69" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">20</text>
+        <text x="84" y="47" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">30</text>
+        <text x="132" y="47" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">30</text>
+        <text x="84" y="135" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">10</text>
+        <text x="132" y="135" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">10</text>
+        <text x="84" y="157" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">20</text>
+        <text x="132" y="157" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">20</text>
+        <text x="84" y="179" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">30</text>
+        <text x="132" y="179" font-family="JetBrains Mono, monospace" font-size="11" fill="#FFFFFF">30</text>
+      </g>
+      <path d="M68.2 86 A46 46 0 0 1 147.8 86" fill="none" stroke="#FFFFFF" stroke-width="1.5"></path>
+      <path d="{{rollTicks}}" stroke="#FFFFFF" stroke-width="1.5"></path>
+      <g transform="rotate({{roll}} 108 109)">
+        <path d="M108 64 L103 72 H113 Z" fill="#F2CC40" stroke="#060A18" stroke-width="1.5"></path>
+        <path d="{{slip}}" fill="#FFFFFF" stroke="#060A18" stroke-width="1"></path>
+      </g>
+      <path d="M197 72 V146 M52 157 H164" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="2"></path>
+      <circle cx="197" cy="{{cmdPY}}" r="4" fill="#8CD9F2" stroke="#060A18" stroke-width="1.5"></circle>
+      <circle cx="{{cmdRX}}" cy="157" r="4" fill="#8CD9F2" stroke="#060A18" stroke-width="1.5"></circle>
+      <path d="M76 109 H96 V116 M140 109 H120 V116" fill="none" stroke="#060A18" stroke-width="7" stroke-linejoin="round"></path>
+      <path d="M76 109 H96 V116 M140 109 H120 V116" fill="none" stroke="#F2CC40" stroke-width="3.5" stroke-linejoin="round"></path>
+      <circle cx="108" cy="109" r="3" fill="#F2CC40" stroke="#060A18" stroke-width="1.5"></circle>
+      <path d="{{fpvPath}}" fill="none" stroke="#060A18" stroke-width="5.5" stroke-linecap="round"></path>
+      <path d="{{fpvPath}}" fill="none" stroke="#59E673" stroke-width="2.5" stroke-linecap="round"></path>
+    </g>
+    <rect x="12.5" y="54.5" width="191" height="109" rx="11.5" fill="none" stroke="#060A18" stroke-opacity="0.6"></rect>
+  </svg>
+
+  <sc-if value="{{showTape}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:12px; top:172px; width:192px; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:4px">
+      <div style="display:flex; align-items:baseline; gap:4px"><span style="font-weight:700; font-size:11px; color:#93A9D9">ТАНГ</span><span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; color:#F7E6BF">{{pitchT}}</span></div>
+      <div style="display:flex; align-items:baseline; gap:4px"><span style="font-weight:700; font-size:11px; color:#93A9D9">КРЕН</span><span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; color:#F7E6BF">{{rollT}}</span></div>
+      <div style="display:flex; align-items:baseline; gap:4px"><span style="font-weight:700; font-size:11px; color:#93A9D9">СНОС</span><span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; color:{{driftColor}}">{{driftT}}</span></div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pitch":{"editor":"range","min":-30,"max":30,"step":1,"default":2},"roll":{"editor":"range","min":-90,"max":90,"step":1,"default":-6},"drift":{"editor":"range","min":-30,"max":30,"step":1,"default":2},"fpvY":{"editor":"range","min":-15,"max":15,"step":1,"default":-1},"heading":{"editor":"range","min":-70,"max":70,"step":1,"default":0},"track":{"editor":"range","min":-70,"max":70,"step":1,"default":3},"cmdPitch":{"editor":"range","min":-1,"max":1,"step":0.05,"default":0},"cmdRoll":{"editor":"range","min":-1,"max":1,"step":0.05,"default":0},"compact":{"editor":"boolean","default":false},"$preview":{"width":216,"height":200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props;
+    const pitch = P.pitch ?? 2, roll = P.roll ?? -6, drift = P.drift ?? 2, fpvY = P.fpvY ?? -1;
+    const hdg = P.heading ?? 0, trk = P.track ?? 3;
+    const cp = P.cmdPitch ?? 0, cr = P.cmdRoll ?? 0;
+    const compact = !!P.compact;
+    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    const sgn = n => (n >= 0 ? '+' : '−') + Math.abs(Math.round(n)) + '°';
+    const tx = d => (108 + cl(d, -60, 60) * 1.3).toFixed(1);
+    const hx = +tx(hdg), vx = +tx(trk);
+    let rt = '';
+    [0, 10, 20, 30, 45, 60, -10, -20, -30, -45, -60].forEach(a => {
+      const r1 = (a === 0 || Math.abs(a) === 30 || Math.abs(a) === 60) ? 54 : 51;
+      const ang = (-90 + a) * Math.PI / 180;
+      rt += 'M' + (108 + 46 * Math.cos(ang)).toFixed(1) + ' ' + (109 + 46 * Math.sin(ang)).toFixed(1) + ' L' + (108 + r1 * Math.cos(ang)).toFixed(1) + ' ' + (109 + r1 * Math.sin(ang)).toFixed(1) + ' ';
+    });
+    const s = cl(drift * 0.8, -10, 10);
+    const fx = 108 + cl(drift * 2.2, -80, 80), fy = 109 - cl(fpvY * 2.2, -45, 45);
+    const fpv = 'M' + (fx + 5) + ' ' + fy + ' A5 5 0 1 0 ' + (fx + 4.99) + ' ' + (fy - 0.3) + ' M' + (fx - 5) + ' ' + fy + ' H' + (fx - 12) + ' M' + (fx + 5) + ' ' + fy + ' H' + (fx + 12) + ' M' + fx + ' ' + (fy - 5) + ' V' + (fy - 11);
+    return {
+      showTape: !compact,
+      tapeDisplay: compact ? 'none' : 'inline',
+      hdgTri: 'M' + hx + ' 45 L' + (hx - 5) + ' 53 H' + (hx + 5) + ' Z',
+      trkDiamond: 'M' + vx + ' 38 L' + (vx + 5) + ' 43 L' + vx + ' 48 L' + (vx - 5) + ' 43 Z',
+      rollNeg: -roll, roll: roll, pitchPx: (cl(pitch, -60, 60) * 2.2).toFixed(1),
+      rollTicks: rt,
+      slip: 'M' + (102 + s) + ' 75 H' + (114 + s) + ' L' + (116 + s) + ' 79 H' + (100 + s) + ' Z',
+      cmdPY: (109 - cl(cp, -1, 1) * 34).toFixed(1), cmdRX: (108 + cl(cr, -1, 1) * 54).toFixed(1),
+      fpvPath: fpv,
+      pitchT: sgn(pitch), rollT: sgn(roll), driftT: sgn(drift),
+      driftColor: Math.abs(drift) >= 10 ? '#F2CC40' : '#F7E6BF'
+    };
+  }
+}
+</script>
+</body>
+</html>

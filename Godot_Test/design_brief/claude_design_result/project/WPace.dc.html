@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Темп и срезка</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position:relative; width:280px; height:96px; font-family:'Golos Text',sans-serif; color:#F7E6BF">
+  <div style="position:absolute; left:0; top:0; width:280px; height:96px; border-radius:10px; background:rgba(6,10,24,0.72); box-shadow:inset 0 0 0 1px rgba(147,169,217,0.28)"></div>
+  <div style="position:absolute; left:12px; top:12px; font-weight:700; font-size:11px; line-height:13px; letter-spacing:0.06em; color:#93A9D9">{{cap}}</div>
+  <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:12px; top:32px; height:20px; padding:0 8px; border-radius:4px; background:{{chipBg}}; color:{{chipFg}}; font-weight:800; font-size:11px; line-height:20px; letter-spacing:0.06em">{{chip}}</div>
+  </sc-if>
+  <div style="position:absolute; right:12px; top:10px; display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-weight:800; font-size:28px; line-height:40px; color:{{valColor}}">
+    <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
+      <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><path d="{{arrow}}" fill="{{valColor}}"></path></svg>
+    </sc-if>
+    <span>{{val}}</span>
+  </div>
+  <div style="position:absolute; left:12px; right:12px; top:62px; height:1px; background:rgba(147,169,217,0.2)"></div>
+  <div style="position:absolute; left:12px; right:12px; top:70px; height:18px; display:flex; align-items:center; justify-content:flex-end; gap:6px; white-space:nowrap">
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 13 V7 L4 1 M4 7 C4 4 10 5 10 1" fill="none" stroke="{{cutColor}}" stroke-width="2" stroke-linecap="round"></path></svg>
+    <span style="font-weight:600; font-size:13px; color:{{cutLabelColor}}">{{cutLabel}}</span>
+    <span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; color:{{cutColor}}">{{cutKm}}</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"delta":{"editor":"range","min":-30,"max":30,"step":0.1,"default":-3.4},"target":{"editor":"enum","options":["record","dev"],"default":"record"},"ready":{"editor":"boolean","default":true},"cut":{"editor":"enum","options":["before","in"],"default":"before"},"cutKm":{"editor":"float","default":60.2},"$preview":{"width":280,"height":96}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props;
+    const d = P.delta ?? -3.4, ready = P.ready ?? true, cut = P.cut ?? 'before', km = P.cutKm ?? 60.2;
+    const ahead = d < 0;
+    const col = !ready ? '#93A9D9' : (ahead ? '#59E673' : '#F24033');
+    const f = Math.abs(d).toFixed(1).replace('.', ',');
+    return {
+      cap: (P.target ?? 'record') === 'dev' ? 'К РАЗРАБОТЧИКУ' : 'К РЕКОРДУ',
+      ready,
+      chip: ahead ? 'ВПЕРЕДИ' : 'ПОЗАДИ',
+      chipBg: ahead ? '#59E673' : '#F24033', chipFg: ahead ? '#060A18' : '#FFFFFF',
+      valColor: col,
+      arrow: ahead ? 'M7 0 L14 12 H0 Z' : 'M0 0 H14 L7 12 Z',
+      val: ready ? (ahead ? '−' : '+') + f + ' с' : '—',
+      cutColor: cut === 'in' ? '#FF8A1E' : '#F7E6BF',
+      cutLabelColor: cut === 'in' ? '#FF8A1E' : '#93A9D9',
+      cutLabel: cut === 'in' ? 'В срезке · выход через' : 'Срезка через',
+      cutKm: km < 1 ? Math.round(km * 1000) + ' м' : km.toFixed(1).replace('.', ',') + ' км'
+    };
+  }
+}
+</script>
+</body>
+</html>

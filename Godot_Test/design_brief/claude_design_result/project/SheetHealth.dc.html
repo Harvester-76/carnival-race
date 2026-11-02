@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Здоровье — состояния</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1600px; height:900px; box-sizing:border-box; padding:40px; background:#D8B784; color:#060A18; font-family:'Golos Text',sans-serif; display:flex; flex-direction:column; gap:20px">
+  <h2 style="margin:0; font-size:15px; font-weight:800; letter-spacing:0.06em">ЗДОРОВЬЕ: СХЕМА СВЕРХУ, ПОТЕРИ, УДАРЫ ПО ЗОНАМ</h2>
+  <div style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:24px">
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Цел, угроз нет</span><dc-import name="WHealth" hp="{{ 100 }}" threat="none" speed="{{ 1200 }}" drift="{{ 2 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Сверху, 0,6 с — весь корпус</span><dc-import name="WHealth" hp="{{ 100 }}" threat="top" threat-t="{{ 0.6 }}" speed="{{ 1900 }}" drift="{{ 1 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Снизу, 1,6 с — взлётные + кольца</span><dc-import name="WHealth" hp="{{ 94 }}" lost="{{d.s3}}" threat="bottom" threat-t="{{ 1.6 }}" speed="{{ 1600 }}" drift="{{ 8 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Правое крыло, 0,9 с — 3 дуги</span><dc-import name="WHealth" hp="{{ 100 }}" threat="right" threat-t="{{ 0.9 }}" speed="{{ 2100 }}" drift="{{ 14 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Нос, 1,8 с — 2 дуги, без крыльев</span><dc-import name="WHealth" hp="{{ 90 }}" lost="{{d.s5}}" threat="nose" threat-t="{{ 1.8 }}" speed="{{ 700 }}" drift="{{ -3 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Левое крыло, 2,6 с — 1 дуга</span><dc-import name="WHealth" hp="{{ 100 }}" threat="left" threat-t="{{ 2.6 }}" speed="{{ 1400 }}" drift="{{ -10 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Хвост, 1,0 с</span><dc-import name="WHealth" hp="{{ 72 }}" lost="{{d.one}}" threat="tail" threat-t="{{ 1.0 }}" speed="{{ 400 }}" drift="{{ 25 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Здоровье 48% — янтарь</span><dc-import name="WHealth" hp="{{ 48 }}" lost="{{d.mid}}" threat="none" speed="{{ 1100 }}" drift="{{ -6 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Здоровье 21% — красный</span><dc-import name="WHealth" hp="{{ 21 }}" lost="{{d.crit}}" threat="none" speed="{{ 900 }}" drift="{{ 30 }}" hint-size="280px,320px"></dc-import></div>
+    <div style="display:flex; flex-direction:column; gap:10px; font-size:12px; line-height:1.5">
+      <b style="font-size:13px">Как читать</b>
+      <span><b>Сплошная заливка</b> — деталь цела, <b>пунктир + крест</b> — потеряна.</span>
+      <span><b>Дуги</b> у края схемы: 1 — &gt;2 с, 2 — 1,2–2 с, 3 — &lt;1,2 с. Янтарь → красный на 1,2 с.</span>
+      <span><b>Чип под плашкой</b> дублирует зону и время словами.</span>
+      <span><b>Белая стрелка</b> — скорость в плоскости корабля: длина до 70 px при ≥900 м/с, угол = снос.</span>
+      <span>Мигание: включено 50% интервала писка (0,9→0,1 с), &lt;0,5 с — горит постоянно.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { d: {
+      s3: ['wingL', 'mainL'],
+      s5: ['wingL', 'wingR', 'lf2', 'lr3', 'mainR'],
+      one: ['mainC'],
+      mid: ['wingR', 'lr2', 'lr4', 'mainR'],
+      crit: ['wingL', 'wingR', 'mainL', 'mainR', 'lf1', 'lf3', 'lr1', 'lr2', 'lr4']
+    } };
+  }
+}
+</script>
+</body>
+</html>

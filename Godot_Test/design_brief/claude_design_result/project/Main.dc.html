@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Токены стиля HUD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1600px; height:1040px; box-sizing:border-box; padding:48px 56px; background:#060A18; color:#F7E6BF; font-family:'Golos Text',sans-serif; display:flex; flex-direction:column; gap:28px">
+  <div style="display:flex; align-items:baseline; gap:24px">
+    <h1 style="margin:0; font-family:'Dela Gothic One',sans-serif; font-weight:400; font-size:44px; line-height:1; color:#F7E6BF">HUD <span style="color:#FF8A1E">в стиле меню</span></h1>
+    <p style="margin:0; font-size:16px; color:#93A9D9">Токены v1 · база 1600×900 · все размеры в px базового разрешения</p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:28px; flex:1">
+
+    <!-- Палитра -->
+    <section style="display:flex; flex-direction:column; gap:10px">
+      <h2 style="margin:0 0 4px; font-size:13px; font-weight:800; letter-spacing:0.08em; color:#93A9D9">ПАЛИТРА</h2>
+      <div style="display:grid; grid-template-columns:44px 1fr; gap:8px 12px; align-items:center; font-size:14px">
+        <div style="height:28px; border-radius:6px; background:#060A18; box-shadow:inset 0 0 0 1px rgba(147,169,217,0.4)"></div><div><b>ink</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#060A18</span> · подложки, обводка</div>
+        <div style="height:28px; border-radius:6px; background:#121A36"></div><div><b>ink-2</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#121A36</span> · колодцы шкал</div>
+        <div style="height:28px; border-radius:6px; background:#93A9D9"></div><div><b>steel</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#93A9D9</span> · подписи, деления</div>
+        <div style="height:28px; border-radius:6px; background:#F7E6BF"></div><div><b>cream</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#F7E6BF</span> · основные числа</div>
+        <div style="height:28px; border-radius:6px; background:#FFFFFF"></div><div><b>white</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#FFFFFF</span> · маркеры, стрелки</div>
+        <div style="height:28px; border-radius:6px; background:#FF8A1E"></div><div><b>orange</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#FF8A1E</span> · акцент, игрок, впереди, срезки</div>
+        <div style="height:28px; border-radius:6px; background:#8CD9F2"></div><div><b>cyan</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#8CD9F2</span> · позади, корпус, ввод</div>
+        <div style="height:28px; border-radius:6px; background:#59E673"></div><div><b>good</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#59E673</span> · норма, вектор полёта</div>
+        <div style="height:28px; border-radius:6px; background:#F2CC40"></div><div><b>warn</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#F2CC40</span> · внимание (&gt;3 с / &gt;1,2 с)</div>
+        <div style="height:28px; border-radius:6px; background:#F24033"></div><div><b>danger</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#F24033</span> · опасность, потери</div>
+        <div style="height:28px; border-radius:6px; background:linear-gradient(#2F6FC2 50%, #8A5428 50%)"></div><div><b>sky / earth</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#2F6FC2 · #8A5428</span></div>
+        <div style="height:28px; border-radius:6px; background:#4A3220"></div><div><b>ground</b> <span style="font-family:'JetBrains Mono',monospace; color:#93A9D9">#4A3220</span> · земля на ленте; метки рельефа <span style="font-family:'JetBrains Mono',monospace; color:#C08A55">#C08A55</span></div>
+      </div>
+      <p style="margin:6px 0 0; font-size:13px; line-height:1.45; color:#93A9D9">Оранжевый HUD = оранжевый меню (#FF8A1E вместо #FF9429). Всё яркое стоит только на ink-подложке, поэтому контраст не зависит от песка.</p>
+    </section>
+
+    <!-- Типографика -->
+    <section style="display:flex; flex-direction:column; gap:10px">
+      <h2 style="margin:0 0 4px; font-size:13px; font-weight:800; letter-spacing:0.08em; color:#93A9D9">ТИПОГРАФИКА</h2>
+      <div style="display:flex; flex-direction:column; gap:12px">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-family:'JetBrains Mono',monospace; font-weight:800; font-size:56px; line-height:1">1900</span><span style="font-size:12px; color:#93A9D9; text-align:right">скорость · JB Mono 800 / 56<br>главное число HUD</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-family:'Dela Gothic One',sans-serif; font-size:40px; line-height:1">12<span style="font-family:'Golos Text',sans-serif; font-weight:700; font-size:18px; color:#93A9D9">/12</span></span><span style="font-size:12px; color:#93A9D9; text-align:right">позиция · Dela 40 + Golos 700 / 18</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:36px; line-height:1">1:28.0</span><span style="font-size:12px; color:#93A9D9; text-align:right">время · JB Mono 700 / 36</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-family:'JetBrains Mono',monospace; font-weight:800; font-size:28px; line-height:1; color:#59E673">−3,4 с</span><span style="font-size:12px; color:#93A9D9; text-align:right">темп · JB Mono 800 / 28</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:18px; line-height:1">3650 м</span><span style="font-size:12px; color:#93A9D9">значение · JB Mono 700 / 18 (13 — мелкие)</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-weight:600; font-size:16px">Золотая рыбка</span><span style="font-size:12px; color:#93A9D9">имя · Golos 600 / 16 (в мире 13/700)</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-weight:700; font-size:11px; letter-spacing:0.06em; color:#93A9D9">ПОТОЛОК · ЗДОРОВЬЕ</span><span style="font-size:12px; color:#93A9D9">подпись · Golos 700 / 11, ВЕРХНИЙ, +6%</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid rgba(147,169,217,0.2); padding-bottom:8px"><span style="font-family:'JetBrains Mono',monospace; font-weight:500; font-size:11px; color:#93A9D9">500 1000 1500</span><span style="font-size:12px; color:#93A9D9">деления · JB Mono 500 / 11</span></div>
+        <div style="display:flex; align-items:baseline; justify-content:space-between"><span style="font-weight:800; font-size:20px">ВЕРНИТЕСЬ В КАНЬОН</span><span style="font-size:12px; color:#93A9D9">тревога · Golos 800 / 20</span></div>
+      </div>
+      <p style="margin:4px 0 0; font-size:13px; line-height:1.45; color:#93A9D9">Минимум 11 px. Все меняющиеся числа — моноширинный JetBrains Mono: цифры не «прыгают». Десятичная запятая, минус «−» (U+2212).</p>
+    </section>
+
+    <!-- Подложки, линии, сетка -->
+    <section style="display:flex; flex-direction:column; gap:12px">
+      <h2 style="margin:0 0 4px; font-size:13px; font-weight:800; letter-spacing:0.08em; color:#93A9D9">ПОДЛОЖКИ</h2>
+      <div style="position:relative; height:150px; border-radius:10px; overflow:hidden">
+        <img src="/_blob/66c7f3020efcb75a2d4815ec28a1740c" alt="" style="position:absolute; width:1600px; height:900px; left:-1080px; top:-120px">
+        <div style="position:absolute; left:16px; top:20px; width:176px; height:108px; border-radius:10px; background:rgba(6,10,24,0.72); box-shadow:inset 0 0 0 1px rgba(147,169,217,0.28); padding:12px; box-sizing:border-box">
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; color:#93A9D9">ПЛАШКА</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:28px; margin-top:6px">1703 м</div>
+          <div style="font-size:11px; color:#93A9D9; margin-top:4px">ink 72% · край 1 px</div>
+        </div>
+        <div style="position:absolute; left:208px; top:20px; width:176px; height:108px; border-radius:10px; background:rgba(6,10,24,0.86); box-shadow:inset 0 0 0 2px #F24033; padding:12px; box-sizing:border-box">
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; color:#F24033">ТРЕВОГА</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:28px; margin-top:6px">0,9 с</div>
+          <div style="font-size:11px; color:#93A9D9; margin-top:4px">ink 86% · край 2 px цвет</div>
+        </div>
+      </div>
+      <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.5; color:#F7E6BF">
+        <li>Каждый виджет — одна плашка. Текста «без рамки» в HUD нет.</li>
+        <li>Плашка: <span style="font-family:'JetBrains Mono',monospace">#060A18B8</span>, край <span style="font-family:'JetBrains Mono',monospace">#93A9D947</span> 1 px внутрь, радиус 10, внутр. отступ 12.</li>
+        <li>Тревога: <span style="font-family:'JetBrains Mono',monospace">#060A18DB</span>, край 2 px warn/danger.</li>
+        <li>Исключения: подписи соперников (чип ink 55%, радиус 4) и центральные сообщения (текст с обводкой ink 4 px).</li>
+      </ul>
+      <h2 style="margin:8px 0 0; font-size:13px; font-weight:800; letter-spacing:0.08em; color:#93A9D9">ЛИНИИ · РАДИУСЫ · СЕТКА</h2>
+      <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px 16px; font-size:13px">
+        <div style="display:flex; align-items:center; gap:8px"><span style="width:40px; height:1px; background:#93A9D9"></span>1 — край, мелкие деления</div>
+        <div style="display:flex; align-items:center; gap:8px"><span style="width:40px; height:2px; background:#F7E6BF"></span>2 — деления, линия трассы-фон</div>
+        <div style="display:flex; align-items:center; gap:8px"><span style="width:40px; height:3px; background:#FFFFFF"></span>3 — горизонт, трасса, маркеры</div>
+        <div style="display:flex; align-items:center; gap:8px"><span style="width:40px; height:4px; background:#F24033"></span>4 — потолок, стрелки</div>
+        <div>радиусы: <b>4</b> чип · <b>6</b> тревога · <b>10</b> плашка · <b>12</b> горизонт</div>
+        <div>поля <b>24</b> · промежуток <b>12</b> · шаг <b>4</b></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Дублирующая кодировка -->
+  <section style="display:flex; flex-direction:column; gap:10px">
+    <h2 style="margin:0; font-size:13px; font-weight:800; letter-spacing:0.08em; color:#93A9D9">ЦВЕТ НИКОГДА НЕ ОДИН: ДУБЛИРУЮЩАЯ КОДИРОВКА</h2>
+    <div style="display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:16px">
+      <div style="display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px; background:#121A36">
+        <svg width="56" height="40" viewBox="0 0 56 40" aria-hidden="true"><rect x="6" y="8" width="18" height="24" rx="3" fill="#59E673" fill-opacity="0.85" stroke="#59E673" stroke-width="2"></rect><rect x="32" y="8" width="18" height="24" rx="3" fill="none" stroke="#F24033" stroke-width="2" stroke-dasharray="4 3"></rect><path d="M35 11 L47 29 M47 11 L35 29" stroke="#F24033" stroke-width="2.5"></path></svg>
+        <div style="font-size:12px; line-height:1.4">Цела — сплошная заливка. Потеряна — пустой пунктир + крест.</div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px; background:#121A36">
+        <svg width="56" height="40" viewBox="0 0 56 40" aria-hidden="true"><path d="M8 26 A8 8 0 0 1 20 26" fill="none" stroke="#F2CC40" stroke-width="2.5"></path><path d="M30 26 A8 8 0 0 1 42 26 M26 22 A14 14 0 0 1 46 22 M22 18 A20 20 0 0 1 50 18" fill="none" stroke="#F24033" stroke-width="3"></path></svg>
+        <div style="font-size:12px; line-height:1.4">Срочность удара = число дуг: 1 / 2 / 3, плюс чип с текстом и секундами.</div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px; background:#121A36">
+        <svg width="56" height="40" viewBox="0 0 56 40" aria-hidden="true"><defs><pattern id="mh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#F24033"></rect><rect width="2" height="6" fill="#060A18" fill-opacity="0.55"></rect></pattern></defs><rect x="8" y="4" width="16" height="32" fill="url(#mh)"></rect><rect x="32" y="4" width="16" height="32" fill="#59E673" fill-opacity="0.35"></rect></svg>
+        <div style="font-size:12px; line-height:1.4">Запретные зоны на ленте — штриховка, разрешённые — ровная заливка.</div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px; background:#121A36">
+        <div style="display:flex; flex-direction:column; gap:4px; font-family:'JetBrains Mono',monospace; font-weight:800; font-size:15px"><span style="color:#59E673">▲ −3,4</span><span style="color:#F24033">▼ +1,8</span></div>
+        <div style="font-size:12px; line-height:1.4">Темп: знак, стрелка и слово «ВПЕРЕДИ / ПОЗАДИ» в чипе.</div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px; background:#121A36">
+        <div style="display:flex; flex-direction:column; gap:4px; font-size:14px; font-weight:600"><span><span style="color:#FF8A1E">▲</span> впереди</span><span><span style="color:#8CD9F2">▼</span> позади</span></div>
+        <div style="font-size:12px; line-height:1.4">Соперники: форма треугольника + оранж/голубой (пара, различимая при дейтеранопии).</div>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

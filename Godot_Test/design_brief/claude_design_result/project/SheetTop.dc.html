@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Верхняя полоса — состояния</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&amp;family=Golos+Text:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width:1600px; height:860px; box-sizing:border-box; padding:40px; background:#D8B784; color:#060A18; font-family:'Golos Text',sans-serif; display:flex; flex-direction:column; gap:32px">
+  <section style="display:flex; flex-direction:column; gap:12px">
+    <h2 style="margin:0; font-size:15px; font-weight:800; letter-spacing:0.06em">ПОЗИЦИЯ + СОПЕРНИКИ РЯДОМ</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:24px 40px">
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Обычное: оба соперника ближе 6 км</span><dc-import name="WTopLeft" pos="{{ 7 }}" hint-size="460px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Вплотную (&lt;0,5 с): строка подсвечивается · обгон: позиция мигает зелёным 0,6 с</span><dc-import name="WTopLeft" pos="{{ 6 }}" flash="gain" ahead="{{c.aClose}}" behind="{{c.bClose}}" hint-size="460px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Лидер · потеря позиции — оранжевая вспышка</span><dc-import name="WTopLeft" pos="{{ 1 }}" flash="loss" ahead="{{c.none}}" behind="{{c.bLong}}" hint-size="460px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Никого ближе 6 км: плашка соперников скрыта</span><dc-import name="WTopLeft" pos="{{ 12 }}" ahead="{{c.none}}" behind="{{c.none}}" hint-size="460px,96px"></dc-import></div>
+    </div>
+  </section>
+  <section style="display:flex; flex-direction:column; gap:12px">
+    <h2 style="margin:0; font-size:15px; font-weight:800; letter-spacing:0.06em">ВРЕМЯ · ПРОГРЕСС · ДО ФИНИША</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:24px 40px">
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Начало гонки</span><dc-import name="WTimer" time="0:04.8" progress="{{ 0.01 }}" to-finish-m="{{ 633600 }}" hint-size="360px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Середина; оранжевые черты под полосой — срезки</span><dc-import name="WTimer" time="1:28.0" progress="{{ 0.39 }}" to-finish-m="{{ 388800 }}" level="КИБОРГ" hint-size="360px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Последний километр: метры · режим «стрим» без уровня</span><dc-import name="WTimer" time="3:02.1" progress="{{ 0.999 }}" to-finish-m="{{ 640 }}" show-level="{{ false }}" hint-size="360px,96px"></dc-import></div>
+    </div>
+  </section>
+  <section style="display:flex; flex-direction:column; gap:12px">
+    <h2 style="margin:0; font-size:15px; font-weight:800; letter-spacing:0.06em">ТЕМП И СРЕЗКА</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:24px 40px">
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Опережаем рекорд</span><dc-import name="WPace" delta="{{ -3.4 }}" cut="before" cut-km="{{ 60.2 }}" hint-size="280px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Отстаём, внутри срезки</span><dc-import name="WPace" delta="{{ 6 }}" cut="in" cut-km="{{ 5.4 }}" hint-size="280px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Нет личного рекорда → разработчик</span><dc-import name="WPace" delta="{{ -0.6 }}" target="dev" cut="before" cut-km="{{ 0.8 }}" hint-size="280px,96px"></dc-import></div>
+      <div style="display:flex; flex-direction:column; gap:6px"><span style="font-size:13px; font-weight:600">Первые 2% / 5 с — темп ещё не считается</span><dc-import name="WPace" ready="{{ false }}" cut="before" cut-km="{{ 102.4 }}" hint-size="280px,96px"></dc-import></div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { c: {
+      none: null,
+      aClose: { name: 'Семикрылый', dist: 260, time: 0.2 },
+      bClose: { name: 'Межгалактический Странник Удачи', dist: 610, time: 0.4 },
+      bLong: { name: 'Маленькое Стремительное Копье', dist: 1900, time: 1.0 }
+    } };
+  }
+}
+</script>
+</body>
+</html>
