@@ -31,8 +31,8 @@
 
 | Платформа | Что скачать | Как установить |
 |---|---|---|
-| **Windows 10/11 (64 бит)** | [Релизы](../../releases): архив `KarnavalskayaGonka_0.1_Windows.zip` | Распаковать, запустить `KarnavalskayaGonka_Setup_0.1.exe`, пройти мастер установки |
-| **macOS** (Apple Silicon и Intel) | [Релизы](../../releases): архив `KarnavalskayaGonka_macOS.zip` | Распаковать, перенести приложение в «Программы», первый раз открыть правым кликом → «Открыть» (приложение не подписано) |
+| **Windows 10/11 (64 бит)** | [Релиз v0.1.2](https://github.com/Harvester-76/carnival-race/releases/tag/godot-demo-windows-v0.1.2): архив `KarnavalskayaGonka_v0.1.2_Windows.zip` | Распаковать, запустить `KarnavalskayaGonka_Setup_v0.1.2.exe`, пройти мастер установки |
+| **macOS** (Apple Silicon и Intel) | [Релиз v0.1.2](https://github.com/Harvester-76/carnival-race/releases/tag/godot-demo-macos-v0.1.2): архив `KarnavalskayaGonka_macOS_v0.1.2.zip` | Распаковать, перенести приложение в «Программы», первый раз открыть правым кликом → «Открыть» (приложение не подписано) |
 
 Подробная инструкция, требования и решения частых проблем лежат в описании каждого релиза и в `README.txt` внутри архива. Управление: геймпад Xbox (желателен) или клавиатура, всё настраивается в игре.
 
