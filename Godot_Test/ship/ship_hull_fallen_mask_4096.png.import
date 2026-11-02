@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://blh14f4o5orj8"
 path.s3tc="res://.godot/imported/ship_hull_fallen_mask_4096.png-c90ffd53d01a6037c4a7f808896615a8.s3tc.ctex"
+path.etc2="res://.godot/imported/ship_hull_fallen_mask_4096.png-c90ffd53d01a6037c4a7f808896615a8.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://ship/ship_hull_fallen_mask_4096.png"
-dest_files=["res://.godot/imported/ship_hull_fallen_mask_4096.png-c90ffd53d01a6037c4a7f808896615a8.s3tc.ctex"]
+dest_files=["res://.godot/imported/ship_hull_fallen_mask_4096.png-c90ffd53d01a6037c4a7f808896615a8.s3tc.ctex", "res://.godot/imported/ship_hull_fallen_mask_4096.png-c90ffd53d01a6037c4a7f808896615a8.etc2.ctex"]
 
 [params]
 

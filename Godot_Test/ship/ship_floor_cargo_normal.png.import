@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dbisakphvdce1"
 path.s3tc="res://.godot/imported/ship_floor_cargo_normal.png-fb2a11528b4748b8ee642f06d36e4ee2.s3tc.ctex"
+path.etc2="res://.godot/imported/ship_floor_cargo_normal.png-fb2a11528b4748b8ee642f06d36e4ee2.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://ship/ship_floor_cargo_normal.png"
-dest_files=["res://.godot/imported/ship_floor_cargo_normal.png-fb2a11528b4748b8ee642f06d36e4ee2.s3tc.ctex"]
+dest_files=["res://.godot/imported/ship_floor_cargo_normal.png-fb2a11528b4748b8ee642f06d36e4ee2.s3tc.ctex", "res://.godot/imported/ship_floor_cargo_normal.png-fb2a11528b4748b8ee642f06d36e4ee2.etc2.ctex"]
 
 [params]
 

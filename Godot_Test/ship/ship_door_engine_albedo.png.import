@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c3p71g51j4hr6"
 path.s3tc="res://.godot/imported/ship_door_engine_albedo.png-9f58bb3dd5aa1bc46202e08a239f0392.s3tc.ctex"
+path.etc2="res://.godot/imported/ship_door_engine_albedo.png-9f58bb3dd5aa1bc46202e08a239f0392.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://ship/ship_door_engine_albedo.png"
-dest_files=["res://.godot/imported/ship_door_engine_albedo.png-9f58bb3dd5aa1bc46202e08a239f0392.s3tc.ctex"]
+dest_files=["res://.godot/imported/ship_door_engine_albedo.png-9f58bb3dd5aa1bc46202e08a239f0392.s3tc.ctex", "res://.godot/imported/ship_door_engine_albedo.png-9f58bb3dd5aa1bc46202e08a239f0392.etc2.ctex"]
 
 [params]
 

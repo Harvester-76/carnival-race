@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://buycmqtq5c4m2"
 path.s3tc="res://.godot/imported/ship_holo_atlas_2048x1280.png-0dbd02642941311188f706544e2e2f7f.s3tc.ctex"
+path.etc2="res://.godot/imported/ship_holo_atlas_2048x1280.png-0dbd02642941311188f706544e2e2f7f.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://ship/ship_holo_atlas_2048x1280.png"
-dest_files=["res://.godot/imported/ship_holo_atlas_2048x1280.png-0dbd02642941311188f706544e2e2f7f.s3tc.ctex"]
+dest_files=["res://.godot/imported/ship_holo_atlas_2048x1280.png-0dbd02642941311188f706544e2e2f7f.s3tc.ctex", "res://.godot/imported/ship_holo_atlas_2048x1280.png-0dbd02642941311188f706544e2e2f7f.etc2.ctex"]
 
 [params]
 

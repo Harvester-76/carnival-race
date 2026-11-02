@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c41l3qyvlgqpm"
 path.s3tc="res://.godot/imported/ship_hex_tile_height_2k_8bit.png-a0dfd2432a81e294b06d402c29e4a2bd.s3tc.ctex"
+path.etc2="res://.godot/imported/ship_hex_tile_height_2k_8bit.png-a0dfd2432a81e294b06d402c29e4a2bd.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://ship/ship_hex_tile_height_2k_8bit.png"
-dest_files=["res://.godot/imported/ship_hex_tile_height_2k_8bit.png-a0dfd2432a81e294b06d402c29e4a2bd.s3tc.ctex"]
+dest_files=["res://.godot/imported/ship_hex_tile_height_2k_8bit.png-a0dfd2432a81e294b06d402c29e4a2bd.s3tc.ctex", "res://.godot/imported/ship_hex_tile_height_2k_8bit.png-a0dfd2432a81e294b06d402c29e4a2bd.etc2.ctex"]
 
 [params]
 

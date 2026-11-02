@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dly0r3te7lr83"
 path.s3tc="res://.godot/imported/ship_wall_corr_normal.png-9f37f480afa980fad8a1ae10cc8b033d.s3tc.ctex"
+path.etc2="res://.godot/imported/ship_wall_corr_normal.png-9f37f480afa980fad8a1ae10cc8b033d.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://ship/ship_wall_corr_normal.png"
-dest_files=["res://.godot/imported/ship_wall_corr_normal.png-9f37f480afa980fad8a1ae10cc8b033d.s3tc.ctex"]
+dest_files=["res://.godot/imported/ship_wall_corr_normal.png-9f37f480afa980fad8a1ae10cc8b033d.s3tc.ctex", "res://.godot/imported/ship_wall_corr_normal.png-9f37f480afa980fad8a1ae10cc8b033d.etc2.ctex"]
 
 [params]
 

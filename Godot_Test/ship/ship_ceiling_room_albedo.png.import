@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://3ups8eg5n6m5"
 path.s3tc="res://.godot/imported/ship_ceiling_room_albedo.png-3e4691d386c1a17bdfa4f3c2b37384c9.s3tc.ctex"
+path.etc2="res://.godot/imported/ship_ceiling_room_albedo.png-3e4691d386c1a17bdfa4f3c2b37384c9.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://ship/ship_ceiling_room_albedo.png"
-dest_files=["res://.godot/imported/ship_ceiling_room_albedo.png-3e4691d386c1a17bdfa4f3c2b37384c9.s3tc.ctex"]
+dest_files=["res://.godot/imported/ship_ceiling_room_albedo.png-3e4691d386c1a17bdfa4f3c2b37384c9.s3tc.ctex", "res://.godot/imported/ship_ceiling_room_albedo.png-3e4691d386c1a17bdfa4f3c2b37384c9.etc2.ctex"]
 
 [params]
 
