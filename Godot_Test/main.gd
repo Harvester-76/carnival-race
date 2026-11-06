@@ -394,6 +394,7 @@ var seg_b := PackedVector2Array()
 var seg_sa := PackedFloat32Array()
 var seg_sb := PackedFloat32Array()
 var seg_path := PackedInt32Array()
+var seg_grid_paths := {}                 # ID маршрутов в ячейке: объединяем перекрывающиеся коридоры
 var branches: Array = []                   # рукава-объезды: {"pts","s","in","out"}; путь 1..N; s у точек = s главного пути в том же месте
 const SPUR_BASE := 1000                    # номера путей ≥ SPUR_BASE — тупиковые ответвления срезок (spurs), не входящие в разметку трассы, карту и прогресс
 const SPURS_PER_CUT := 2                    # тупиков на срезку (0 — выключить)
@@ -478,6 +479,10 @@ func _build_track() -> void:
 				var gr: Dictionary = seg_grid if i < n_main_segs else spur_grid
 				var lst: PackedInt32Array = gr.get(key, PackedInt32Array())
 				lst.append(i); gr[key] = lst
+				if i < n_main_segs:
+					var path_ids: PackedInt32Array = seg_grid_paths.get(key, PackedInt32Array())
+					if not path_ids.has(seg_path[i]): path_ids.append(seg_path[i])
+					seg_grid_paths[key] = path_ids
 		var tx0 := int(floor((a.x - INFL - 3500.0) / TILE)); var tx1 := int(floor((a.x + INFL + 3500.0) / TILE))
 		var tz0 := int(floor((a.y - INFL - 3500.0) / TILE)); var tz1 := int(floor((a.y + INFL + 3500.0) / TILE))
 		if i % 4 == 0:
@@ -645,12 +650,13 @@ func _tq3(x: float, z: float) -> Vector3:                                   # (�
 	if r.z >= float(SPUR_BASE) - 0.5: r.y = float((spurs[int(r.z) - SPUR_BASE] as Dictionary)["sj"])    # в тупике прогресс стоит на месте: s развилки
 	return r
 
-func _tq3_cls(x: float, z: float, grid: Dictionary) -> Vector3:              # ближайший отрезок из сетки grid: (расстояние, s или путь вдоль тупика, номер пути)
+func _tq3_cls(x: float, z: float, grid: Dictionary, only_path: int = -1) -> Vector3: # ближайший отрезок из сетки; only_path ограничивает выбор одним рукавом
 	var key := Vector2i(int(floor(x / GCELL)), int(floor(z / GCELL)))
 	if not grid.has(key): return Vector3(1e9, 0.0, 0.0)
 	var best := 1e18; var bs := 0.0; var bp := 0
 	var pt := Vector2(x, z)
 	for i in (grid[key] as PackedInt32Array):
+		if only_path >= 0 and seg_path[i] != only_path: continue
 		var a := seg_a[i]; var ab := seg_b[i] - a
 		var l2 := ab.length_squared()
 		var t := clampf((pt - a).dot(ab) / l2, 0.0, 1.0) if l2 > 0.0 else 0.0
@@ -705,7 +711,17 @@ func _shelf_extra(sv: float) -> float:
 	return SHELF_EXTRA * (1.0 - 0.85 * k)
 
 func height(x: float, z: float) -> float:
-	var h := _h_at(x, z, _tq3_cls(x, z, seg_grid))                       # основная трасса и срезки: как раньше
+	# Основной путь и срезки образуют одну поверхность. При выборе только
+	# ближайшей линии переход между перекрывающимися коридорами создаёт скачок высоты.
+	var key := Vector2i(int(floor(x / GCELL)), int(floor(z / GCELL)))
+	var path_ids: PackedInt32Array = seg_grid_paths.get(key, PackedInt32Array())
+	var h := PLATEAU_Y
+	if path_ids.is_empty():
+		h = _h_at(x, z, _tq3_cls(x, z, seg_grid))
+	else:
+		for path_id in path_ids:
+			var route_q := _tq3_cls(x, z, seg_grid, path_id)
+			if route_q.x < INFL: h = minf(h, _h_at(x, z, route_q))
 	if not spur_grid.is_empty():
 		var qs := _tq3_cls(x, z, spur_grid)
 		if qs.x < INFL: h = minf(h, _h_at(x, z, qs))                       # тупики врезаются в рельеф как объединение ущелий (швов нет)
@@ -1211,6 +1227,16 @@ func _gen_tile(key: Vector3i) -> void:
 	var x0 := key.x * TILE; var z0 := key.y * TILE
 	for j in w:
 		for i in w: hgt[j * w + i] = height(x0 + (i - 1) * step, z0 + (j - 1) * step)
+	if key.z == 0:
+		# Совмещаем середины границ LOD0 с рёбрами LOD1, чтобы коллизионные
+		# сетки разного уровня детализации имели общую линию стыка.
+		for i in range(1, n, 2):
+			for edge_j in [0, n]:
+				var row: int = (edge_j + 1) * w
+				hgt[row + i + 1] = (hgt[row + i] + hgt[row + i + 2]) * 0.5
+			for edge_i in [0, n]:
+				var col: int = edge_i + 1
+				hgt[(i + 1) * w + col] = (hgt[i * w + col] + hgt[(i + 2) * w + col]) * 0.5
 	var verts := PackedVector3Array(); verts.resize((n + 1) * (n + 1))
 	var norms := PackedVector3Array(); norms.resize((n + 1) * (n + 1))
 	for j in n + 1:
@@ -1384,7 +1410,7 @@ func _build_list(ready: Array, max_build: int, budget_us: int, t_us: int) -> voi
 		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ar)
 		var mi := MeshInstance3D.new(); mi.mesh = am; mi.material_override = terr_mat; add_child(mi)
 		var body: StaticBody3D = null
-		if key.z <= 1:                                                      # подробные плитки и грубые (шаг 50 м) имеют коллизию; грубая — страховка, пока подробная не готова
+		if key.z <= 1:                                                      # подробные плитки и грубые (шаг 62 м) имеют коллизию
 			body = StaticBody3D.new(); var cs := CollisionShape3D.new(); var tri := am.create_trimesh_shape(); tri.backface_collision = true
 			cs.shape = tri; body.add_child(cs); add_child(body)
 		chunks[key] = [mi, body]; built += 1; stream_built += 1

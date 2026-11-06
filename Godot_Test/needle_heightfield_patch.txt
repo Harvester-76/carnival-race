@@ -1,0 +1,141 @@
+# Needle heightfield diagnostic patch
+# Target: Godot_Test/main.gd from branch godot-demo
+# TEMPORARY local-only diagnostic. Do not commit it to GitHub.
+#
+# 1) In _ready(), immediately after the existing line:
+#       _build_track()
+#    insert:
+#
+#       if "dumpneedle" in OS.get_cmdline_user_args():
+#           _dump_needle_heightfield()
+#           get_tree().quit()
+#           return
+#
+#    Keep this before _build_world(). _build_track() initializes the spatial
+#    structures required by height().
+#
+# 2) Add the functions below at class scope, e.g. before func _setup_input().
+
+const DUMP_CUT_INDEX := 1
+const DUMP_CORRIDOR_M := 2500.0
+const DUMP_ENDPOINT_RADIUS_M := 3000.0
+const DUMP_SAMPLE_STEP_M := 50.0
+
+func _dump_point_segment_distance(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var denom := ab.length_squared()
+	if denom <= 0.000001:
+		return p.distance_to(a)
+	var t := clampf((p - a).dot(ab) / denom, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
+func _dump_distance_to_polyline(p: Vector2, line: PackedVector2Array) -> float:
+	var best := INF
+	for i in range(line.size() - 1):
+		best = minf(best, _dump_point_segment_distance(p, line[i], line[i + 1]))
+	return best
+
+func _dump_needle_heightfield() -> void:
+	if DUMP_CUT_INDEX < 0 or DUMP_CUT_INDEX >= branches.size():
+		push_error("DUMP: cut index is out of range; branches=%d" % branches.size())
+		return
+
+	var branch: Dictionary = branches[DUMP_CUT_INDEX]
+	var line: PackedVector2Array = branch["pts"]
+	if line.size() < 2:
+		push_error("DUMP: selected branch has fewer than two points")
+		return
+
+	var min_x := INF
+	var min_z := INF
+	var max_x := -INF
+	var max_z := -INF
+	for p in line:
+		min_x = minf(min_x, p.x)
+		min_z = minf(min_z, p.y)
+		max_x = maxf(max_x, p.x)
+		max_z = maxf(max_z, p.y)
+
+	var pad := DUMP_ENDPOINT_RADIUS_M
+	var x0 := floorf((min_x - pad) / DUMP_SAMPLE_STEP_M) * DUMP_SAMPLE_STEP_M
+	var z0 := floorf((min_z - pad) / DUMP_SAMPLE_STEP_M) * DUMP_SAMPLE_STEP_M
+	var x1 := ceilf((max_x + pad) / DUMP_SAMPLE_STEP_M) * DUMP_SAMPLE_STEP_M
+	var z1 := ceilf((max_z + pad) / DUMP_SAMPLE_STEP_M) * DUMP_SAMPLE_STEP_M
+
+	var csv_path := "user://needle_heightfield.csv"
+	var json_path := "user://needle_heightfield_meta.json"
+	var f := FileAccess.open(csv_path, FileAccess.WRITE)
+	if f == null:
+		push_error("DUMP: cannot open CSV: " + csv_path)
+		return
+
+	f.store_line("x_m,z_m,height_m,distance_to_needle_m,region")
+	var count := 0
+	var h_min := INF
+	var h_max := -INF
+	var max_abs_gradient := 0.0
+
+	for z in range(int(z0), int(z1) + 1, int(DUMP_SAMPLE_STEP_M)):
+		for x in range(int(x0), int(x1) + 1, int(DUMP_SAMPLE_STEP_M)):
+			var p := Vector2(float(x), float(z))
+			var d_line := _dump_distance_to_polyline(p, line)
+			var d_start := p.distance_to(line[0])
+			var d_end := p.distance_to(line[line.size() - 1])
+			var region := ""
+			if d_line <= DUMP_CORRIDOR_M:
+				region = "needle_corridor"
+			elif d_start <= DUMP_ENDPOINT_RADIUS_M:
+				region = "start_junction"
+			elif d_end <= DUMP_ENDPOINT_RADIUS_M:
+				region = "end_junction"
+			else:
+				continue
+
+			var h := height(float(x), float(z))
+			h_min = minf(h_min, h)
+			h_max = maxf(h_max, h)
+			count += 1
+			f.store_line("%d,%d,%.6f,%.3f,%s" % [x, z, h, d_line, region])
+
+			var hx := height(float(x) + DUMP_SAMPLE_STEP_M, float(z))
+			var hz := height(float(x), float(z) + DUMP_SAMPLE_STEP_M)
+			var gx := absf(hx - h) / DUMP_SAMPLE_STEP_M
+			var gz := absf(hz - h) / DUMP_SAMPLE_STEP_M
+			max_abs_gradient = maxf(max_abs_gradient, maxf(gx, gz))
+
+	f.flush()
+	f.close()
+
+	var meta := {
+		"diagnostic": "needle_heightfield",
+		"track_seed": track_seed,
+		"gen_len_km": gen_len_km,
+		"cut_index": DUMP_CUT_INDEX,
+		"cut_type": str(branch.get("type", "unknown")),
+		"branch_point_count": line.size(),
+		"branch_start_xz_m": [line[0].x, line[0].y],
+		"branch_end_xz_m": [line[line.size() - 1].x, line[line.size() - 1].y],
+		"branch_bounds_xz_m": [min_x, min_z, max_x, max_z],
+		"sample_step_m": DUMP_SAMPLE_STEP_M,
+		"corridor_radius_m": DUMP_CORRIDOR_M,
+		"endpoint_radius_m": DUMP_ENDPOINT_RADIUS_M,
+		"sample_count": count,
+		"height_min_m": h_min,
+		"height_max_m": h_max,
+		"max_abs_axis_gradient": max_abs_gradient,
+		"csv_path": ProjectSettings.globalize_path(csv_path),
+		"main_route_s_in_m": branch.get("in", -1.0),
+		"main_route_s_out_m": branch.get("out", -1.0),
+		"godot_version": Engine.get_version_info()
+	}
+	var jf := FileAccess.open(json_path, FileAccess.WRITE)
+	if jf != null:
+		jf.store_string(JSON.stringify(meta, "\t"))
+		jf.flush()
+		jf.close()
+
+	print("NEEDLE_DUMP_BEGIN")
+	print(JSON.stringify(meta))
+	print("CSV: ", ProjectSettings.globalize_path(csv_path))
+	print("META: ", ProjectSettings.globalize_path(json_path))
+	print("NEEDLE_DUMP_END")
