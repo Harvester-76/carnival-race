@@ -324,9 +324,10 @@ const LEVEL_ROLL := [2.5, 1.5, 0.0, 0.0, 0.0]            # самовыравн�
 var prev_lvl := -1
 func _lvl() -> int: return clampi(int(cfg["level"]), 0, 4)
 const DEADZONES := [0.05, 0.08, 0.12, 0.18, 0.25]
-var cfg := {"version": APP_VERSION, "hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "track_mode": "GENERATED", "track_id": "", "track_source": "Generated", "stats": {}, "ship": 0, "ach": {}, "rec": {}}
+var cfg := {"version": APP_VERSION, "hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "track_mode": "STATIC", "track_id": "", "track_source": "Static", "stats": {}, "ship": 0, "ach": {}, "rec": {}}
 var static_mode := false
 var static_unavailable := false
+var static_track_verified := false
 var static_runtime: StaticTrackRuntime
 var track_storage: TrackStorage
 var static_track_root := ""
@@ -880,15 +881,18 @@ func _ready() -> void:
 			var track_arg := a.get_slice("=", 1).to_upper()
 			cfg["track_mode"] = "STATIC" if track_arg == "STATIC" else "GENERATED"
 			cfg["track_source"] = "Static" if track_arg == "STATIC" else "Generated"
-	static_mode = String(cfg.get("track_mode", "GENERATED")) == "STATIC"
+	static_mode = String(cfg.get("track_mode", "STATIC")) == "STATIC"
 	cfg["track_id"] = track_storage.STATIC_TRACK_ID
 	active_static_track_id = track_storage.STATIC_TRACK_ID if static_mode else ""
 	static_unavailable = false
+	static_track_verified = false
 	static_track_error = ""
 	static_track_root = ""
 	if static_mode:
 		var selected_track: Dictionary = track_storage.installed_track()
-		if bool(selected_track.get("ok", false)): static_track_root = String(selected_track["root"])
+		if bool(selected_track.get("ok", false)):
+			static_track_root = String(selected_track["root"])
+			static_track_verified = true
 		else:
 			static_unavailable = true
 			static_track_error = String(selected_track.get("error", "Static-трасса не выбрана"))
@@ -898,7 +902,7 @@ func _ready() -> void:
 	if static_mode and not STATIC_TRACK_RUNTIME.has_export(static_track_root):
 		static_unavailable = true
 		static_mode = false
-		static_track_error = "Установленная Static-трасса отсутствует или повреждена."
+		static_track_error = "Подготовленная Static-трасса отсутствует или повреждена. Её можно распаковать перед запуском гонки."
 		push_warning(static_track_error)
 	ship_id = clampi(int(cfg.get("ship", 0)), 0, SHIP_NAMES.size() - 1)
 	var has_shot := false
@@ -935,7 +939,7 @@ func _ready() -> void:
 			presentation_load_ms = float(Time.get_ticks_usec() - presentation_started) / 1000.0
 		else:
 			static_unavailable = true
-			static_track_error = "Не удалось загрузить установленную Static-трассу. Повторная установка не завершена."
+			static_track_error = "Не удалось загрузить подготовленную Static-трассу. Попробуйте распаковать её заново."
 			static_mode = false
 			static_runtime.queue_free(); static_runtime = null
 	await _lt(0.10, "Ваш корабль")
@@ -982,17 +986,17 @@ func _run_static_install_worker(args: PackedStringArray) -> void:
 	get_tree().quit(0 if bool(result.get("ok", false)) else 2)
 
 func start_static_install() -> Dictionary:
-	if track_worker_pid > 0 and OS.is_process_running(track_worker_pid): return {"ok": false, "error": "Установка уже выполняется."}
+	if track_worker_pid > 0 and OS.is_process_running(track_worker_pid): return {"ok": false, "error": "Распаковка уже выполняется."}
 	var jobs_root := "user://tracks/.jobs"
 	var mkdir_err := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(jobs_root))
-	if mkdir_err != OK: return {"ok": false, "error": "Не удалось создать каталог состояния установки (%d)." % mkdir_err}
+	if mkdir_err != OK: return {"ok": false, "error": "Не удалось создать служебный каталог распаковки (%d)." % mkdir_err}
 	var job_id := "static_seed11_install"
 	var status_path := jobs_root.path_join(job_id + ".json")
 	var cancel_path := jobs_root.path_join(job_id + ".cancel")
 	var stale_cancel := ProjectSettings.globalize_path(cancel_path)
 	if FileAccess.file_exists(stale_cancel): DirAccess.remove_absolute(stale_cancel)
 	var initial := FileAccess.open(status_path, FileAccess.WRITE)
-	if initial == null: return {"ok": false, "error": "Не удалось создать файл состояния установки (%d)." % FileAccess.get_open_error()}
+	if initial == null: return {"ok": false, "error": "Не удалось создать файл состояния распаковки (%d)." % FileAccess.get_open_error()}
 	initial.store_string(JSON.stringify({"status": "starting", "message": "Запуск StaticTrackExportJob", "completed_chunks": 0, "total_chunks": 0, "progress": 0.0}) + "\n")
 	initial.close()
 	var args := PackedStringArray(["--headless"])
@@ -1002,7 +1006,7 @@ func start_static_install() -> Dictionary:
 	track_worker_pid = OS.create_process(OS.get_executable_path(), args, false)
 	if track_worker_pid < 0:
 		track_worker_pid = -1
-		return {"ok": false, "error": "Не удалось запустить процесс установки."}
+		return {"ok": false, "error": "Не удалось запустить процесс распаковки."}
 	track_worker_id = job_id
 	track_worker_status = JSON.stringify({"status": "starting", "message": "Запуск StaticTrackExportJob", "completed_chunks": 0, "total_chunks": 0, "progress": 0.0})
 	track_worker_poll = 0
@@ -1027,7 +1031,7 @@ func poll_static_install(_dt: float) -> Dictionary:
 			if final_parser.parse(FileAccess.get_file_as_string(status_path)) == OK and final_parser.data is Dictionary: status = final_parser.data
 		if str(status.get("status", "")) == "ready":
 			return {"running": false, "status": "ready"}
-		return {"running": false, "status": str(status.get("status", "interrupted")), "message": str(status.get("message", "Установка завершилась без публикации трассы"))}
+		return {"running": false, "status": str(status.get("status", "interrupted")), "message": str(status.get("message", "Распаковка завершилась без публикации трассы"))}
 	return {"running": true, "message": track_worker_status}
 
 func _setup_input() -> void:
@@ -2685,9 +2689,9 @@ func _load_cfg() -> void:
 	if not has_cf: return
 	for k in cfg: cfg[k] = cf.get_value("controls", k, cfg[k])
 	if not cf.has_section_key("controls", "track_mode"):
-		cfg["track_mode"] = "STATIC" if String(cfg.get("track_source", "Generated")) == "Static" else "GENERATED"
+		cfg["track_mode"] = "STATIC" if String(cfg.get("track_source", "Static")) == "Static" else "GENERATED"
 	if not cf.has_section_key("controls", "track_id"): cfg["track_id"] = ""
-	cfg["track_source"] = "Static" if String(cfg.get("track_mode", "GENERATED")) == "STATIC" else "Generated"
+	cfg["track_source"] = "Static" if String(cfg.get("track_mode", "STATIC")) == "STATIC" else "Generated"
 	scheme = int(cf.get_value("controls", "scheme", scheme))
 	cam_mode = clampi(int(cfg["cam_view"]), 0, CAM_MODES.size() - 1)
 	
@@ -2752,7 +2756,7 @@ func _read_sig_file() -> String:
 func _save_cfg() -> void:
 	var cf := ConfigFile.new()
 	cfg["version"] = APP_VERSION # Принудительно пишем актуальную версию перед хэшированием
-	cfg["track_mode"] = "STATIC" if String(cfg.get("track_mode", "GENERATED")) == "STATIC" else "GENERATED"
+	cfg["track_mode"] = "STATIC" if String(cfg.get("track_mode", "STATIC")) == "STATIC" else "GENERATED"
 	cfg["track_source"] = "Static" if cfg["track_mode"] == "STATIC" else "Generated"
 	for k in cfg: cf.set_value("controls", k, cfg[k])
 	cf.set_value("controls", "scheme", scheme)

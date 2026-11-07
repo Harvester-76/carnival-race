@@ -2,6 +2,32 @@ extends CanvasLayer
 # Интерфейс демо «Третий шанс»: главное меню, пауза, обратный отсчёт, HUD гонки, экран результатов.
 # Управляется геймпадом (ui_* действия: стик/крестовина, A, B) и клавиатурой. Данные берёт у main.gd (ссылка main).
 
+class DialogProgressBar extends Control:
+	var progress := 0.0
+	var indeterminate := true
+	var phase := 0.0
+	func _ready() -> void:
+		custom_minimum_size = Vector2(500, 14)
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		clip_contents = true
+	func _process(_dt: float) -> void:
+		phase = Time.get_ticks_msec() / 1000.0
+		queue_redraw()
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		draw_rect(r, Color(1.0, 1.0, 1.0, 0.16), true, 5.0)
+		var fill_w := size.x * clampf(progress, 0.0, 1.0)
+		if indeterminate:
+			fill_w = size.x * 0.22
+			var x := fmod(phase * size.x * 0.32, size.x + fill_w) - fill_w
+			draw_rect(Rect2(x, 0, fill_w, size.y), Color(1.0, 0.54, 0.12), true, 5.0)
+		else:
+			draw_rect(Rect2(0, 0, fill_w, size.y), Color(1.0, 0.54, 0.12), true, 5.0)
+			if fill_w > 12.0:
+				var shine_w := minf(fill_w * 0.16, 52.0)
+				var shine_x := fmod(phase * size.x * 0.3, maxf(fill_w - shine_w, 1.0))
+				draw_rect(Rect2(shine_x, 0, shine_w, size.y), Color(1.0, 0.85, 0.58, 0.55), true, 5.0)
+
 var main: Node
 var state := "hud"                 # menu | pause | hud | results
 var sel := 0
@@ -40,12 +66,17 @@ var skin: MenuSkin
 var about_link := 0
 var race_reload_pending := false
 var link_cur := {}                                                           # открытая в диалоге ссылка: {name, url, qr}
-var static_install_confirm: ConfirmationDialog
-var static_install_progress: AcceptDialog
+var static_dialog_overlay: Control
+var static_dialog_title: Label
+var static_dialog_body: Label
 var static_install_status: Label
-var static_install_bar: ProgressBar
-var static_install_done: AcceptDialog
-var static_install_error_dialog: AcceptDialog
+var static_install_percent: Label
+var static_install_bar: DialogProgressBar
+var static_dialog_primary: Button
+var static_dialog_secondary: Button
+var static_dialog_primary_action: Callable
+var static_dialog_secondary_action: Callable
+var static_dialog_mode := ""
 func open_link(name: String, url: String, qr: String) -> void:               # ссылка в браузер открывается только кнопкой «Перейти» в диалоге
 	link_cur = {"name": name, "url": url, "qr": qr}; goto_page("link")
 const GITHUB_URL := "https://github.com/Harvester-76/carnival-race"
@@ -272,14 +303,143 @@ func _build_menu() -> void:
 	hint_lbl = _lbl("↑↓ выбор    A / Enter подтвердить    ◀ ▶ изменить    B / Esc назад", 18, Color(1, 1, 1, 0.5), menu_panel, Vector2(96, 842))
 	hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; hint_lbl.custom_minimum_size = Vector2(620, 0); hint_lbl.size = Vector2(620, 40)
 	plot = PlotCtl.new(); plot.ui = self; plot.position = Vector2(800, 120); menu_panel.add_child(plot)
-	static_install_confirm = ConfirmationDialog.new(); static_install_confirm.title = "Установить Static-трассу"; static_install_confirm.dialog_text = "Перед запуском Static необходимо установить трассу. Установка займёт примерно 5–10 минут и потребует около 2 ГБ свободного места. Продолжить?"; static_install_confirm.confirmed.connect(_confirm_static_install); root.add_child(static_install_confirm)
-	static_install_progress = AcceptDialog.new(); static_install_progress.title = "Установка Static-трассы"; static_install_progress.get_ok_button().visible = false
-	var progress_box := VBoxContainer.new(); progress_box.custom_minimum_size = Vector2(520, 0); static_install_progress.add_child(progress_box)
-	static_install_status = _lbl("Подготовка…", 20, CREAM, progress_box)
-	static_install_bar = ProgressBar.new(); static_install_bar.min_value = 0.0; static_install_bar.max_value = 1.0; static_install_bar.show_percentage = true; progress_box.add_child(static_install_bar)
-	root.add_child(static_install_progress)
-	static_install_done = AcceptDialog.new(); static_install_done.title = "Static-трасса установлена"; static_install_done.dialog_text = "Установка завершена. Нажмите «ОК», чтобы начать гонку."; static_install_done.confirmed.connect(_start_race); root.add_child(static_install_done)
-	static_install_error_dialog = AcceptDialog.new(); static_install_error_dialog.title = "Не удалось установить Static-трассу"; root.add_child(static_install_error_dialog)
+	_build_static_dialog()
+
+func _build_static_dialog() -> void:
+	static_dialog_overlay = Control.new()
+	static_dialog_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	static_dialog_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	static_dialog_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	static_dialog_overlay.z_index = 100
+	static_dialog_overlay.visible = false
+	root.add_child(static_dialog_overlay)
+	var shade := ColorRect.new()
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.color = Color(0.015, 0.025, 0.07, 0.72)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	static_dialog_overlay.add_child(shade)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	static_dialog_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(620, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.025, 0.045, 0.105, 0.94)
+	panel_style.border_color = Color(1.0, 0.54, 0.12, 0.95)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(8)
+	panel_style.shadow_color = Color(0, 0, 0, 0.42)
+	panel_style.shadow_size = 18
+	panel_style.content_margin_left = 30
+	panel_style.content_margin_right = 30
+	panel_style.content_margin_top = 24
+	panel_style.content_margin_bottom = 24
+	panel.add_theme_stylebox_override("panel", panel_style)
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	panel.add_child(box)
+	static_dialog_title = Label.new()
+	static_dialog_title.add_theme_color_override("font_color", ORANGE)
+	static_dialog_title.add_theme_font_size_override("font_size", 30)
+	static_dialog_title.add_theme_font_override("font", load("res://menu_v2/fonts/DelaGothicOne-400.ttf"))
+	static_dialog_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(static_dialog_title)
+	static_dialog_body = Label.new()
+	static_dialog_body.add_theme_color_override("font_color", CREAM)
+	static_dialog_body.add_theme_font_size_override("font_size", 20)
+	static_dialog_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	static_dialog_body.custom_minimum_size = Vector2(540, 0)
+	static_dialog_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(static_dialog_body)
+	static_install_status = Label.new()
+	static_install_status.add_theme_color_override("font_color", CREAM)
+	static_install_status.add_theme_font_size_override("font_size", 18)
+	static_install_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	static_install_status.custom_minimum_size = Vector2(540, 44)
+	static_install_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	static_install_status.visible = false
+	box.add_child(static_install_status)
+	static_install_bar = DialogProgressBar.new()
+	static_install_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	static_install_bar.visible = false
+	box.add_child(static_install_bar)
+	static_install_percent = Label.new()
+	static_install_percent.add_theme_color_override("font_color", ORANGE)
+	static_install_percent.add_theme_font_size_override("font_size", 18)
+	static_install_percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	static_install_percent.visible = false
+	box.add_child(static_install_percent)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	buttons.add_theme_constant_override("separation", 12)
+	box.add_child(buttons)
+	static_dialog_secondary = _static_dialog_button()
+	static_dialog_secondary.pressed.connect(_on_static_dialog_secondary)
+	buttons.add_child(static_dialog_secondary)
+	static_dialog_primary = _static_dialog_button()
+	static_dialog_primary.pressed.connect(_on_static_dialog_primary)
+	buttons.add_child(static_dialog_primary)
+
+func _static_dialog_button() -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(190, 54)
+	b.add_theme_font_size_override("font_size", 20)
+	b.add_theme_color_override("font_color", CREAM)
+	b.add_theme_color_override("font_hover_color", Color("060A18"))
+	b.add_theme_color_override("font_pressed_color", Color("060A18"))
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.04, 0.075, 0.16, 0.72)
+	normal.border_color = Color(1.0, 0.54, 0.12, 0.88)
+	normal.set_border_width_all(2)
+	normal.set_corner_radius_all(4)
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(1.0, 0.54, 0.12, 0.95)
+	var pressed := hover.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(0.9, 0.36, 0.06, 1.0)
+	var focus := normal.duplicate() as StyleBoxFlat
+	focus.border_color = CREAM
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", pressed)
+	b.add_theme_stylebox_override("focus", focus)
+	return b
+
+func _show_static_dialog(mode: String, title: String, body: String, primary_text: String, primary_action: Callable, secondary_text := "", secondary_action := Callable()) -> void:
+	static_dialog_mode = mode
+	static_dialog_title.text = title
+	static_dialog_body.text = body
+	static_dialog_primary.text = primary_text
+	static_dialog_primary_action = primary_action
+	static_dialog_secondary.text = secondary_text
+	static_dialog_secondary_action = secondary_action
+	static_dialog_secondary.visible = not secondary_text.is_empty()
+	static_dialog_primary.visible = mode != "progress"
+	static_dialog_secondary.visible = mode != "progress" and not secondary_text.is_empty()
+	static_dialog_body.visible = not body.is_empty()
+	static_install_status.visible = mode == "progress"
+	static_install_bar.visible = mode == "progress"
+	static_install_percent.visible = mode == "progress"
+	static_dialog_overlay.show()
+	static_dialog_primary.grab_focus()
+
+func _hide_static_dialog() -> void:
+	static_dialog_overlay.hide()
+	static_dialog_mode = ""
+	static_dialog_primary_action = Callable()
+	static_dialog_secondary_action = Callable()
+
+func _on_static_dialog_primary() -> void:
+	var action := static_dialog_primary_action
+	_hide_static_dialog()
+	if action.is_valid(): action.call()
+
+func _on_static_dialog_secondary() -> void:
+	var action := static_dialog_secondary_action
+	_hide_static_dialog()
+	if action.is_valid(): action.call()
 
 func _bool_item(label: String, key: String, hint := "") -> Dictionary:
 	return {"t": "%s:  %s" % [label, "ВКЛ" if main.cfg[key] else "выкл"], "l": label, "kind": "toggle", "on": bool(main.cfg[key]), "d": hint, "a": func(): _tog(key), "s": func(_d): _tog(key)}
@@ -301,9 +461,9 @@ func _page_items() -> Array:
 	match page:
 		"main":
 			if state == "menu":
-				var track_mode := "Static" if String(main.cfg.get("track_mode", "GENERATED")) == "STATIC" else "Generated"
-				var track_item := {"t": "Трасса: ◀ %s ▶" % track_mode, "l": "Трасса", "kind": "choice", "val": track_mode, "cw": 220.0, "cfs": 26, "d": "Generated — процедурная трасса. Static — подготовленная трасса seed 11 / 650 км.", "s": func(_d): _set_track_mode(String(main.cfg.get("track_mode", "GENERATED")) != "STATIC"), "a": func(): _set_track_mode(String(main.cfg.get("track_mode", "GENERATED")) != "STATIC"), "id": "track_mode"}
-				it = [{"t": "Старт", "a": func(): _start_race(), "id": "start"}, track_item, lvl_item, ship_item, {"t": "Достижения", "kind": "action", "a": func(): goto_page("ach"), "id": "achievements"}, {"t": "Настройки", "kind": "action", "a": func(): goto_page("settings"), "id": "settings"}, {"t": "Об игре", "kind": "action", "a": func(): goto_page("about"), "id": "about"}, {"t": "Выход", "a": func(): goto_page("exit"), "id": "exit"}]
+				var track_mode := "Static" if String(main.cfg.get("track_mode", "STATIC")) == "STATIC" else "Generated"
+				var track_item := {"t": "Трасса: ◀ %s ▶" % track_mode, "l": "Трасса", "kind": "choice", "val": track_mode, "cw": 300.0, "cfs": 26, "d": "Generated — процедурная трасса. Static — подготовленная трасса seed 11 / 650 км.", "s": func(_d): _set_track_mode(String(main.cfg.get("track_mode", "STATIC")) != "STATIC"), "a": func(): _set_track_mode(String(main.cfg.get("track_mode", "STATIC")) != "STATIC"), "id": "track_mode"}
+				it = [{"t": "Старт", "a": func(): _start_race(), "id": "start"}, lvl_item, ship_item, track_item, {"t": "Достижения", "kind": "action", "a": func(): goto_page("ach"), "id": "achievements"}, {"t": "Настройки", "kind": "action", "a": func(): goto_page("settings"), "id": "settings"}, {"t": "Об игре", "kind": "action", "a": func(): goto_page("about"), "id": "about"}, {"t": "Выход", "a": func(): goto_page("exit"), "id": "exit"}]
 			elif state == "pause":
 				it = [{"t": "Продолжить", "a": func(): close_pause()}, {"t": "Начать заново", "a": func(): _restart()}, {"t": "Вернуть на трассу  (+20 с)", "a": func(): close_pause(); main._unstick()}, lvl_item, {"t": "Настройки", "kind": "action", "a": func(): goto_page("settings")}, {"t": "В главное меню", "a": func(): _to_menu()}]
 		"exit":
@@ -803,12 +963,13 @@ func _set_track_mode(use_static: bool) -> void:
 func _confirm_static_install() -> void:
 	var result: Dictionary = main.start_static_install()
 	if not bool(result.get("ok", false)):
-		static_install_error_dialog.dialog_text = String(result.get("error", "Не удалось запустить установку."))
-		static_install_error_dialog.popup_centered()
+		_show_static_error(String(result.get("error", "Не удалось начать распаковку трассы.")))
 		return
-	static_install_bar.value = 0.0
-	static_install_status.text = "Подготовка генерации…"
-	static_install_progress.popup_centered()
+	static_install_bar.progress = 0.0
+	static_install_bar.indeterminate = true
+	static_install_status.text = "Подготовка к распаковке…"
+	static_install_percent.text = ""
+	_show_static_dialog("progress", "Распаковка Static-трассы", "", "", Callable())
 
 func _poll_static_install(dt: float) -> void:
 	if main.track_worker_pid <= 0: return
@@ -819,30 +980,55 @@ func _poll_static_install(dt: float) -> void:
 		if progress is Dictionary:
 			var total_chunks := int(progress.get("total_chunks", 0))
 			static_install_bar.indeterminate = total_chunks <= 0
-			static_install_bar.value = clampf(float(progress.get("progress", 0.0)), 0.0, 1.0)
-			static_install_status.text = String(progress.get("message", "Установка…"))
+			static_install_bar.progress = clampf(float(progress.get("progress", 0.0)), 0.0, 1.0)
+			static_install_bar.queue_redraw()
+			static_install_status.text = _static_progress_text(String(progress.get("message", "")))
+			static_install_percent.text = "%d%%" % roundi(static_install_bar.progress * 100.0) if total_chunks > 0 else ""
 		return
-	static_install_progress.hide()
-	if result.get("status", "") == "ready" and bool(main.track_storage.installed_track().get("ok", false)):
+	if result.get("status", "") == "ready":
 		main.cfg["track_id"] = main.track_storage.STATIC_TRACK_ID
 		main.static_unavailable = false
+		main.static_track_verified = true
 		main.static_track_error = ""
 		main._save_cfg()
-		static_install_done.popup_centered()
+		_show_static_dialog("done", "Static-трасса распакована", "Распаковка и проверка завершены. Начать гонку на Static-трассе?", "Начать гонку", _start_race, "Остаться в меню", Callable())
 	else:
-		static_install_error_dialog.dialog_text = String(result.get("message", "Установка не завершена. Готовая трасса не опубликована."))
-		static_install_error_dialog.popup_centered()
+		_show_static_error(String(result.get("message", "Распаковка не завершена. Готовая трасса не опубликована.")))
+
+func _static_progress_text(message: String) -> String:
+	var translations := {
+		"Building procedural geometry source": "Подготовка геометрии трассы…",
+		"Selecting route coverage": "Подготовка маршрутов и покрытия…",
+		"Preflight complete": "Подготовка завершена…",
+		"Writing route and generation metadata": "Запись данных о маршрутах…",
+		"Writing artifact checksums": "Проверка целостности файлов…",
+		"Validating generated track": "Проверка собранной трассы…",
+		"Publishing complete output": "Завершение и публикация трассы…",
+		"Track export is ready": "Распаковка и проверка завершены."
+	}
+	for key in translations:
+		if message.contains(key): return String(translations[key])
+	var chunk_re := RegEx.new()
+	chunk_re.compile("^.+: (\\d+ / \\d+ chunks)$")
+	var chunk_match := chunk_re.search(message)
+	if chunk_match != null: return "Сборка геометрии: %s" % chunk_match.get_string(1)
+	if message.begins_with("Writing "): return "Сборка геометрии трассы…"
+	return "Распаковка Static-трассы…" if message.is_empty() else message
+
+func _show_static_error(message: String) -> void:
+	_show_static_dialog("error", "Не удалось распаковать Static-трассу", message, "Закрыть", Callable())
 
 func _start_race() -> void:
-	var want_static := String(main.cfg.get("track_mode", "GENERATED")) == "STATIC"
+	var want_static := String(main.cfg.get("track_mode", "STATIC")) == "STATIC"
 	if want_static:
-		var installed: Dictionary = main.track_storage.installed_track()
-		if not bool(installed.get("ok", false)):
-			static_install_confirm.popup_centered()
-			return
+		if not main.static_track_verified:
+			var installed: Dictionary = main.track_storage.installed_track()
+			if not bool(installed.get("ok", false)):
+				_show_static_dialog("confirm", "Распаковать Static-трассу?", "Перед запуском необходимо распаковать Static-трассу. Это займёт примерно 5–10 минут и около 2 ГБ свободного места.\n\nТрасса будет подготовлена локально: интернет для её получения не используется.", "Распаковать", _confirm_static_install, "Не сейчас", Callable())
+				return
+			main.static_track_verified = true
 		if main.static_unavailable:
-			static_install_error_dialog.dialog_text = String(main.static_track_error) if not String(main.static_track_error).is_empty() else "Static-трасса проверена, но runtime-загрузчик не смог её открыть."
-			static_install_error_dialog.popup_centered()
+			_show_static_error(String(main.static_track_error) if not String(main.static_track_error).is_empty() else "Static-трасса проверена, но runtime-загрузчик не смог её открыть.")
 			return
 	if want_static != main.static_mode and race_reload_pending: return
 	var sts := _stats(); sts["starts"] = int(sts.get("starts", 0)) + 1; main._save_cfg()
@@ -856,7 +1042,7 @@ func _start_race() -> void:
 	state = "hud"; _show_state("hud"); main.cam_mode = clampi(int(main.cfg["cam_view"]), 0, main.CAM_NAMES.size() - 1); main.begin_intro(); main._sync_time_scale()
 
 func _change_track_source(d: int) -> void:
-	_set_track_mode(String(main.cfg.get("track_mode", "GENERATED")) != "STATIC")
+	_set_track_mode(String(main.cfg.get("track_mode", "STATIC")) != "STATIC")
 
 func _reload_for_ship() -> void:                                            # выбран другой корабль: экран загрузки, затем сцена пересобирается и гонка стартует сразу
 	main.reload_title = "Загрузка корабля «%s»" % main.SHIP_NAMES[int(main.cfg["ship"])]
@@ -1132,6 +1318,10 @@ func _update_markers() -> void:                                                #
 func _process(_dt: float) -> void:
 	if main == null or not is_instance_valid(main): return
 	_poll_static_install(_dt)
+	if static_dialog_overlay != null and static_dialog_overlay.visible:
+		if static_dialog_mode != "progress" and Input.is_action_just_pressed("ui_cancel"):
+			_on_static_dialog_secondary()
+		return
 	if main.ship == null: return
 	if toast_lbl != null and toast_lbl.visible:                                    # плашка получения достижения гаснет
 		var left := toast_t - Time.get_ticks_msec() / 1000.0
