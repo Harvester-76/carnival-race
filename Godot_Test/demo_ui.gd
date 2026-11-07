@@ -39,6 +39,16 @@ var marker_root: Control
 var skin: MenuSkin
 var about_link := 0
 var link_cur := {}                                                           # открытая в диалоге ссылка: {name, url, qr}
+var track_create_dialog: AcceptDialog
+var track_delete_dialog: ConfirmationDialog
+var track_recovery_dialog: ConfirmationDialog
+var track_name_input: LineEdit
+var track_seed_input: SpinBox
+var track_length_input: SpinBox
+var pending_delete_track_id := ""
+var pending_build_id := ""
+var track_ui_poll := 0.0
+var track_ui_message := ""
 func open_link(name: String, url: String, qr: String) -> void:               # ссылка в браузер открывается только кнопкой «Перейти» в диалоге
 	link_cur = {"name": name, "url": url, "qr": qr}; goto_page("link")
 const GITHUB_URL := "https://github.com/Harvester-76/carnival-race"
@@ -265,6 +275,14 @@ func _build_menu() -> void:
 	hint_lbl = _lbl("↑↓ выбор    A / Enter подтвердить    ◀ ▶ изменить    B / Esc назад", 18, Color(1, 1, 1, 0.5), menu_panel, Vector2(96, 842))
 	hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; hint_lbl.custom_minimum_size = Vector2(620, 0); hint_lbl.size = Vector2(620, 40)
 	plot = PlotCtl.new(); plot.ui = self; plot.position = Vector2(800, 120); menu_panel.add_child(plot)
+	track_create_dialog = AcceptDialog.new(); track_create_dialog.title = "Создать Static-трассу"; track_create_dialog.ok_button_text = "Начать"
+	var form := VBoxContainer.new(); form.custom_minimum_size = Vector2(480, 0); track_create_dialog.add_child(form)
+	_lbl("Название", 20, CREAM, form); track_name_input = LineEdit.new(); track_name_input.placeholder_text = "Название трассы"; track_name_input.text = "Новая трасса"; track_name_input.max_length = 64; form.add_child(track_name_input)
+	_lbl("Seed (от 1)", 20, CREAM, form); track_seed_input = SpinBox.new(); track_seed_input.min_value = 1; track_seed_input.max_value = 2147483647; track_seed_input.step = 1; track_seed_input.value = 11; form.add_child(track_seed_input)
+	_lbl("Запрошенная длина (км, 1–650)", 20, CREAM, form); track_length_input = SpinBox.new(); track_length_input.min_value = 1; track_length_input.max_value = 650; track_length_input.step = 1; track_length_input.value = 650; form.add_child(track_length_input)
+	track_create_dialog.confirmed.connect(_launch_track_export); root.add_child(track_create_dialog)
+	track_delete_dialog = ConfirmationDialog.new(); track_delete_dialog.title = "Удалить трассу?"; track_delete_dialog.dialog_text = "Удалить выбранную локальную трассу?"; track_delete_dialog.confirmed.connect(_confirm_delete_track); root.add_child(track_delete_dialog)
+	track_recovery_dialog = ConfirmationDialog.new(); track_recovery_dialog.title = "Удалить незавершённую сборку?"; track_recovery_dialog.confirmed.connect(_confirm_remove_build); root.add_child(track_recovery_dialog)
 
 func _bool_item(label: String, key: String, hint := "") -> Dictionary:
 	return {"t": "%s:  %s" % [label, "ВКЛ" if main.cfg[key] else "выкл"], "l": label, "kind": "toggle", "on": bool(main.cfg[key]), "d": hint, "a": func(): _tog(key), "s": func(_d): _tog(key)}
@@ -286,11 +304,38 @@ func _page_items() -> Array:
 	match page:
 		"main":
 			if state == "menu":
-				it = [{"t": "Старт", "a": func(): _start_race()}, lvl_item, ship_item, {"t": "Достижения", "kind": "action", "a": func(): goto_page("ach")}, {"t": "Настройки", "kind": "action", "a": func(): goto_page("settings")}, {"t": "Об игре", "kind": "action", "a": func(): goto_page("about")}, {"t": "Выход", "a": func(): goto_page("exit")}]
+				var track_mode := "Static" if String(main.cfg.get("track_mode", "GENERATED")) == "STATIC" else "Generated"
+				var track_item := {"t": "Трассы: %s" % track_mode, "l": "Трассы", "kind": "action", "d": "Выбор Generated/Static, создание и управление локальными Static-трассами.", "a": func(): goto_page("tracks"), "id": "tracks"}
+				it = [{"t": "Старт", "a": func(): _start_race(), "id": "start"}, track_item, lvl_item, ship_item, {"t": "Достижения", "kind": "action", "a": func(): goto_page("ach"), "id": "achievements"}, {"t": "Настройки", "kind": "action", "a": func(): goto_page("settings"), "id": "settings"}, {"t": "Об игре", "kind": "action", "a": func(): goto_page("about"), "id": "about"}, {"t": "Выход", "a": func(): goto_page("exit"), "id": "exit"}]
 			elif state == "pause":
 				it = [{"t": "Продолжить", "a": func(): close_pause()}, {"t": "Начать заново", "a": func(): _restart()}, {"t": "Вернуть на трассу  (+20 с)", "a": func(): close_pause(); main._unstick()}, lvl_item, {"t": "Настройки", "kind": "action", "a": func(): goto_page("settings")}, {"t": "В главное меню", "a": func(): _to_menu()}]
 		"exit":
 			it = [{"t": "Да, выйти", "a": func(): _quit_game()}, {"t": "Остаться", "a": func(): grant("timid"); back_page()}]
+		"tracks":
+			var is_static := String(main.cfg.get("track_mode", "GENERATED")) == "STATIC"
+			it.append({"t": "Режим: ◀ %s ▶" % ("Static" if is_static else "Generated"), "kind": "choice", "d": "Generated остаётся режимом по умолчанию. Static использует выбранную трассу из user://tracks/.", "s": func(_d): _set_track_mode(not is_static), "a": func(): _set_track_mode(not is_static)})
+			var tracks: Array[Dictionary] = main.track_storage.list_tracks()
+			if tracks.is_empty(): it.append({"t": "Готовых Static-трасс пока нет", "d": "Создайте трассу ниже. Незавершённые сборки не считаются готовыми."})
+			for track in tracks:
+				var tid := String(track["track_id"])
+				var chosen := String(main.cfg.get("track_id", "")) == tid
+				var actual_len := float(track["actual_length_km"])
+				var requested_len := float(track["requested_length_km"])
+				var length_txt := "фактическая %.1f км" % actual_len if actual_len > 0.0 else "фактическая длина неизвестна"
+				if actual_len > 0.0 and absf(actual_len - requested_len) > 0.05: length_txt += " · запрошено %.1f км" % requested_len
+				var created := String(track["created_at"]).replace("T", " ")
+				it.append({"t": ("✓ " if chosen else "") + String(track["name"]) + "  ·  " + tid, "d": "seed %d · %s · %s · %s" % [int(track["seed"]), length_txt, created, String(track["status"])], "a": func(): _select_static_track(tid)})
+				it.append({"t": "Удалить «%s»…" % String(track["name"]), "d": "Удаление потребует подтверждения. Активную трассу удалить нельзя.", "a": func(): _ask_delete_track(tid, String(track["name"]))})
+			if main.track_worker_pid > 0:
+				it.append({"t": "Генерация: " + _track_progress_text(), "d": "Процесс продолжает экспорт между чанками без блокировки меню.", "a": func(): pass})
+				it.append({"t": "Отменить генерацию", "a": func(): main.cancel_track_export(); track_ui_message = "Запрошена штатная отмена"})
+			elif not track_ui_message.is_empty(): it.append({"t": track_ui_message, "d": ""})
+			for build in main.track_storage.incomplete_builds():
+				var build_id := String(build.get("track_id", ""))
+				var running := String(build.get("status", "")) == "running"
+				it.append({"t": ("Worker работает" if running else "Прерванная сборка") + " · " + build_id, "d": String(build["path"]) + (" — занято активным процессом." if running else " — удаление доступно только после подтверждения."), "a": func(): _ask_remove_build(build_id) if not running else _toast("Сборку удалять нельзя, пока worker работает.")})
+			it.append({"t": "Создать Static-трассу…", "d": "Задать название, seed и длину и запустить фоновую генерацию.", "a": func(): _open_track_create()})
+			it.append(back)
 		"link":
 			it = [{"t": "Закрыть", "a": func(): back_page()}, {"t": "Перейти", "a": func(): OS.shell_open(String(link_cur.get("url", ""))); back_page()}]
 		"project":
@@ -461,7 +506,7 @@ func goto_page(p: String) -> void:
 
 func back_page() -> void:
 	capturing = ""; pm_sel = ""; sfx.play("back"); check_custom()
-	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
+	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main", "tracks": "main"}
 	if page.begins_with("organ:"): page = "advanced"
 	elif page == "main": return
 	else: page = parent.get(page, "main")
@@ -484,6 +529,7 @@ func _page_title() -> String:
 		"project": return "ОБ ИГРЕ › О ПРОЕКТЕ"
 		"link": return "ОТКРЫТЬ ССЫЛКУ?"
 		"exit": return "ВЫ УВЕРЕНЫ?"
+		"tracks": return "ТРАССЫ"
 	if page.begins_with("organ:"): return "РАСШИРЕННЫЕ › " + String(ORGAN_SHORT.get(page.substr(6), page.substr(6))).to_upper()
 	return ""
 
@@ -527,12 +573,16 @@ func _sync_skin() -> void:                                                 # д�
 	match page:
 		"main":
 			if state == "menu":
-				skin.mode = "main"; skin.bg_key = MenuSkin.MAIN_BG[clampi(sel, 0, MenuSkin.MAIN_BG.size() - 1)]
+				skin.mode = "main"
+				var bg_by_item := {"start": "bar", "tracks": "space", "level": "port", "ship": "hangar", "achievements": "cabin", "settings": "engine", "about": "about", "exit": "exit"}
+				var selected_id := String(items[sel].get("id", "")) if items.size() > 0 else "start"
+				skin.bg_key = String(bg_by_item.get(selected_id, "bar"))
+				skin.card = {}
 				skin.hint_btns = [bt.call("pad", "↑↓", "Выбор"), bt.call("pad", "◀▶", "Изменить"), bt.call("A", "", "Выбрать")]
-				if sel == 1:
+				if selected_id == "level":
 					var lvn: int = main._lvl()
 					skin.card = {"n": lvn + 1, "total": 5, "name": main.LEVEL_NAMES[lvn], "slogan": main.LEVEL_TAGS[lvn], "desc": LEVEL_DESC[lvn], "pic": load("res://menu_v2/levels/level_%d.png" % (lvn + 1))}
-				elif sel == 2:
+				elif selected_id == "ship":
 					var sid: int = clampi(int(main.cfg.get("ship", 0)), 0, main.SHIP_NAMES.size() - 1)
 					skin.card = {"n": sid + 1, "total": main.SHIP_NAMES.size(), "name": main.SHIP_NAMES[sid], "slogan": main.SHIP_SLOGANS[sid], "desc": main.SHIP_DESC[sid], "pic": load("res://menu_v2/ship_%d.png" % sid)}
 			else:
@@ -774,10 +824,111 @@ func blocking() -> bool:
 func on_settings_closed() -> void:
 	main._sync_time_scale()
 
+func _set_track_mode(use_static: bool) -> void:
+	if use_static and String(main.cfg.get("track_id", "")).is_empty():
+		_toast("Сначала выберите готовую трассу в этом разделе.")
+		return
+	main.cfg["track_mode"] = "STATIC" if use_static else "GENERATED"
+	main._save_cfg(); _refresh_items()
+
+func _select_static_track(track_id: String) -> void:
+	var selected: Dictionary = main.track_storage.get_track(track_id)
+	if not bool(selected.get("ok", false)):
+		_toast("Трасса недоступна: " + str(selected.get("error", "ошибка проверки")))
+		_refresh_items(); return
+	main.cfg["track_id"] = track_id
+	main.cfg["track_mode"] = "STATIC"
+	main._save_cfg()
+	_toast("Выбрана Static-трасса «%s»" % String(selected["metadata"].get("name", track_id)))
+	_refresh_items()
+
+func _ask_delete_track(track_id: String, track_name: String) -> void:
+	pending_delete_track_id = track_id
+	track_delete_dialog.dialog_text = "Удалить «%s» (%s)? Это действие нельзя отменить." % [track_name, track_id]
+	track_delete_dialog.popup_centered()
+
+func _confirm_delete_track() -> void:
+	var active_id := String(main.cfg.get("track_id", "")) if main.static_mode else ""
+	var result: Dictionary = main.track_storage.remove_track(pending_delete_track_id, active_id)
+	if bool(result.get("ok", false)):
+		if String(main.cfg.get("track_id", "")) == pending_delete_track_id:
+			main.cfg["track_id"] = ""; main._save_cfg()
+			track_ui_message = "Трасса удалена. Выберите другую Static-трассу или явно переключите режим на Generated."
+		else: track_ui_message = "Трасса удалена"
+	else:
+		track_ui_message = "Не удалось удалить: " + str(result.get("error", "ошибка"))
+	pending_delete_track_id = ""; _refresh_items()
+
+func _ask_remove_build(track_id: String) -> void:
+	pending_build_id = track_id
+	track_recovery_dialog.dialog_text = "Удалить staging-каталог %s? Проверьте, что экспорт точно прерван." % track_id
+	track_recovery_dialog.popup_centered()
+
+func _confirm_remove_build() -> void:
+	var result: Dictionary = main.track_storage.remove_abandoned_build(pending_build_id)
+	track_ui_message = "Прерванная сборка удалена" if bool(result.get("ok", false)) else "Восстановление не выполнено: " + String(result.get("error", "ошибка"))
+	pending_build_id = ""; _refresh_items()
+
+func _open_track_create() -> void:
+	track_name_input.text = "Новая трасса"
+	track_seed_input.value = 11
+	track_length_input.value = 650
+	track_create_dialog.popup_centered()
+
+func _launch_track_export() -> void:
+	var track_name := track_name_input.text.strip_edges()
+	var seed_value := int(track_seed_input.value)
+	var length_km := float(track_length_input.value)
+	if track_name.is_empty(): _toast("Название трассы не должно быть пустым."); return
+	if seed_value < 1 or seed_value > 2147483647: _toast("Seed должен быть целым числом от 1 до 2147483647: нулевой seed не запускает generate_open."); return
+	if not is_finite(length_km) or length_km <= 0.0 or length_km > 650.0: _toast("Длина должна быть больше 0 и не превышать 650 км."); return
+	var result: Dictionary = main.start_track_export(track_name, seed_value, length_km)
+	if not bool(result.get("ok", false)): _toast(String(result.get("error", "Не удалось запустить генерацию")))
+	else: track_ui_message = "Генерация запущена: " + String(result.get("track_id", ""))
+	_refresh_items()
+
+func _track_progress_text() -> String:
+	var parsed = JSON.parse_string(main.track_worker_status)
+	if parsed is Dictionary:
+		var done := int(parsed.get("completed_chunks", 0)); var total := int(parsed.get("total_chunks", 0))
+		var status := String(parsed.get("status", "")); var message := String(parsed.get("message", ""))
+		return "%s · %d/%d · %s" % [status, done, total, message]
+	return main.track_worker_status
+
+func _poll_track_export(dt: float) -> void:
+	if main.track_worker_pid <= 0: return
+	var result: Dictionary = main.poll_track_export(dt)
+	if result.is_empty(): return
+	if bool(result.get("running", false)):
+		if page == "tracks":
+			track_ui_poll += dt
+			if track_ui_poll >= 0.35: track_ui_poll = 0.0; _refresh_items()
+		return
+	if result.get("status", "") == "ready":
+		var registered: Dictionary = main.track_storage.register_track(String(result.get("track_id", "")))
+		track_ui_message = "Трасса успешно создана: " + String(result.get("track_id", "")) if bool(registered.get("ok", false)) else "Экспорт готов, но проверка регистрации не прошла: " + String(registered.get("error", "неизвестная ошибка"))
+	else: track_ui_message = "Генерация %s: %s" % [String(result.get("status", "завершена")), String(result.get("message", "трасса не опубликована"))]
+	if page == "tracks": _refresh_items()
+
 func _start_race() -> void:
+	var want_static := String(main.cfg.get("track_mode", "GENERATED")) == "STATIC"
+	if want_static and main.static_unavailable:
+		_toast(main.static_track_error if not main.static_track_error.is_empty() else "Выбранная Static-трасса недоступна. Выберите другую.")
+		return
+	if want_static and not main.track_storage.get_track(String(main.cfg.get("track_id", ""))).get("ok", false):
+		_toast("Выбранная Static-трасса отсутствует или повреждена. Откройте раздел «Трассы» и выберите другую.")
+		return
 	var sts := _stats(); sts["starts"] = int(sts.get("starts", 0)) + 1; main._save_cfg()
+	if want_static != main.static_mode or (want_static and String(main.cfg.get("track_id", "")) != String(main.active_static_track_id)):
+		Engine.set_meta("track_source_lineup", main.lineup_slots.duplicate())
+		Engine.set_meta("skip_menu", true)
+		main.reload_title = "Загрузка статической трассы" if want_static else "Загрузка Generated-трассы"
+		Engine.time_scale = 1.0; main._reload_game(); return
 	if int(main.cfg.get("ship", 0)) != main.ship_id: _reload_for_ship(); return
 	state = "hud"; _show_state("hud"); main.cam_mode = clampi(int(main.cfg["cam_view"]), 0, main.CAM_NAMES.size() - 1); main.begin_intro(); main._sync_time_scale()
+
+func _change_track_source(d: int) -> void:
+	_set_track_mode(String(main.cfg.get("track_mode", "GENERATED")) != "STATIC")
 
 func _reload_for_ship() -> void:                                            # выбран другой корабль: экран загрузки, затем сцена пересобирается и гонка стартует сразу
 	main.reload_title = "Загрузка корабля «%s»" % main.SHIP_NAMES[int(main.cfg["ship"])]
@@ -839,7 +990,7 @@ func _input(ev: InputEvent) -> void:                                   # пер�
 	get_viewport().set_input_as_handled()
 	var kc: int = (ev as InputEventKey).physical_keycode
 	if kc == KEY_ESCAPE: capturing = ""; _refresh_items(); return
-	if kc in [KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5]: return          # служебные клавиши
+	if kc in [KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6]: return  # служебные клавиши
 	for k2 in main.keys:
 		if k2 != capturing and main.keys[k2] == kc: main.keys[k2] = main.keys[capturing]        # занята — меняемся
 	main.keys[capturing] = kc; capturing = ""
@@ -1051,7 +1202,9 @@ func _update_markers() -> void:                                                #
 
 # ---------- Каждый кадр ----------
 func _process(_dt: float) -> void:
-	if main == null or not is_instance_valid(main) or main.ship == null: return
+	if main == null or not is_instance_valid(main): return
+	_poll_track_export(_dt)
+	if main.ship == null: return
 	if toast_lbl != null and toast_lbl.visible:                                    # плашка получения достижения гаснет
 		var left := toast_t - Time.get_ticks_msec() / 1000.0
 		if left <= 0.0: toast_lbl.visible = false

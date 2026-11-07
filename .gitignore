@@ -17,3 +17,6 @@ Base ship/spaceship_4_*.blend
 */ship/variants/*.scn
 # рендеры-превью: не модели, пересоздаются из .blend
 Base ship/renders/
+# Большой готовый статический экспорт (исходники и остальные исследования experiments/ сохраняются в Git).
+/Godot_Test/experiments/full_static_track_seed11_650km/
+/Godot_Test/experiments/full_static_track_seed11_650km.zip

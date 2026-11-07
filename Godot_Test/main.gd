@@ -5,6 +5,10 @@ extends Node3D
 # маневровые (концы крыльев, 4 шт.) дают вектор тяги, который задаёт пилот. Атмосферы нет: инерция почти не гасится.
 
 const APP_VERSION := "0.1.2"
+const STATIC_TRACK_RUNTIME := preload("res://static_track_runtime.gd")
+const PERFORMANCE_DIAGNOSTICS := preload("res://performance_diagnostics.gd")
+const STATIC_TRACK_EXPORT_JOB := preload("res://static_track_pipeline/static_track_export_job.gd")
+const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
 const DETACH_PREFIX := ["SM_Engine_", "SM_Wing_", "SM_Spotlight_", "SM_Glass_", "SM_Hatch_", "SM_Foot_"]
 const CAM_MODES := ["chase", "far", "side", "free", "right", "cockpit"]
 const CAM_NAMES := ["Сзади", "Далеко сзади", "Сбоку слева", "Облёт корабля", "Сбоку справа", "От первого лица"]
@@ -310,7 +314,7 @@ const MENU_ITEMS := [
 	["level", "Уровень сложности управления (Салага … Киборг)"],
 	["scheme", "Схема геймпада (1 = всё через хвост, 2 = два джойстика)"],
 	["deadzone", "Мёртвая зона стиков"],
-	["tech", "Технический экран моторов и кривых: клавиша F4"]]
+	["tech", "Технический экран моторов и кривых: клавиша F6"]]
 const MENU_NUM := {}
 const LEVEL_NAMES := ["Турист", "Дальнобойщик", "Любимец букмекеров", "Ветеран", "Киборг"]
 const LEVEL_TAGS := ["Случайно попал на трассу", "Честный работяга с опытом дальних перелётов", "Ставки один к трём!", "Видел всякое", "Ощущает корабль, как продолжение своего тела"]
@@ -321,7 +325,27 @@ const LEVEL_ROLL := [2.5, 1.5, 0.0, 0.0, 0.0]            # самовыравн�
 var prev_lvl := -1
 func _lvl() -> int: return clampi(int(cfg["level"]), 0, 4)
 const DEADZONES := [0.05, 0.08, 0.12, 0.18, 0.25]
-var cfg := {"version": APP_VERSION, "hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "stats": {}, "ship": 0, "ach": {}, "rec": {}}
+var cfg := {"version": APP_VERSION, "hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "track_mode": "GENERATED", "track_id": "", "track_source": "Generated", "stats": {}, "ship": 0, "ach": {}, "rec": {}}
+var static_mode := false
+var static_unavailable := false
+var static_runtime: StaticTrackRuntime
+var track_storage: TrackStorage
+var static_track_root := ""
+var active_static_track_id := ""
+var static_track_error := ""
+var track_worker_pid := -1
+var track_worker_id := ""
+var track_worker_status := ""
+var track_worker_cancel_path := ""
+var track_worker_poll := 0.0
+var performance_diag: Node
+var track_generation_ms := 0.0
+var generated_preload_ms := 0.0
+var presentation_load_ms := -1.0
+var initial_track_load_ms := 0.0
+var ab_slot_request := -1
+var ab_slot_resolved := -1
+var lineup_slots: Array = []
 var esc_prev := false
 var menu_open := false
 var menu_i := 0
@@ -812,6 +836,15 @@ func _fill_variant(target: Node3D, key: String, spec: Dictionary) -> Dictionary:
 	return res
 
 func _ready() -> void:
+	var startup_args := OS.get_cmdline_user_args()
+	if "static_export_worker" in startup_args:
+		set_process(false)
+		set_physics_process(false)
+		call_deferred("_run_static_export_worker", startup_args)
+		return
+	var startup_usec := Time.get_ticks_usec()
+	track_storage = TRACK_STORAGE_SCRIPT.new()
+	track_storage.ensure_root()
 	_load_cfg()
 	var ua := OS.get_cmdline_user_args()
 	shot_mode = "shot" in ua
@@ -834,6 +867,29 @@ func _ready() -> void:
 		if a.begins_with("bot="): soak_bot = int(a.substr(4))
 		if a.begins_with("soakv="): soak_vmax = float(a.substr(6))
 		if a.begins_with("soakmax="): soak_max = float(a.substr(8))
+		if a.begins_with("track_source=") or a.begins_with("track_mode="):
+			var track_arg := a.get_slice("=", 1).to_upper()
+			cfg["track_mode"] = "STATIC" if track_arg == "STATIC" else "GENERATED"
+			cfg["track_source"] = "Static" if track_arg == "STATIC" else "Generated"
+	static_mode = String(cfg.get("track_mode", "GENERATED")) == "STATIC"
+	active_static_track_id = String(cfg.get("track_id", "")) if static_mode else ""
+	static_unavailable = false
+	static_track_error = ""
+	static_track_root = ""
+	if static_mode:
+		var selected_track: Dictionary = track_storage.get_track(String(cfg.get("track_id", "")))
+		if bool(selected_track.get("ok", false)): static_track_root = String(selected_track["root"])
+		else:
+			static_unavailable = true
+			static_track_error = String(selected_track.get("error", "Static-трасса не выбрана"))
+			static_mode = false
+	for a in ua:
+		if a.begins_with("ab_slot="): ab_slot_request = int(a.substr(8))
+	if static_mode and not STATIC_TRACK_RUNTIME.has_export(static_track_root):
+		static_unavailable = true
+		static_mode = false
+		static_track_error = "Выбранная Static-трасса отсутствует или повреждена. Выберите другую в разделе «Трассы»."
+		push_warning(static_track_error)
 	ship_id = clampi(int(cfg.get("ship", 0)), 0, SHIP_NAMES.size() - 1)
 	var has_shot := false
 	for a2 in ua: if a2.begins_with("uishot="): has_shot = true
@@ -850,21 +906,46 @@ func _ready() -> void:
 	await _lt(0.02, "Шейдеры")
 	_make_shaders()
 	_setup_input()
+	performance_diag = PERFORMANCE_DIAGNOSTICS.new()
+	performance_diag.name = "PerformanceDiagnostics"
+	add_child(performance_diag)
+	performance_diag.configure(self)
 	await _lt(0.04, "Трасса")
+	var track_started := Time.get_ticks_usec()
 	_build_track()
+	track_generation_ms = float(Time.get_ticks_usec() - track_started) / 1000.0
 	await _lt(0.08, "Мир")
 	_build_world()
+	if static_mode:
+		static_runtime = STATIC_TRACK_RUNTIME.new()
+		static_runtime.name = "StaticTrackRuntime"
+		add_child(static_runtime)
+		var presentation_started := Time.get_ticks_usec()
+		if static_runtime.load_presentation(terr_mat, static_track_root):
+			presentation_load_ms = float(Time.get_ticks_usec() - presentation_started) / 1000.0
+		else:
+			static_unavailable = true
+			static_track_error = "Не удалось загрузить выбранную Static-трассу. Выберите другую в разделе «Трассы»."
+			static_mode = false
+			static_runtime.queue_free(); static_runtime = null
 	await _lt(0.10, "Ваш корабль")
 	_build_ship()
 	await _lt(0.30, "Рельеф")
 	if evo_mode: _preload_evo()
-	else: _preload_chunks()
+	else:
+		var terrain_load_started := Time.get_ticks_usec()
+		_preload_chunks()
+		if not static_mode: generated_preload_ms = float(Time.get_ticks_usec() - terrain_load_started) / 1000.0
 	await _spawn_bots()
+	if static_mode and static_runtime != null:
+		static_runtime.configure(ship, terr_mat)
+	initial_track_load_ms = float(Time.get_ticks_usec() - startup_usec) / 1000.0
+	performance_diag.announce_startup_complete()
 	await _lt(0.94, "Интерфейс")
 	_build_arches()
 	_build_cut_props()
 	_build_hud()
-	if not evo_mode: _log_open()
+	if not evo_mode and "no_flight_log" not in ua: _log_open()
 	cam = Camera3D.new(); cam.far = 90000.0; cam.fov = 70.0; add_child(cam)
 	_reset()
 	if evo_mode: ship.freeze = true; ship.global_position = Vector3(300000.0, 1000.0, 300000.0)
@@ -872,17 +953,93 @@ func _ready() -> void:
 		if ua2.begins_with("uishot="): ui_shot = ua2.substr(7)
 		if ua2.begins_with("tourc="): tour_c = int(ua2.substr(6))
 	if soak: _soak_begin()
-	elif not (evo_mode or test_mode or shot_mode or ui_shot != "" or Engine.has_meta("skip_menu")):
+	elif not (evo_mode or test_mode or shot_mode or ui_shot != "" or (Engine.has_meta("skip_menu") and not static_unavailable)):
 		ui.open_menu()
 		if Engine.has_meta("menu_sel"): ui.sel = int(Engine.get_meta("menu_sel")); Engine.remove_meta("menu_sel"); ui._refresh_items()
+		if static_unavailable and not static_track_error.is_empty(): ui._toast(static_track_error)
 	elif Engine.has_meta("skip_menu") and music_ok(): begin_intro()
 	if use_loading:
 		loading.progress(1.0, "Готово"); loading.finish(); print("LOADED t=", Time.get_ticks_msec())
 		set_process(true); set_physics_process(true)
 
+func _run_static_export_worker(args: PackedStringArray) -> void:
+	var job_config := {"mode": "full", "profile": "production", "seed": 11, "length_km": 650.0}
+	for arg in args:
+		if arg.begins_with("out="): job_config["out"] = arg.substr(4)
+		elif arg.begins_with("status="): job_config["progress_path"] = arg.substr(7)
+		elif arg.begins_with("cancel="): job_config["cancel_path"] = arg.substr(7)
+		elif arg.begins_with("source="): job_config["source"] = arg.substr(7)
+		elif arg.begins_with("mode="): job_config["mode"] = arg.substr(5)
+		elif arg.begins_with("profile="): job_config["profile"] = arg.substr(8)
+		elif arg.begins_with("seed="): job_config["seed"] = int(arg.substr(5))
+		elif arg.begins_with("len="): job_config["length_km"] = float(arg.substr(4))
+		elif arg.begins_with("track_id="): job_config["track_id"] = arg.substr(9)
+		elif arg.begins_with("name_b64="): job_config["name"] = Marshalls.base64_to_utf8(arg.substr(9))
+	if not job_config.has("out"):
+		job_config["out"] = "user://tracks/track_%d_%d" % [int(job_config["seed"]), Time.get_ticks_msec()]
+	var job = STATIC_TRACK_EXPORT_JOB.new()
+	var result: Dictionary = await job.run(job_config, self)
+	print("STATIC_EXPORT_WORKER_FINISHED ", JSON.stringify(result))
+	get_tree().quit(int(result.get("exit_code", 2)))
+
+func start_track_export(name: String, seed_value: int, length_km: float) -> Dictionary:
+	if track_worker_pid > 0 and OS.is_process_running(track_worker_pid): return {"ok": false, "error": "Генерация уже выполняется"}
+	if track_storage.has_live_worker(): return {"ok": false, "error": "Найдена другая активная генерация. Дождитесь её завершения."}
+	var track_id := track_storage.next_track_id()
+	var jobs_root := "user://tracks/.jobs"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(jobs_root))
+	var status_path := jobs_root.path_join(track_id + ".json")
+	var cancel_path := jobs_root.path_join(track_id + ".cancel")
+	var final_root := track_storage.track_root(track_id)
+	var args := PackedStringArray(["--headless"])
+	if OS.has_feature("editor"):
+		args.append("--path"); args.append(ProjectSettings.globalize_path("res://"))
+	args.append_array(PackedStringArray(["--", "static_export_worker", "out=" + final_root, "status=" + status_path, "cancel=" + cancel_path, "mode=full", "profile=production", "seed=" + str(seed_value), "len=" + str(length_km), "track_id=" + track_id, "name_b64=" + Marshalls.utf8_to_base64(name)]))
+	track_worker_pid = OS.create_process(OS.get_executable_path(), args, false)
+	if track_worker_pid < 0:
+		track_worker_pid = -1
+		return {"ok": false, "error": "Не удалось запустить процесс генерации"}
+	track_worker_id = track_id
+	track_worker_status = "Запуск генерации…"
+	track_worker_cancel_path = cancel_path
+	track_worker_poll = 0.0
+	var initial_status := FileAccess.open(status_path, FileAccess.WRITE)
+	if initial_status != null:
+		initial_status.store_string(JSON.stringify({"status": "starting", "worker_pid": track_worker_pid, "completed_chunks": 0, "total_chunks": 0, "message": "Запуск генератора"}) + "\n")
+		initial_status.close()
+	return {"ok": true, "track_id": track_id}
+
+func cancel_track_export() -> void:
+	if track_worker_pid <= 0: return
+	var file := FileAccess.open(track_worker_cancel_path, FileAccess.WRITE)
+	if file != null: file.store_string("cancel\n"); file.close()
+	track_worker_status = "Отмена: ожидаю безопасного завершения чанка…"
+
+func poll_track_export(dt: float) -> Dictionary:
+	if track_worker_pid <= 0: return {}
+	track_worker_poll += dt
+	if track_worker_poll < 0.2: return {"running": true, "message": track_worker_status}
+	track_worker_poll = 0.0
+	var status_path := "user://tracks/.jobs".path_join(track_worker_id + ".json")
+	if FileAccess.file_exists(status_path):
+		var status_parser := JSON.new()
+		if status_parser.parse(FileAccess.get_file_as_string(status_path)) == OK and status_parser.data is Dictionary:
+			track_worker_status = JSON.stringify(status_parser.data)
+	var running := OS.is_process_running(track_worker_pid)
+	if not running:
+		track_worker_pid = -1
+		var status: Dictionary = {}
+		if FileAccess.file_exists(status_path):
+			var final_parser := JSON.new()
+			if final_parser.parse(FileAccess.get_file_as_string(status_path)) == OK and final_parser.data is Dictionary: status = final_parser.data
+		if str(status.get("status", "")) == "ready":
+			return {"running": false, "status": "ready", "track_id": track_worker_id}
+		return {"running": false, "status": str(status.get("status", "interrupted")), "message": str(status.get("message", "Генерация завершилась без готовой трассы")), "track_id": track_worker_id}
+	return {"running": true, "message": track_worker_status}
+
 func _setup_input() -> void:
 	if InputMap.has_action("cam"): return                     # после перезагрузки сцены действия уже есть
-	var m := {"cam": keys["cam"], "grav": keys["grav"], "assist": keys["assist"], "detach": keys["detach"], "boom": keys["boom"], "reset": keys["reset"], "unstick": keys["unstick"], "interior": keys["interior"], "lights": keys["lights"], "scheme": KEY_F2, "menu": KEY_F3, "tech": KEY_F4, "mark": KEY_F5, "help": KEY_F1}
+	var m := {"cam": keys["cam"], "grav": keys["grav"], "assist": keys["assist"], "detach": keys["detach"], "boom": keys["boom"], "reset": keys["reset"], "unstick": keys["unstick"], "interior": keys["interior"], "lights": keys["lights"], "scheme": KEY_F2, "menu": KEY_ESCAPE, "tech": KEY_F6, "mark": KEY_F5, "help": KEY_F1}
 	for a in m:
 		InputMap.add_action(a)
 		var ev := InputEventKey.new(); ev.physical_keycode = m[a]; InputMap.action_add_event(a, ev)
@@ -1449,6 +1606,9 @@ func _exit_tree() -> void:
 	chunk_jobs.clear()
 
 func _preload_chunks() -> void:
+	if static_mode:
+		print("STATIC collision streaming enabled; generated tiles skipped")
+		return
 	var t0 := Time.get_ticks_msec()
 	job_cap = 1000000
 	var ids := []
@@ -1490,7 +1650,21 @@ func _spawn_bots() -> void:                                                  # �
 	for r in GRID_ROWS:
 		for c in cols: slots.append(Vector2i(c, r))
 	slots = slots.slice(0, n_all)                                      # ряды заполняются подряд: свободное место только в конце последнего ряда
-	slots.shuffle()                                                    # жеребьёвка: кто на каком месте
+	if Engine.has_meta("track_source_lineup"):
+		slots = Engine.get_meta("track_source_lineup")
+		Engine.remove_meta("track_source_lineup")
+		if slots.size() > 0:
+			var start_col := clampi(roundi(float(slots[0].x) + float(cols - 1) * 0.5), 0, cols - 1)
+			var start_row := clampi(roundi(float(slots[0].y - START_ALT) / GRID_DY), 0, GRID_ROWS - 1)
+			ab_slot_resolved = start_row * cols + start_col
+	elif ab_slot_request >= 0:
+		ab_slot_resolved = clampi(ab_slot_request, 0, slots.size() - 1)
+		var requested_start: Vector2i = slots[ab_slot_resolved]
+		slots.remove_at(ab_slot_resolved)
+		slots.insert(0, requested_start)
+	else:
+		slots.shuffle()                                                    # жеребьёвка: кто на каком месте
+	lineup_slots = slots.duplicate()
 	var off := 0
 	if not evo_mode: player_start = _grid_pos(slots[0], cols); off = 1
 	var hull_inst := ship_scene.instantiate()
@@ -2491,7 +2665,7 @@ func _help_text() -> String:
 	var kb := "КЛАВИАТУРА: W газ (тяговые, тормоза нет) | Space/Ctrl форсаж/замедление взлётных | стрелки тангаж+рыскание, Q/E крен | I/K/J/L вектор маневровых, Shift усиление\n"
 	var s1 := "ГЕЙПАД (схема 1): RT газ | RB/LB... см. ниже | левый стик: тангаж+рыскание (толкает хвост) | правый стик: отдача маневровых (стик вправо = струи влево) | LB/RB крен, LT усиление | D-pad вверх/вниз: форсаж/замедление взлётных\n"
 	var s2 := "ГЕЙПАД (схема 2): RT газ | левый стик: левые маневровые (вперёд-назад, вправо = вверх) | правый стик: правые | LT усиление | RB/LB форсаж/замедление взлётных | A гироскоп-стабилизация\n"
-	return kb + (s1 if scheme == 0 else s2) + "F2/Y переключить схему | V/R3 камера | T/A стабилизация | G гравитация | X оторвать | Z оторвать всё | R/Start сброс | H интерьер | F3/Esc/L3 настройки управления (инверсии) | F1 скрыть подсказку"
+	return kb + (s1 if scheme == 0 else s2) + "F2/Y переключить схему | V/R3 камера | T/A стабилизация | G гравитация | X оторвать | Z оторвать всё | R/Start сброс | H интерьер | F3 диагностика | Esc/L3 меню | F1 скрыть подсказку"
 
 func _reset() -> void:
 	for d in debris: if is_instance_valid(d): d.queue_free()
@@ -2517,6 +2691,10 @@ func _load_cfg() -> void:
 	_load_pad(cf if has_cf else null)
 	if not has_cf: return
 	for k in cfg: cfg[k] = cf.get_value("controls", k, cfg[k])
+	if not cf.has_section_key("controls", "track_mode"):
+		cfg["track_mode"] = "STATIC" if String(cfg.get("track_source", "Generated")) == "Static" else "GENERATED"
+	if not cf.has_section_key("controls", "track_id"): cfg["track_id"] = ""
+	cfg["track_source"] = "Static" if String(cfg.get("track_mode", "GENERATED")) == "STATIC" else "Generated"
 	scheme = int(cf.get_value("controls", "scheme", scheme))
 	cam_mode = clampi(int(cfg["cam_view"]), 0, CAM_MODES.size() - 1)
 	
@@ -2581,6 +2759,8 @@ func _read_sig_file() -> String:
 func _save_cfg() -> void:
 	var cf := ConfigFile.new()
 	cfg["version"] = APP_VERSION # Принудительно пишем актуальную версию перед хэшированием
+	cfg["track_mode"] = "STATIC" if String(cfg.get("track_mode", "GENERATED")) == "STATIC" else "GENERATED"
+	cfg["track_source"] = "Static" if cfg["track_mode"] == "STATIC" else "Generated"
 	for k in cfg: cf.set_value("controls", k, cfg[k])
 	cf.set_value("controls", "scheme", scheme)
 	var sig := _progress_sig(); cf.set_value("controls", "sig", sig)
@@ -2602,10 +2782,10 @@ func _menu_text() -> String:
 		if key == "scheme": val = "схема %d" % (scheme + 1)
 		elif key == "level": val = LEVEL_NAMES[_lvl()]
 		elif key == "deadzone": val = "%.2f" % cfg[key]
-		elif key == "tech": val = "F4"
+		elif key == "tech": val = "F6"
 		else: val = "ВКЛ" if cfg[key] else "выкл"
 		t += ("▶ " if i == menu_i else "   ") + MENU_ITEMS[i][1] + "  [" + val + "]\n"
-	t += "\nВверх/вниз выбрать, Enter / A / вправо изменить, F3 / Esc / L3 закрыть"
+	t += "\nВверх/вниз выбрать, Enter / A / вправо изменить, Esc / L3 закрыть"
 	return t
 
 func _menu_step(dir: int) -> void:
@@ -3299,7 +3479,7 @@ func _process(dt: float) -> void:
 			if b["fin"] and float(b["fin_t"]) < p_fin_t: rank += 1
 		elif b["fin"] or _bot_progress(b) > pprog: rank += 1
 	chunk_tick += 1
-	if chunk_tick % 4 == 0: _update_chunks(6)
+	if not static_mode and chunk_tick % 4 == 0: _update_chunks(6)
 	else: _build_ready(6, 3500)
 	_depenetrate(dt)
 	_update_engines()
