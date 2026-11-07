@@ -166,7 +166,7 @@ func _ready() -> void:
 	marker_root = Control.new(); marker_root.set_anchors_preset(Control.PRESET_FULL_RECT); marker_root.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(marker_root); root.move_child(marker_root, 0)
 	_build_hud(); _build_menu(); _build_results()
 	call_deferred("_check_platform"); call_deferred("_check_derived"); call_deferred("_apply_tamper")
-	skin = MenuSkin.new(); root.add_child(skin); skin.visible = false
+	skin = MenuSkin.new(); root.add_child(skin); skin.route_map = hud.route_map; skin.visible = false
 	_show_state("hud")
 
 func _lbl(text: String, size: int, col: Color, parent: Control, pos := Vector2.ZERO) -> Label:
@@ -705,7 +705,7 @@ func _sync_skin() -> void:                                                 # д�
 		"main":
 			if state == "menu":
 				skin.mode = "main"
-				var bg_by_item := {"start": "bar", "track_mode": "space", "level": "port", "ship": "hangar", "achievements": "cabin", "settings": "engine", "about": "about", "exit": "exit"}
+				var bg_by_item := {"start": "bar", "track_mode": "track", "level": "port", "ship": "hangar", "achievements": "cabin", "settings": "engine", "about": "about", "exit": "exit"}
 				var selected_id := String(items[sel].get("id", "")) if items.size() > 0 else "start"
 				skin.bg_key = String(bg_by_item.get(selected_id, "bar"))
 				skin.card = {}
@@ -716,6 +716,8 @@ func _sync_skin() -> void:                                                 # д�
 				elif selected_id == "ship":
 					var sid: int = clampi(int(main.cfg.get("ship", 0)), 0, main.SHIP_NAMES.size() - 1)
 					skin.card = {"n": sid + 1, "total": main.SHIP_NAMES.size(), "name": main.SHIP_NAMES[sid], "slogan": main.SHIP_SLOGANS[sid], "desc": main.SHIP_DESC[sid], "pic": load("res://menu_v2/ship_%d.png" % sid)}
+				elif selected_id == "track_mode":
+					skin.card = {"race_len": float(main.race_len)}
 			else:
 				skin.mode = "pause"; skin.hint_btns = [bt.call("pad", "↑↓", "Выбор"), bt.call("A", "", "Выбрать"), bt.call("B", "", "Продолжить")]
 		"about":

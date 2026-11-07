@@ -20,6 +20,7 @@ const SKY := Color("2F6FC2")
 const EARTH := Color("8A5428")
 const GROUND := Color("4A3220")
 const TERRAIN := Color("C08A55")
+const ROUTE_MAP_VIEW := preload("res://route_map_view.gd")
 
 const CEIL_Y := 5350.0                                                       # потолок гонки (main.RIM_Y)
 const ALT_K := 0.168                                                         # px/м на ленте высоты
@@ -69,10 +70,11 @@ var horizon: Control
 var pa := 0.72                                                               # плотность подложек плашек (настройка «Прозрачность панелей»)
 var base_pos := {}                                                           # исходные позиции виджетов (до отступа от края)
 const ANCHOR := ["pos", "riv", "timer", "pace", "alt", "hp", "chip", "alarm", "spd", "att", "map", "msg"]   # виджеты, к которым применяется отступ от края
-var map_cache := {"id": 0, "pts": PackedVector2Array(), "s": PackedFloat32Array(), "cuts": [], "lo": Vector2(), "k": 1.0, "off": Vector2()}
+var route_map
 
 func setup(main_node: Node, ui_node: Node) -> void:
 	main = main_node; ui = ui_node
+	route_map = ROUTE_MAP_VIEW.new(); route_map.setup(main)
 	set_anchors_preset(Control.PRESET_FULL_RECT); mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for ua in OS.get_cmdline_user_args(): if ua.begins_with("hudmock="): mock_id = int(ua.substr(8))
 	_load_fonts(); _make_styles(); _make_hatch()
@@ -694,60 +696,31 @@ func _draw_chip(c: Control) -> void:
 	_txr(c, "m8", 15, _fmt_t(float(S.get("ztti", 0.0))), 266, 0, zc, 32)
 
 # ---------- 9. карта ----------
-func _map_build() -> void:                                                   # трасса от старта до финиша, вписанная в (24…256, 22…262)
-	var m = main
-	map_cache["id"] = m.trk_pts.size(); var pts := PackedVector2Array(); var ss := PackedFloat32Array()
-	var rl: float = float(m.race_len)
-	var step := 3
-	for i in range(0, m.trk_pts.size(), step):
-		if float(m.trk_s[i]) > rl: break
-		pts.append(m.trk_pts[i]); ss.append(m.trk_s[i])
-	var fin: Vector2 = m._track_at(minf(rl, float(m.trk_len) - 1.0))[0]
-	pts.append(fin); ss.append(rl)
-	var lo := Vector2(1e12, 1e12); var hi := Vector2(-1e12, -1e12)
-	for q in pts: lo = lo.min(q); hi = hi.max(q)
-	var sz := hi - lo; var area := Rect2(24, 40, 232, 222)
-	var k := minf(area.size.x / maxf(sz.x, 1.0), area.size.y / maxf(sz.y, 1.0))
-	map_cache["lo"] = lo; map_cache["k"] = k; map_cache["off"] = area.position + (area.size - sz * k) * 0.5
-	var out := PackedVector2Array()
-	for q in pts: out.append(_mp(q))
-	map_cache["pts"] = out; map_cache["s"] = ss
-	var cuts := []
-	for br in m.branches:
-		var bp: PackedVector2Array = br["pts"]; var o2 := PackedVector2Array()
-		for i in range(0, bp.size(), 2): o2.append(_mp(bp[i]))
-		o2.append(_mp(bp[bp.size() - 1])); cuts.append(o2)
-	map_cache["cuts"] = cuts
-
-func _mp(q: Vector2) -> Vector2: return (map_cache["off"] as Vector2) + (q - (map_cache["lo"] as Vector2)) * float(map_cache["k"])
-
 func _draw_map(c: Control) -> void:
-	if int(map_cache["id"]) != main.trk_pts.size() or (map_cache["pts"] as PackedVector2Array).size() < 2: _map_build()
-	var pts: PackedVector2Array = map_cache["pts"]
+	var map_data: Dictionary = route_map.geometry(Rect2(24, 40, 232, 222))
+	var pts: PackedVector2Array = map_data.get("pts", PackedVector2Array())
 	if pts.size() < 2: return
 	_plaque(c, Rect2(0, 0, 280, 280))
 	_tx(c, "g7", 11, "ТРАССА", 12, 12, STEEL, HORIZONTAL_ALIGNMENT_LEFT, -1, 13)
 	_tx(c, "m7", 13, "%d%%" % int(round(float(S.get("prog", 0.0)) * 100.0)), 12, 28, CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, 16)
-	var ss: PackedFloat32Array = map_cache["s"]; var pp := float(main.p_prog)
+	route_map.draw_backbone(c, map_data)
+	var ss: PackedFloat32Array = map_data["s"]; var pp := float(main.p_prog)
 	var ix := 0
 	while ix < ss.size() - 1 and ss[ix] < pp: ix += 1
-	var me := _mp(Vector2(main.ship.global_position.x, main.ship.global_position.z))
+	var me: Vector2 = route_map.project(Vector2(main.ship.global_position.x, main.ship.global_position.z), map_data)
 	if mock_id > 0: me = pts[mini(int(float(pts.size() - 1) * float(S.get("prog", 0.0))), pts.size() - 1)]
-	c.draw_polyline(pts, Color(INK, 0.6), 6.0, true)
 	var done := pts.slice(0, ix + 1)
 	if ix > 0: done.append(me)
 	if done.size() > 1: c.draw_polyline(done, Color(STEEL, 0.55), 3.0, true)
 	var rest := PackedVector2Array([me]); rest.append_array(pts.slice(ix))
 	if rest.size() > 1: c.draw_polyline(rest, CREAM, 3.0, true)
-	for cp in map_cache["cuts"]: _dashed(c, cp as PackedVector2Array, ORANGE, 3.0, 5.0, 3.0, false)
+	route_map.draw_branches(c, map_data)
 	for bt in main.bots:
-		var bp := _mp(Vector2((bt["rb"] as RigidBody3D).global_position.x, (bt["rb"] as RigidBody3D).global_position.z))
+		var bp: Vector2 = route_map.project(Vector2((bt["rb"] as RigidBody3D).global_position.x, (bt["rb"] as RigidBody3D).global_position.z), map_data)
 		c.draw_circle(bp, 5.0, INK); c.draw_circle(bp, 3.5, STEEL)
-	var st := pts[0]; _line2(c, st + Vector2(-7, 0), st + Vector2(7, 0), WHITE, 3.0)
+	var st: Vector2 = map_data["start"]; route_map.draw_start(c, map_data)
 	_tx(c, "g7", 11, "СТАРТ", st.x + 12, st.y - 6, STEEL, HORIZONTAL_ALIGNMENT_LEFT, -1, 13)
-	var fin := pts[pts.size() - 1]
-	c.draw_circle(fin, 8.5, WHITE); c.draw_circle(fin, 6.5, DANGER)
-	c.draw_rect(Rect2(fin.x - 2.5, fin.y - 2.5, 2.5, 2.5), WHITE); c.draw_rect(Rect2(fin.x, fin.y, 2.5, 2.5), WHITE)
+	var fin: Vector2 = map_data["finish"]; route_map.draw_finish(c, map_data)
 	_tx(c, "g7", 11, "ФИНИШ", fin.x + 12, fin.y - 6, CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, 13)
 	var fwd: Vector3 = -main.ship.global_transform.basis.z
 	var u := Vector2(fwd.x, fwd.z).normalized() if mock_id == 0 else (pts[mini(ix + 1, pts.size() - 1)] - pts[ix]).normalized()

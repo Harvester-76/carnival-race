@@ -7,19 +7,21 @@ extends Control
 const ICE := Color("E8F0FF")
 const ORANGE := Color("FF8A1E")
 const STEEL := Color("93A9D9")
+const CREAM := Color("F7E6BF")
+const CYAN := Color("8CD9F2")
 const NIGHT := Color("0A1024")
 const DEEP := Color("02040C")
 const ASH := Color("5C6B94")
 const SOFT := Color("BFCCEB")
 const INK := Color("060A18")
 const RUST := Color("C24E00")
-const BG_FILES := {"bar": "bar", "port": "porthole", "hangar": "hangar", "cabin": "cabin", "engine": "engine", "about": "about", "exit": "exit", "space": "space", "corridor": "corridor"}
+const BG_FILES := {"bar": "bar", "port": "porthole", "hangar": "hangar", "cabin": "cabin", "engine": "engine", "about": "about", "exit": "exit", "space": "space", "corridor": "corridor", "track": "race_canyon"}
 const PAPER := Color("F8EBD2")          # тёплая бумага билета
 const SAND := Color("EAD2A4")           # фон рисунка
 const COCOA := Color("2B1A0E")          # тёплые чернила
 const BG_FADE := 0.30                   # смена фона через затемнение, с
 const FLIP_T := 0.42                    # переворот карточки, с
-const MAIN_BG := ["bar", "port", "hangar", "cabin", "engine", "about", "exit"]
+const MAIN_BG := ["bar", "port", "hangar", "cabin", "engine", "about", "exit", "track"]
 
 var f_title: Font
 var f_t6: Font
@@ -45,6 +47,7 @@ var res := {}                          # данные экрана резуль�
 var ach_row0 := 0                      # грамоты: первый видимый ряд и плавное положение прокрутки
 var ach_off := 0.0
 var padmap := {}                       # данные экрана «Кнопки геймпада» (заполняет demo_ui)
+var route_map                         # общий RouteMapView, также используемый HUD
 var bg_cur := ""                       # фон главного меню: текущий / предыдущий и момент смены
 var bg_prev := ""
 var bg_t0 := -10.0
@@ -527,7 +530,8 @@ func _draw() -> void:
 
 func _main_bg(key: String, k: float) -> void:                              # фон пункта главного меню; k — яркость картинки (для затемнения)
 	var m := Color(k, k, k, 1.0)
-	if key == "port": _bg_img("port", 1.0, m); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.02, 0.03, 0.07, 0.7)], [0.45, Color(0.02, 0.03, 0.07, 0.35)], [0.65, Color(0.02, 0.03, 0.07, 0.0)]])
+	if key == "track": _bg_img("track", 0.5, m); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.012, 0.024, 0.063, 0.76)], [0.32, Color(0.012, 0.024, 0.063, 0.60)], [0.53, Color(0.012, 0.024, 0.063, 0.20)], [0.72, Color(0.012, 0.024, 0.063, 0.0)]])
+	elif key == "port": _bg_img("port", 1.0, m); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.02, 0.03, 0.07, 0.7)], [0.45, Color(0.02, 0.03, 0.07, 0.35)], [0.65, Color(0.02, 0.03, 0.07, 0.0)]])
 	elif key == "hangar": _bg_img("hangar", 1.0, m); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.02, 0.03, 0.07, 0.7)], [0.45, Color(0.02, 0.03, 0.07, 0.35)], [0.65, Color(0.02, 0.03, 0.07, 0.0)]])
 	elif key == "bar": _bg_img("bar", 0.5, m); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.012, 0.024, 0.063, 0.94)], [0.3, Color(0.012, 0.024, 0.063, 0.86)], [0.52, Color(0.012, 0.024, 0.063, 0.45)], [0.7, Color(0.012, 0.024, 0.063, 0.0)]])
 	else: _bg_img(key, 0.5, m); _grad_h(Rect2(0, 0, 1600, 900), [[0.0, Color(0.012, 0.024, 0.063, 0.92)], [0.34, Color(0.012, 0.024, 0.063, 0.8)], [0.6, Color(0.012, 0.024, 0.063, 0.3)], [0.75, Color(0.012, 0.024, 0.063, 0.0)]])
@@ -549,7 +553,25 @@ func _draw_main() -> void:
 	_rows(104, 360, 820, 52, 32, 4.0, 800.0)
 	if bg_key == "port": _card_ticket()
 	elif bg_key == "hangar": _card_ship()
+	elif bg_key == "track": _card_track()
 	_hint_bar(924.0, 756.0, "")
+
+func _card_track() -> void:
+	var panel := Rect2(1018, 136, 520, 650)
+	_box(panel.grow(5.0), Color(CYAN.r, CYAN.g, CYAN.b, 0.035), Color(0, 0, 0, 0), 0, 12)
+	_box(panel, Color(INK.r, INK.g, INK.b, 0.82), Color(CYAN.r, CYAN.g, CYAN.b, 0.7), 2, 10)
+	_box(Rect2(panel.position.x + 24, panel.position.y + 22, 54, 4), ORANGE, Color(0, 0, 0, 0), 0, 2)
+	_txt(f_t8, Vector2(panel.position.x + 28, panel.position.y + 54), "ТРАССА", 25, STEEL)
+	_txt(f_title, Vector2(panel.position.x + 28, panel.position.y + 99), "СХЕМА МАРШРУТА", 29, ICE)
+	draw_line(Vector2(panel.position.x + 28, panel.position.y + 122), Vector2(panel.end.x - 28, panel.position.y + 122), Color(CYAN, 0.35), 1.0, true)
+	if route_map != null:
+		route_map.draw_overview(self, Rect2(panel.position.x + 34, panel.position.y + 144, panel.size.x - 68, 390))
+	var sep_y := panel.end.y - 94.0
+	draw_line(Vector2(panel.position.x + 28, sep_y), Vector2(panel.end.x - 28, sep_y), Color(CYAN, 0.32), 1.0, true)
+	_txt(f_t6, Vector2(panel.position.x + 30, sep_y + 29), "ДИСТАНЦИЯ ГОНКИ", 17, STEEL)
+	var distance_km := int(round(float(card.get("race_len", 0.0)) / 1000.0))
+	_txt(f_t8, Vector2(panel.end.x - 30, sep_y + 32), "%d КМ" % distance_km, 22, CREAM, HORIZONTAL_ALIGNMENT_RIGHT, 180.0)
+	_txt(f_t4, Vector2(panel.position.x + 30, panel.end.y - 34), "Схема полного маршрута", 15, Color(STEEL, 0.82))
 
 func _settings_bg(k: float) -> void:                                          # фон настроек: картинка пункта «Настройки» главного меню, сильно затемнённая
 	draw_rect(Rect2(0, 0, 1600, 900), Color.BLACK)
