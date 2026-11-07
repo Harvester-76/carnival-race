@@ -1,7 +1,7 @@
 extends Node3D
 class_name StaticTrackRuntime
 
-const ROOT := ""
+const ROOT := "user://tracks/track_seed11_650km"
 const VALIDATOR := preload("res://static_track_pipeline/static_track_runtime_validator.gd")
 const PRESENTATION_SUBDIR := "presentation/base"
 const COLLISION_SUBDIR := "collision/chunk_2000"
@@ -13,18 +13,8 @@ const PREFETCH_SECONDS := 2.5
 const MAX_LOAD_PER_TICK := 3
 const UPDATE_INTERVAL := 0.15
 
-static func _read_manifest(root: String) -> Dictionary:
-	for name in ["track.json", "fixture.json"]:
-		var path := root.path_join(name)
-		if not FileAccess.file_exists(path): continue
-		var parser := JSON.new()
-		if parser.parse(FileAccess.get_file_as_string(path)) != OK: continue
-		var parsed = parser.data
-		if parsed is Dictionary: return parsed
-	return {}
-
 static func has_export(root := ROOT) -> bool:
-	if root.is_empty() or root.contains(".building"): return false
+	if root != ROOT or root.contains(".building"): return false
 	return bool(VALIDATOR.validate_directory(root).get("ok", false))
 
 static func _ply_count(path: String) -> int:

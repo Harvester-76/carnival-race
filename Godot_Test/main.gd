@@ -7,7 +7,6 @@ extends Node3D
 const APP_VERSION := "0.1.2"
 const STATIC_TRACK_RUNTIME := preload("res://static_track_runtime.gd")
 const PERFORMANCE_DIAGNOSTICS := preload("res://performance_diagnostics.gd")
-const STATIC_TRACK_EXPORT_JOB := preload("res://static_track_pipeline/static_track_export_job.gd")
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
 const DETACH_PREFIX := ["SM_Engine_", "SM_Wing_", "SM_Spotlight_", "SM_Glass_", "SM_Hatch_", "SM_Foot_"]
 const CAM_MODES := ["chase", "far", "side", "free", "right", "cockpit"]
@@ -336,8 +335,7 @@ var static_track_error := ""
 var track_worker_pid := -1
 var track_worker_id := ""
 var track_worker_status := ""
-var track_worker_cancel_path := ""
-var track_worker_poll := 0.0
+var track_worker_poll := 0
 var performance_diag: Node
 var track_generation_ms := 0.0
 var generated_preload_ms := 0.0
@@ -348,6 +346,7 @@ var ab_slot_resolved := -1
 var lineup_slots: Array = []
 var esc_prev := false
 var menu_open := false
+var reload_in_progress := false
 var menu_i := 0
 var menu_label: Label
 const N_BOTS := 11
@@ -789,14 +788,22 @@ func _lt(f: float, txt: String) -> void:                                    # э
 	await get_tree().process_frame
 
 func _reload_game() -> void:                                                # перезагрузка сцены с экраном загрузки (перезапуск, возврат в меню, смена корабля)
+	if reload_in_progress: return
+	var scene_tree := get_tree()
+	if scene_tree == null:
+		push_error("Cannot reload game scene: main node is outside the SceneTree")
+		return
+	reload_in_progress = true
 	set_process(false); set_physics_process(false)
-	if not use_loading: get_tree().reload_current_scene.call_deferred(); return
+	if not use_loading: scene_tree.reload_current_scene.call_deferred(); return
 	print("RELOAD t=", Time.get_ticks_msec())
 	var ld := _loading_node()
-	await get_tree().process_frame
+	await scene_tree.process_frame
+	if not is_inside_tree(): return
 	ld.begin(reload_title)
-	await get_tree().process_frame; await get_tree().process_frame
-	get_tree().reload_current_scene()
+	await scene_tree.process_frame; await scene_tree.process_frame
+	if not is_inside_tree(): return
+	scene_tree.reload_current_scene()
 
 # Корпуса с вариациями строятся долго (разрезание сетки в GDScript), поэтому готовый набор частей хранится в Engine и копируется при перезагрузке сцены
 func _fill_variant(target: Node3D, key: String, spec: Dictionary) -> Dictionary:
@@ -837,10 +844,12 @@ func _fill_variant(target: Node3D, key: String, spec: Dictionary) -> Dictionary:
 
 func _ready() -> void:
 	var startup_args := OS.get_cmdline_user_args()
-	if "static_export_worker" in startup_args:
+	if "static_install_worker" in startup_args:
 		set_process(false)
 		set_physics_process(false)
-		call_deferred("_run_static_export_worker", startup_args)
+		track_storage = TRACK_STORAGE_SCRIPT.new()
+		track_storage.ensure_root()
+		call_deferred("_run_static_install_worker", startup_args)
 		return
 	var startup_usec := Time.get_ticks_usec()
 	track_storage = TRACK_STORAGE_SCRIPT.new()
@@ -872,12 +881,13 @@ func _ready() -> void:
 			cfg["track_mode"] = "STATIC" if track_arg == "STATIC" else "GENERATED"
 			cfg["track_source"] = "Static" if track_arg == "STATIC" else "Generated"
 	static_mode = String(cfg.get("track_mode", "GENERATED")) == "STATIC"
-	active_static_track_id = String(cfg.get("track_id", "")) if static_mode else ""
+	cfg["track_id"] = track_storage.STATIC_TRACK_ID
+	active_static_track_id = track_storage.STATIC_TRACK_ID if static_mode else ""
 	static_unavailable = false
 	static_track_error = ""
 	static_track_root = ""
 	if static_mode:
-		var selected_track: Dictionary = track_storage.get_track(String(cfg.get("track_id", "")))
+		var selected_track: Dictionary = track_storage.installed_track()
 		if bool(selected_track.get("ok", false)): static_track_root = String(selected_track["root"])
 		else:
 			static_unavailable = true
@@ -888,7 +898,7 @@ func _ready() -> void:
 	if static_mode and not STATIC_TRACK_RUNTIME.has_export(static_track_root):
 		static_unavailable = true
 		static_mode = false
-		static_track_error = "Выбранная Static-трасса отсутствует или повреждена. Выберите другую в разделе «Трассы»."
+		static_track_error = "Установленная Static-трасса отсутствует или повреждена."
 		push_warning(static_track_error)
 	ship_id = clampi(int(cfg.get("ship", 0)), 0, SHIP_NAMES.size() - 1)
 	var has_shot := false
@@ -925,7 +935,7 @@ func _ready() -> void:
 			presentation_load_ms = float(Time.get_ticks_usec() - presentation_started) / 1000.0
 		else:
 			static_unavailable = true
-			static_track_error = "Не удалось загрузить выбранную Static-трассу. Выберите другую в разделе «Трассы»."
+			static_track_error = "Не удалось загрузить установленную Static-трассу. Повторная установка не завершена."
 			static_mode = false
 			static_runtime.queue_free(); static_runtime = null
 	await _lt(0.10, "Ваш корабль")
@@ -956,70 +966,53 @@ func _ready() -> void:
 	elif not (evo_mode or test_mode or shot_mode or ui_shot != "" or (Engine.has_meta("skip_menu") and not static_unavailable)):
 		ui.open_menu()
 		if Engine.has_meta("menu_sel"): ui.sel = int(Engine.get_meta("menu_sel")); Engine.remove_meta("menu_sel"); ui._refresh_items()
-		if static_unavailable and not static_track_error.is_empty(): ui._toast(static_track_error)
 	elif Engine.has_meta("skip_menu") and music_ok(): begin_intro()
 	if use_loading:
 		loading.progress(1.0, "Готово"); loading.finish(); print("LOADED t=", Time.get_ticks_msec())
 		set_process(true); set_physics_process(true)
 
-func _run_static_export_worker(args: PackedStringArray) -> void:
-	var job_config := {"mode": "full", "profile": "production", "seed": 11, "length_km": 650.0}
+func _run_static_install_worker(args: PackedStringArray) -> void:
+	var status_path := "user://tracks/.jobs/static_seed11_install.json"
+	var cancel_path := "user://tracks/.jobs/static_seed11_install.cancel"
 	for arg in args:
-		if arg.begins_with("out="): job_config["out"] = arg.substr(4)
-		elif arg.begins_with("status="): job_config["progress_path"] = arg.substr(7)
-		elif arg.begins_with("cancel="): job_config["cancel_path"] = arg.substr(7)
-		elif arg.begins_with("source="): job_config["source"] = arg.substr(7)
-		elif arg.begins_with("mode="): job_config["mode"] = arg.substr(5)
-		elif arg.begins_with("profile="): job_config["profile"] = arg.substr(8)
-		elif arg.begins_with("seed="): job_config["seed"] = int(arg.substr(5))
-		elif arg.begins_with("len="): job_config["length_km"] = float(arg.substr(4))
-		elif arg.begins_with("track_id="): job_config["track_id"] = arg.substr(9)
-		elif arg.begins_with("name_b64="): job_config["name"] = Marshalls.base64_to_utf8(arg.substr(9))
-	if not job_config.has("out"):
-		job_config["out"] = "user://tracks/track_%d_%d" % [int(job_config["seed"]), Time.get_ticks_msec()]
-	var job = STATIC_TRACK_EXPORT_JOB.new()
-	var result: Dictionary = await job.run(job_config, self)
-	print("STATIC_EXPORT_WORKER_FINISHED ", JSON.stringify(result))
-	get_tree().quit(int(result.get("exit_code", 2)))
+		if arg.begins_with("status="): status_path = arg.substr(7)
+		elif arg.begins_with("cancel="): cancel_path = arg.substr(7)
+	var result: Dictionary = await track_storage.install_static_track(status_path, cancel_path, self)
+	print("STATIC_INSTALL_WORKER_FINISHED ", JSON.stringify(result))
+	get_tree().quit(0 if bool(result.get("ok", false)) else 2)
 
-func start_track_export(name: String, seed_value: int, length_km: float) -> Dictionary:
-	if track_worker_pid > 0 and OS.is_process_running(track_worker_pid): return {"ok": false, "error": "Генерация уже выполняется"}
-	if track_storage.has_live_worker(): return {"ok": false, "error": "Найдена другая активная генерация. Дождитесь её завершения."}
-	var track_id := track_storage.next_track_id()
+func start_static_install() -> Dictionary:
+	if track_worker_pid > 0 and OS.is_process_running(track_worker_pid): return {"ok": false, "error": "Установка уже выполняется."}
 	var jobs_root := "user://tracks/.jobs"
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(jobs_root))
-	var status_path := jobs_root.path_join(track_id + ".json")
-	var cancel_path := jobs_root.path_join(track_id + ".cancel")
-	var final_root := track_storage.track_root(track_id)
+	var mkdir_err := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(jobs_root))
+	if mkdir_err != OK: return {"ok": false, "error": "Не удалось создать каталог состояния установки (%d)." % mkdir_err}
+	var job_id := "static_seed11_install"
+	var status_path := jobs_root.path_join(job_id + ".json")
+	var cancel_path := jobs_root.path_join(job_id + ".cancel")
+	var stale_cancel := ProjectSettings.globalize_path(cancel_path)
+	if FileAccess.file_exists(stale_cancel): DirAccess.remove_absolute(stale_cancel)
+	var initial := FileAccess.open(status_path, FileAccess.WRITE)
+	if initial == null: return {"ok": false, "error": "Не удалось создать файл состояния установки (%d)." % FileAccess.get_open_error()}
+	initial.store_string(JSON.stringify({"status": "starting", "message": "Запуск StaticTrackExportJob", "completed_chunks": 0, "total_chunks": 0, "progress": 0.0}) + "\n")
+	initial.close()
 	var args := PackedStringArray(["--headless"])
 	if OS.has_feature("editor"):
 		args.append("--path"); args.append(ProjectSettings.globalize_path("res://"))
-	args.append_array(PackedStringArray(["--", "static_export_worker", "out=" + final_root, "status=" + status_path, "cancel=" + cancel_path, "mode=full", "profile=production", "seed=" + str(seed_value), "len=" + str(length_km), "track_id=" + track_id, "name_b64=" + Marshalls.utf8_to_base64(name)]))
+	args.append_array(PackedStringArray(["--", "static_install_worker", "status=" + status_path, "cancel=" + cancel_path]))
 	track_worker_pid = OS.create_process(OS.get_executable_path(), args, false)
 	if track_worker_pid < 0:
 		track_worker_pid = -1
-		return {"ok": false, "error": "Не удалось запустить процесс генерации"}
-	track_worker_id = track_id
-	track_worker_status = "Запуск генерации…"
-	track_worker_cancel_path = cancel_path
-	track_worker_poll = 0.0
-	var initial_status := FileAccess.open(status_path, FileAccess.WRITE)
-	if initial_status != null:
-		initial_status.store_string(JSON.stringify({"status": "starting", "worker_pid": track_worker_pid, "completed_chunks": 0, "total_chunks": 0, "message": "Запуск генератора"}) + "\n")
-		initial_status.close()
-	return {"ok": true, "track_id": track_id}
+		return {"ok": false, "error": "Не удалось запустить процесс установки."}
+	track_worker_id = job_id
+	track_worker_status = JSON.stringify({"status": "starting", "message": "Запуск StaticTrackExportJob", "completed_chunks": 0, "total_chunks": 0, "progress": 0.0})
+	track_worker_poll = 0
+	return {"ok": true}
 
-func cancel_track_export() -> void:
-	if track_worker_pid <= 0: return
-	var file := FileAccess.open(track_worker_cancel_path, FileAccess.WRITE)
-	if file != null: file.store_string("cancel\n"); file.close()
-	track_worker_status = "Отмена: ожидаю безопасного завершения чанка…"
-
-func poll_track_export(dt: float) -> Dictionary:
+func poll_static_install(_dt: float) -> Dictionary:
 	if track_worker_pid <= 0: return {}
-	track_worker_poll += dt
-	if track_worker_poll < 0.2: return {"running": true, "message": track_worker_status}
-	track_worker_poll = 0.0
+	var now_ms := Time.get_ticks_msec()
+	if track_worker_poll > 0 and now_ms - track_worker_poll < 200: return {"running": true, "message": track_worker_status}
+	track_worker_poll = now_ms
 	var status_path := "user://tracks/.jobs".path_join(track_worker_id + ".json")
 	if FileAccess.file_exists(status_path):
 		var status_parser := JSON.new()
@@ -1033,8 +1026,8 @@ func poll_track_export(dt: float) -> Dictionary:
 			var final_parser := JSON.new()
 			if final_parser.parse(FileAccess.get_file_as_string(status_path)) == OK and final_parser.data is Dictionary: status = final_parser.data
 		if str(status.get("status", "")) == "ready":
-			return {"running": false, "status": "ready", "track_id": track_worker_id}
-		return {"running": false, "status": str(status.get("status", "interrupted")), "message": str(status.get("message", "Генерация завершилась без готовой трассы")), "track_id": track_worker_id}
+			return {"running": false, "status": "ready"}
+		return {"running": false, "status": str(status.get("status", "interrupted")), "message": str(status.get("message", "Установка завершилась без публикации трассы"))}
 	return {"running": true, "message": track_worker_status}
 
 func _setup_input() -> void:
