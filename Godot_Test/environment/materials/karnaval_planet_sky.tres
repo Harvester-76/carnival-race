@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" load_steps=7 format=3]
+[gd_resource type="ShaderMaterial" load_steps=8 format=3]
 
 [ext_resource type="Shader" path="res://environment/karnaval_sky.gdshader" id="1_shader"]
 [ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/sky_base_4096x2048.png" id="2_sky_base"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/clouds_near_mask_2048.png" id="4_clouds_near"]
 [ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/atmosphere_noise_1024.png" id="5_atmosphere_noise"]
 [ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/star_disc_1024.png" id="6_star_disc"]
+[ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/cloud_ring_cumulus_static_v3.png" id="7_cloud_ring"]
 
 [resource]
 shader = ExtResource("1_shader")
@@ -14,6 +15,7 @@ shader_parameter/clouds_far_mask = ExtResource("3_clouds_far")
 shader_parameter/clouds_near_mask = ExtResource("4_clouds_near")
 shader_parameter/atmosphere_noise = ExtResource("5_atmosphere_noise")
 shader_parameter/star_disc = ExtResource("6_star_disc")
+shader_parameter/cloud_ring_texture = ExtResource("7_cloud_ring")
 
 shader_parameter/sky_tint = Color(1, 0.8, 0.48, 1)
 shader_parameter/haze_strength = 0.65
@@ -46,8 +48,15 @@ shader_parameter/cloud_sky_opacity_near = 0.58
 shader_parameter/cloud_sky_opacity_detail = 0.14
 shader_parameter/cloud_cover_opacity_far = 0.55
 shader_parameter/cloud_cover_opacity_mid = 0.42
-shader_parameter/cloud_cover_opacity_near = 0.72
+shader_parameter/cloud_cover_opacity_near = 0.9
 shader_parameter/cloud_cover_opacity_detail = 0.32
+shader_parameter/cloud_ring_opacity = 0.66
+shader_parameter/cloud_ring_vertical_zoom = 1.0
+shader_parameter/cloud_ring_longitude_offset = 0.0
+shader_parameter/cloud_ring_rotation_speed = 0.002
+shader_parameter/cloud_ring_top_elevation = 0.43
+shader_parameter/cloud_ring_fade = 0.08
+shader_parameter/cloud_cover_opacity_ring = 0.94
 shader_parameter/cloud_far_offset = Vector2(0, 0)
 shader_parameter/cloud_mid_offset = Vector2(0, 0)
 shader_parameter/cloud_near_offset = Vector2(0, 0)

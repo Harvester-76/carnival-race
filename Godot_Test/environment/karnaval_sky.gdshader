@@ -5,6 +5,7 @@ uniform sampler2D clouds_far_mask : filter_linear, repeat_enable;
 uniform sampler2D clouds_near_mask : filter_linear, repeat_enable;
 uniform sampler2D atmosphere_noise : filter_linear, repeat_enable;
 uniform sampler2D star_disc : source_color, filter_linear, repeat_disable;
+uniform sampler2D cloud_ring_texture : source_color, filter_linear, repeat_disable;
 
 group_uniforms Atmosphere;
 uniform vec3 sky_tint : source_color = vec3(1.0, 0.8, 0.48);
@@ -41,6 +42,13 @@ uniform float cloud_cover_opacity_far : hint_range(0.0, 1.0, 0.001) = 0.55;
 uniform float cloud_cover_opacity_mid : hint_range(0.0, 1.0, 0.001) = 0.42;
 uniform float cloud_cover_opacity_near : hint_range(0.0, 1.0, 0.001) = 0.72;
 uniform float cloud_cover_opacity_detail : hint_range(0.0, 1.0, 0.001) = 0.32;
+uniform float cloud_ring_opacity : hint_range(0.0, 1.0, 0.001) = 0.66;
+uniform float cloud_ring_vertical_zoom : hint_range(1.0, 6.0, 0.01) = 1.0;
+uniform float cloud_ring_longitude_offset : hint_range(0.0, 1.0, 0.0001) = 0.0;
+uniform float cloud_ring_rotation_speed : hint_range(-0.001, 0.001, 0.00001) = 0.00005;
+uniform float cloud_ring_top_elevation : hint_range(0.05, 0.5, 0.001) = 0.43;
+uniform float cloud_ring_fade : hint_range(0.01, 0.3, 0.001) = 0.08;
+uniform float cloud_cover_opacity_ring : hint_range(0.0, 1.0, 0.001) = 0.94;
 uniform vec2 cloud_far_offset = vec2(0.0);
 uniform vec2 cloud_mid_offset = vec2(0.0);
 uniform vec2 cloud_near_offset = vec2(0.0);
@@ -66,6 +74,33 @@ float layer_density(float sample_value, float density) {
 	return smoothstep(threshold, threshold + softness, sample_value);
 }
 
+float cloud_ring_band(float elevation) {
+	float above_horizon = smoothstep(-0.18, -0.03, elevation);
+	float upper_fade = 1.0 - smoothstep(cloud_ring_top_elevation, cloud_ring_top_elevation + cloud_ring_fade, elevation);
+	return above_horizon * upper_fade;
+}
+
+vec2 cloud_ring_uv(vec3 direction) {
+	vec2 uv = direction_uv(normalize(direction));
+	uv.x = fract(uv.x + cloud_ring_longitude_offset);
+	uv.y = clamp(0.5 + (uv.y - 0.5) * cloud_ring_vertical_zoom, 0.0, 1.0);
+	return uv;
+}
+
+vec4 cloud_ring_sample(vec2 uv) {
+	float u = fract(uv.x);
+	vec4 sample_value = texture(cloud_ring_texture, vec2(u, uv.y));
+	// The generated panorama is not mathematically tileable. Blend its two
+	// longitude edges around the wrap point so the static cloud bank has no seam.
+	float seam_distance = min(u, 1.0 - u);
+	float seam_weight = 1.0 - smoothstep(0.0, 0.045, seam_distance);
+	vec4 edge_average = 0.5 * (
+		texture(cloud_ring_texture, vec2(0.97, uv.y)) +
+		texture(cloud_ring_texture, vec2(0.03, uv.y))
+	);
+	return mix(sample_value, edge_average, seam_weight);
+}
+
 vec2 cloud_uv(vec3 direction, float repeats, vec2 offset, float depth_km) {
 	// Spherical latitude/longitude keeps cloud proportions stable at the horizon.
 	// Integer repeats make the longitude wrap seamless; pole fading hides the
@@ -84,6 +119,7 @@ float cloud_cover(vec3 direction) {
 	vec2 mid_uv = cloud_uv(sample_direction, cloud_mid_repeats, cloud_mid_offset, cloud_mid_depth_km);
 	vec2 near_uv = cloud_uv(sample_direction, cloud_near_repeats, cloud_near_offset, cloud_near_depth_km);
 	vec2 detail_uv = cloud_uv(sample_direction, cloud_detail_repeats, cloud_detail_offset, cloud_detail_depth_km);
+	vec2 ring_uv = cloud_ring_uv(sample_direction);
 	float far_value = texture(clouds_far_mask, far_uv).r;
 	float near_value = texture(clouds_near_mask, near_uv).r;
 	float pole_fade = 1.0 - smoothstep(cloud_pole_fade_start, cloud_pole_fade_end, abs(sample_direction.y));
@@ -91,7 +127,8 @@ float cloud_cover(vec3 direction) {
 	float mid_cover = layer_density(texture(clouds_near_mask, mid_uv).r, cloud_mid_density) * cloud_cover_opacity_mid * pole_fade;
 	float near_cover = layer_density(near_value, cloud_near_density) * cloud_cover_opacity_near * pole_fade;
 	float detail_cover = layer_density(texture(clouds_far_mask, detail_uv).r, cloud_detail_density) * cloud_cover_opacity_detail * pole_fade;
-	return 1.0 - (1.0 - far_cover) * (1.0 - mid_cover) * (1.0 - near_cover) * (1.0 - detail_cover);
+	float ring_cover = cloud_ring_sample(ring_uv).a * cloud_cover_opacity_ring * cloud_ring_band(sample_direction.y);
+	return 1.0 - (1.0 - far_cover) * (1.0 - mid_cover) * (1.0 - near_cover) * (1.0 - detail_cover) * (1.0 - ring_cover);
 }
 
 void sky() {
@@ -110,15 +147,19 @@ void sky() {
 	vec2 mid_uv = cloud_uv(view_dir, cloud_mid_repeats, cloud_mid_offset, cloud_mid_depth_km);
 	vec2 near_uv = cloud_uv(view_dir, cloud_near_repeats, cloud_near_offset, cloud_near_depth_km);
 	vec2 detail_uv = cloud_uv(view_dir, cloud_detail_repeats, cloud_detail_offset, cloud_detail_depth_km);
+	vec2 ring_uv = cloud_ring_uv(view_dir);
 	float pole_fade = 1.0 - smoothstep(cloud_pole_fade_start, cloud_pole_fade_end, abs(view_dir.y));
 	float far_cover = layer_density(texture(clouds_far_mask, far_uv).r, cloud_far_density) * cloud_sky_opacity_far * pole_fade;
 	float mid_cover = layer_density(texture(clouds_near_mask, mid_uv).r, cloud_mid_density) * cloud_sky_opacity_mid * pole_fade;
 	float near_cover = layer_density(texture(clouds_near_mask, near_uv).r, cloud_near_density) * cloud_sky_opacity_near * pole_fade;
 	float detail_cover = layer_density(texture(clouds_far_mask, detail_uv).r, cloud_detail_density) * cloud_sky_opacity_detail * pole_fade;
+	vec4 ring_cloud = cloud_ring_sample(ring_uv);
+	float ring_cover = ring_cloud.a * cloud_ring_opacity * cloud_ring_band(view_dir.y);
 	float cover = 1.0 - (1.0 - far_cover) * (1.0 - mid_cover) * (1.0 - near_cover) * (1.0 - detail_cover);
 	float cloud_variation = 0.88 + noise_value * 0.18;
 	vec3 cloud_color = mix(haze_color, vec3(1.0, 0.68, 0.38), 0.26);
 	color = mix(color, cloud_color * cloud_variation, cover);
+	color = mix(color, ring_cloud.rgb, ring_cover);
 
 	// The directional-light built-in points from the scene toward the light
 	// source, so the visible star stays aligned with the actual scene sun.

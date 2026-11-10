@@ -44,6 +44,7 @@ func _ready() -> void:
 	sun.light_color = Color(1.0, 0.9, 0.75)
 	sun.light_energy = 1.3
 	add_child(sun)
+	controller.bind_sun_light(sun)
 	var camera := Camera3D.new()
 	camera.current = true
 	camera.far = 100000.0

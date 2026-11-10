@@ -1352,6 +1352,7 @@ func _build_world() -> void:
 	var we := WorldEnvironment.new(); we.environment = env; add_child(we); world_env = env
 	var sun := DirectionalLight3D.new(); sun.rotation_degrees = Vector3(-40, 35, 0); sun.light_color = Color(1.0, 0.9, 0.75)
 	sun.light_energy = 1.3; sun.shadow_enabled = true; sun.directional_shadow_max_distance = 600.0; add_child(sun)
+	sky_controller.bind_sun_light(sun)
 	terr_mat = TERRAIN_MATERIAL_FACTORY.create_material(TERRAIN_LAYER_STACK)
 	# бесконечное плато вокруг каньона (следует за кораблём)
 
