@@ -39,18 +39,18 @@ func _ready() -> void:
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
-	var camera := Camera3D.new()
-	camera.current = true
-	camera.far = 100000.0
-	add_child(camera)
-	var star_direction: Vector3 = controller.sky_material_template.get_shader_parameter("star_direction")
-	var look_direction: Vector3 = Vector3.UP if sky_view == "zenith" else (Vector3.FORWARD if sky_view == "horizon" else star_direction.normalized())
-	camera.look_at(look_direction, Vector3.BACK if sky_view == "zenith" else Vector3.UP)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-40.0, 35.0, 0.0)
 	sun.light_color = Color(1.0, 0.9, 0.75)
 	sun.light_energy = 1.3
 	add_child(sun)
+	var camera := Camera3D.new()
+	camera.current = true
+	camera.far = 100000.0
+	add_child(camera)
+	var star_direction := sun.global_basis.z.normalized()
+	var look_direction: Vector3 = Vector3.UP if sky_view == "zenith" else (Vector3.FORWARD if sky_view == "horizon" else star_direction.normalized())
+	camera.look_at(look_direction, Vector3.BACK if sky_view == "zenith" else Vector3.UP)
 	if not capture_path.is_empty():
 		_capture_after_settle(capture_path)
 

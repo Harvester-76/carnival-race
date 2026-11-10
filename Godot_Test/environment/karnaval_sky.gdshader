@@ -14,21 +14,37 @@ uniform vec2 atmosphere_drift_velocity = vec2(0.0007, -0.0004);
 
 group_uniforms Clouds;
 uniform float cloud_far_density : hint_range(0.0, 1.0, 0.001) = 0.36;
+uniform float cloud_mid_density : hint_range(0.0, 1.0, 0.001) = 0.40;
 uniform float cloud_near_density : hint_range(0.0, 1.0, 0.001) = 0.46;
+uniform float cloud_detail_density : hint_range(0.0, 1.0, 0.001) = 0.34;
 uniform float cloud_far_repeats : hint_range(1.0, 8.0, 1.0) = 1.0;
+uniform float cloud_mid_repeats : hint_range(1.0, 8.0, 1.0) = 2.0;
 uniform float cloud_near_repeats : hint_range(1.0, 8.0, 1.0) = 2.0;
+uniform float cloud_detail_repeats : hint_range(1.0, 8.0, 0.1) = 3.0;
 uniform float cloud_contrast : hint_range(0.2, 2.0, 0.001) = 1.0;
 uniform float cloud_far_speed : hint_range(0.0, 0.1, 0.00001) = 0.002;
+uniform float cloud_mid_speed : hint_range(0.0, 0.1, 0.00001) = 0.0035;
 uniform float cloud_near_speed : hint_range(0.0, 0.1, 0.00001) = 0.006;
+uniform float cloud_detail_speed : hint_range(0.0, 0.1, 0.00001) = 0.009;
+uniform float cloud_far_depth_km : hint_range(50.0, 2000.0, 1.0) = 700.0;
+uniform float cloud_mid_depth_km : hint_range(50.0, 2000.0, 1.0) = 420.0;
+uniform float cloud_near_depth_km : hint_range(50.0, 2000.0, 1.0) = 220.0;
+uniform float cloud_detail_depth_km : hint_range(50.0, 2000.0, 1.0) = 110.0;
 uniform float wind_direction : hint_range(-3.141593, 3.141593, 0.001) = 0.0;
 uniform float cloud_pole_fade_start : hint_range(0.0, 1.0, 0.001) = 0.62;
 uniform float cloud_pole_fade_end : hint_range(0.0, 1.0, 0.001) = 0.88;
 uniform float cloud_sky_opacity_far : hint_range(0.0, 1.0, 0.001) = 0.36;
+uniform float cloud_sky_opacity_mid : hint_range(0.0, 1.0, 0.001) = 0.22;
 uniform float cloud_sky_opacity_near : hint_range(0.0, 1.0, 0.001) = 0.58;
+uniform float cloud_sky_opacity_detail : hint_range(0.0, 1.0, 0.001) = 0.14;
 uniform float cloud_cover_opacity_far : hint_range(0.0, 1.0, 0.001) = 0.55;
+uniform float cloud_cover_opacity_mid : hint_range(0.0, 1.0, 0.001) = 0.42;
 uniform float cloud_cover_opacity_near : hint_range(0.0, 1.0, 0.001) = 0.72;
+uniform float cloud_cover_opacity_detail : hint_range(0.0, 1.0, 0.001) = 0.32;
 uniform vec2 cloud_far_offset = vec2(0.0);
+uniform vec2 cloud_mid_offset = vec2(0.0);
 uniform vec2 cloud_near_offset = vec2(0.0);
+uniform vec2 cloud_detail_offset = vec2(0.0);
 uniform vec2 atmosphere_offset = vec2(0.0);
 
 group_uniforms Star;
@@ -50,24 +66,32 @@ float layer_density(float sample_value, float density) {
 	return smoothstep(threshold, threshold + softness, sample_value);
 }
 
-vec2 cloud_uv(vec3 direction, float repeats, vec2 offset) {
+vec2 cloud_uv(vec3 direction, float repeats, vec2 offset, float depth_km) {
 	// Spherical latitude/longitude keeps cloud proportions stable at the horizon.
 	// Integer repeats make the longitude wrap seamless; pole fading hides the
 	// unavoidable longitude singularity at the zenith and nadir.
 	vec2 uv = direction_uv(normalize(direction));
-	return uv * repeats + offset;
+	// POSITION adds horizontal parallax: the four copies represent cloud fields
+	// at distinct apparent distances while retaining the same vertical coverage.
+	float track_axis = POSITION.z + POSITION.x * 0.37;
+	float depth_parallax = track_axis / max(depth_km * 1000.0, 1.0);
+	return uv * repeats + offset - vec2(depth_parallax, 0.0);
 }
 
 float cloud_cover(vec3 direction) {
 	vec3 sample_direction = normalize(direction);
-	vec2 far_uv = cloud_uv(sample_direction, cloud_far_repeats, cloud_far_offset);
-	vec2 near_uv = cloud_uv(sample_direction, cloud_near_repeats, cloud_near_offset);
+	vec2 far_uv = cloud_uv(sample_direction, cloud_far_repeats, cloud_far_offset, cloud_far_depth_km);
+	vec2 mid_uv = cloud_uv(sample_direction, cloud_mid_repeats, cloud_mid_offset, cloud_mid_depth_km);
+	vec2 near_uv = cloud_uv(sample_direction, cloud_near_repeats, cloud_near_offset, cloud_near_depth_km);
+	vec2 detail_uv = cloud_uv(sample_direction, cloud_detail_repeats, cloud_detail_offset, cloud_detail_depth_km);
 	float far_value = texture(clouds_far_mask, far_uv).r;
 	float near_value = texture(clouds_near_mask, near_uv).r;
 	float pole_fade = 1.0 - smoothstep(cloud_pole_fade_start, cloud_pole_fade_end, abs(sample_direction.y));
 	float far_cover = layer_density(far_value, cloud_far_density) * cloud_cover_opacity_far * pole_fade;
+	float mid_cover = layer_density(texture(clouds_near_mask, mid_uv).r, cloud_mid_density) * cloud_cover_opacity_mid * pole_fade;
 	float near_cover = layer_density(near_value, cloud_near_density) * cloud_cover_opacity_near * pole_fade;
-	return 1.0 - (1.0 - far_cover) * (1.0 - near_cover);
+	float detail_cover = layer_density(texture(clouds_far_mask, detail_uv).r, cloud_detail_density) * cloud_cover_opacity_detail * pole_fade;
+	return 1.0 - (1.0 - far_cover) * (1.0 - mid_cover) * (1.0 - near_cover) * (1.0 - detail_cover);
 }
 
 void sky() {
@@ -82,17 +106,26 @@ void sky() {
 	float haze = clamp(haze_strength * horizon * (0.82 + noise_value * 0.24), 0.0, 1.0);
 	vec3 color = mix(base, haze_color, haze * 0.48);
 
-	vec2 far_uv = cloud_uv(view_dir, cloud_far_repeats, cloud_far_offset);
-	vec2 near_uv = cloud_uv(view_dir, cloud_near_repeats, cloud_near_offset);
+	vec2 far_uv = cloud_uv(view_dir, cloud_far_repeats, cloud_far_offset, cloud_far_depth_km);
+	vec2 mid_uv = cloud_uv(view_dir, cloud_mid_repeats, cloud_mid_offset, cloud_mid_depth_km);
+	vec2 near_uv = cloud_uv(view_dir, cloud_near_repeats, cloud_near_offset, cloud_near_depth_km);
+	vec2 detail_uv = cloud_uv(view_dir, cloud_detail_repeats, cloud_detail_offset, cloud_detail_depth_km);
 	float pole_fade = 1.0 - smoothstep(cloud_pole_fade_start, cloud_pole_fade_end, abs(view_dir.y));
 	float far_cover = layer_density(texture(clouds_far_mask, far_uv).r, cloud_far_density) * cloud_sky_opacity_far * pole_fade;
+	float mid_cover = layer_density(texture(clouds_near_mask, mid_uv).r, cloud_mid_density) * cloud_sky_opacity_mid * pole_fade;
 	float near_cover = layer_density(texture(clouds_near_mask, near_uv).r, cloud_near_density) * cloud_sky_opacity_near * pole_fade;
-	float cover = 1.0 - (1.0 - far_cover) * (1.0 - near_cover);
+	float detail_cover = layer_density(texture(clouds_far_mask, detail_uv).r, cloud_detail_density) * cloud_sky_opacity_detail * pole_fade;
+	float cover = 1.0 - (1.0 - far_cover) * (1.0 - mid_cover) * (1.0 - near_cover) * (1.0 - detail_cover);
 	float cloud_variation = 0.88 + noise_value * 0.18;
 	vec3 cloud_color = mix(haze_color, vec3(1.0, 0.68, 0.38), 0.26);
 	color = mix(color, cloud_color * cloud_variation, cover);
 
+	// The directional-light built-in points from the scene toward the light
+	// source, so the visible star stays aligned with the actual scene sun.
 	vec3 star_dir = normalize(star_direction);
+	if (LIGHT0_ENABLED) {
+		star_dir = normalize(LIGHT0_DIRECTION);
+	}
 	float alignment = dot(view_dir, star_dir);
 	float star_angle = acos(clamp(alignment, -1.0, 1.0));
 	if (star_angle < star_size * 3.5) {
