@@ -8,6 +8,9 @@ const APP_VERSION := "0.1.2"
 const STATIC_TRACK_RUNTIME := preload("res://static_track_runtime.gd")
 const PERFORMANCE_DIAGNOSTICS := preload("res://performance_diagnostics.gd")
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
+const TERRAIN_MATERIAL_FACTORY := preload("res://terrain/terrain_material_factory.gd")
+const TERRAIN_LAYER_STACK := preload("res://terrain/canyon_terrain_stack.tres")
+const KARNAVAL_SKY_CONTROLLER := preload("res://environment/karnaval_sky_controller.gd")
 const DETACH_PREFIX := ["SM_Engine_", "SM_Wing_", "SM_Spotlight_", "SM_Glass_", "SM_Hatch_", "SM_Foot_"]
 const CAM_MODES := ["chase", "far", "side", "free", "right", "cockpit"]
 const CAM_NAMES := ["Сзади", "Далеко сзади", "Сбоку слева", "Облёт корабля", "Сбоку справа", "От первого лица"]
@@ -1338,38 +1341,18 @@ void fragment(){
 
 func _build_world() -> void:
 	var env := Environment.new()
-	var sky := ProceduralSkyMaterial.new()
-	sky.sky_top_color = Color(0.78, 0.58, 0.36); sky.sky_horizon_color = Color(0.95, 0.75, 0.48)
-	sky.ground_horizon_color = Color(0.9, 0.68, 0.42); sky.ground_bottom_color = Color(0.5, 0.33, 0.2)
-	var s := Sky.new(); s.sky_material = sky
-	env.background_mode = Environment.BG_SKY; env.sky = s
+	var sky_controller := KARNAVAL_SKY_CONTROLLER.new()
+	sky_controller.name = "KarnavalSkyController"
+	add_child(sky_controller)
+	env.background_mode = Environment.BG_SKY; env.sky = sky_controller.create_sky()
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY; env.ambient_light_energy = 0.9
-	env.fog_enabled = true; env.fog_light_color = Color(0.85, 0.68, 0.5); env.fog_density = 0.00012
+	env.fog_enabled = true; env.fog_light_color = Color(0.85, 0.68, 0.5); env.fog_density = 0.00012; env.fog_sky_affect = 0.15
 	env.glow_enabled = true; env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	if "nofog" in OS.get_cmdline_user_args(): env.fog_enabled = false
 	var we := WorldEnvironment.new(); we.environment = env; add_child(we); world_env = env
 	var sun := DirectionalLight3D.new(); sun.rotation_degrees = Vector3(-40, 35, 0); sun.light_color = Color(1.0, 0.9, 0.75)
 	sun.light_energy = 1.3; sun.shadow_enabled = true; sun.directional_shadow_max_distance = 600.0; add_child(sun)
-	var sh := Shader.new()
-	sh.code = """shader_type spatial; render_mode cull_disabled;
-varying vec3 wp; varying vec3 wn;
-void vertex(){ wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz; wn=normalize((MODEL_MATRIX*vec4(NORMAL,0.0)).xyz); }
-vec3 pal(float i){
-  float a = 0.5 + 0.5 * sin(i * 2.3); float b = 0.5 + 0.5 * sin(i * 5.1 + 1.0);
-  vec3 c = mix(vec3(0.56, 0.24, 0.12), vec3(0.84, 0.58, 0.34), a);
-  return mix(c, vec3(0.88, 0.76, 0.56), b * 0.45);
-}
-void fragment(){
-  float b = wp.y * 0.012 + 0.5 * sin(wp.x * 0.002 + wp.z * 0.0017);
-  float k = floor(b); float f = fract(b);
-  float edge = smoothstep(0.0, 0.1, f) * (1.0 - smoothstep(0.9, 1.0, f));
-  vec3 c = pal(k) * (0.82 + 0.18 * edge);
-  float flat_ = smoothstep(0.55, 0.95, clamp(wn.y, 0.0, 1.0));
-  vec3 sand = vec3(0.66, 0.5, 0.36);
-  c = mix(c, sand * (0.9 + 0.1 * sin(wp.x * 0.05) * sin(wp.z * 0.05)), flat_ * 0.75);
-  c *= mix(0.7, 1.0, clamp(wn.y, 0.0, 1.0));
-  ALBEDO = c; ROUGHNESS = 0.95; }"""
-	terr_mat = ShaderMaterial.new(); terr_mat.shader = sh
+	terr_mat = TERRAIN_MATERIAL_FACTORY.create_material(TERRAIN_LAYER_STACK)
 	# бесконечное плато вокруг каньона (следует за кораблём)
 
 func _gen_tile(key: Vector3i) -> void:

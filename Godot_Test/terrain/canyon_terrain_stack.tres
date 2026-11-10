@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="TerrainLayerStack" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://terrain/terrain_layer_stack.gd" id="1_stack_script"]
+[ext_resource type="Script" path="res://terrain/terrain_surface_layer.gd" id="2_layer_script"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_channel.tres" id="3_channel"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_shale.tres" id="4_shale"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_red_rock.tres" id="5_red_rock"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_terracotta.tres" id="6_terracotta"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_sandstone_red.tres" id="7_red_sandstone"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_sandstone.tres" id="8_sandstone"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_light_sandstone.tres" id="9_light_sandstone"]
+[ext_resource type="Resource" path="res://terrain/materials/layer_limestone.tres" id="10_limestone"]
+
+[resource]
+script = ExtResource("1_stack_script")
+base_height_m = 0.0
+slope_tint = Color(0.66, 0.5, 0.36, 1)
+slope_tint_strength = 0.48
+steep_slope_darkening = 0.3
+layers = Array[ExtResource("2_layer_script")]([ExtResource("3_channel"), ExtResource("4_shale"), ExtResource("5_red_rock"), ExtResource("6_terracotta"), ExtResource("7_red_sandstone"), ExtResource("8_sandstone"), ExtResource("9_light_sandstone"), ExtResource("10_limestone")])

@@ -1,0 +1,44 @@
+[gd_resource type="ShaderMaterial" load_steps=7 format=3]
+
+[ext_resource type="Shader" path="res://environment/karnaval_sky.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/sky_base_4096x2048.png" id="2_sky_base"]
+[ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/clouds_far_mask_2048.png" id="3_clouds_far"]
+[ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/clouds_near_mask_2048.png" id="4_clouds_near"]
+[ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/atmosphere_noise_1024.png" id="5_atmosphere_noise"]
+[ext_resource type="Texture2D" path="res://assets/environment/karnaval_sky/star_disc_1024.png" id="6_star_disc"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/sky_base = ExtResource("2_sky_base")
+shader_parameter/clouds_far_mask = ExtResource("3_clouds_far")
+shader_parameter/clouds_near_mask = ExtResource("4_clouds_near")
+shader_parameter/atmosphere_noise = ExtResource("5_atmosphere_noise")
+shader_parameter/star_disc = ExtResource("6_star_disc")
+
+shader_parameter/sky_tint = Color(1, 0.8, 0.48, 1)
+shader_parameter/haze_strength = 0.65
+shader_parameter/haze_color = Color(0.95, 0.56, 0.27, 1)
+shader_parameter/atmosphere_drift_velocity = Vector2(0.0007, -0.0004)
+
+shader_parameter/cloud_far_density = 0.36
+shader_parameter/cloud_near_density = 0.46
+shader_parameter/cloud_far_repeats = 1.0
+shader_parameter/cloud_near_repeats = 2.0
+shader_parameter/cloud_contrast = 1.0
+shader_parameter/cloud_far_speed = 0.002
+shader_parameter/cloud_near_speed = 0.006
+shader_parameter/wind_direction = 0.0
+shader_parameter/cloud_pole_fade_start = 0.62
+shader_parameter/cloud_pole_fade_end = 0.88
+shader_parameter/cloud_sky_opacity_far = 0.36
+shader_parameter/cloud_sky_opacity_near = 0.58
+shader_parameter/cloud_cover_opacity_far = 0.55
+shader_parameter/cloud_cover_opacity_near = 0.72
+shader_parameter/cloud_far_offset = Vector2(0, 0)
+shader_parameter/cloud_near_offset = Vector2(0, 0)
+shader_parameter/atmosphere_offset = Vector2(0, 0)
+
+shader_parameter/star_size = 0.055
+shader_parameter/star_intensity = 1.15
+shader_parameter/star_halo_strength = 0.8
+shader_parameter/star_direction = Vector3(0.42, 0.55, 0.72)
