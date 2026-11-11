@@ -115,6 +115,7 @@ var prev_speed := 0.0
 var last_contact_f := -999
 var shake_imp := 0.0
 var prev_v_c := Vector3.ZERO
+var accel_vec_s := Vector3.ZERO
 var prev_vel := Vector3.ZERO                # скорость прошлого кадра: по её изменению определяется, с какой стороны был удар
 var acc_s := 0.0                                                            # сглаженное ускорение корабля, м/с²: тряска камеры включается только выше порога
 const SHAKE_ACC0 := 500.0                                                   # начало тряски (~51 g) у «Фреи»
@@ -2851,7 +2852,11 @@ func _physics_process(dt: float) -> void:
 	if unstick_cd > 0.0: unstick_cd -= dt
 	if frame > 3 and dt > 0.0:
 		var vv := ship.linear_velocity
-		acc_s = lerpf(acc_s, (vv - prev_v_c).length() / dt, 1.0 - exp(-dt / 0.12)); prev_v_c = vv
+		var accel_raw := (vv - prev_v_c) / dt
+		var accel_filter := 1.0 - exp(-dt / 0.12)
+		acc_s = lerpf(acc_s, accel_raw.length(), accel_filter)
+		accel_vec_s = accel_vec_s.lerp(accel_raw, accel_filter)
+		prev_v_c = vv
 	if evo_mode:                                                      # обучение: игрока нет, считаем только ботов
 		if start_t > 0.0: start_t -= dt
 		else: evo_t += dt
@@ -3064,7 +3069,7 @@ func _unstick() -> void:                                                    # в
 	if hd.length() < 0.1: hd = Vector3(0, 0, -1)
 	ship.linear_velocity = Vector3.ZERO; ship.angular_velocity = Vector3.ZERO
 	ship.global_transform = Transform3D(Basis.looking_at(hd.normalized(), Vector3.UP), Vector3(pt.x, y, pt.y))
-	hold_alt = y; cam_snap = true; impact_cd = 1.0; prev_speed = 0.0; prev_v_c = Vector3.ZERO; acc_s = 0.0
+	hold_alt = y; cam_snap = true; impact_cd = 1.0; prev_speed = 0.0; prev_v_c = Vector3.ZERO; accel_vec_s = Vector3.ZERO; acc_s = 0.0
 	unstick_n += 1; unstick_cd = 10.0; race_t += UNSTICK_PENALTY
 	msg_txt = "ВОЗВРАТ НА ТРАССУ   +%d с   (%d из %d)" % [int(UNSTICK_PENALTY), unstick_n, UNSTICK_MAX]; msg_t = 3.0
 	ui.sfx.play("pop"); _log_event("UNSTICK %d s=%.0f" % [unstick_n, st])
@@ -3482,6 +3487,10 @@ var cam_rel := Vector3(0, 22, 85)
 var cam_up := Vector3.UP
 var cam_p := Vector3.ZERO
 var cam_v := Vector3.ZERO
+var cam_dolly_elapsed := -1.0
+var cam_dolly_armed := true
+var cam_dolly_weight := 0.0
+var cam_dolly_fov_weight := 0.0
 
 var intro_picks: Array = []
 var intro_u := 99.0
@@ -3563,7 +3572,11 @@ func _cockpit_eye() -> Vector3:                                           # гл
 	return Vector3(0.0, b.end.y + 0.25, b.position.z + b.size.z * 0.55)
 
 func _cam_tail(dt: float) -> void:                                          # угол обзора и тряска: общие для всех видов
-	cam.fov = 70.0 + 25.0 * clampf(ship.linear_velocity.length() / P("max_speed"), 0.0, 1.0)
+	var base_fov := 70.0 + 25.0 * clampf(ship.linear_velocity.length() / P("max_speed"), 0.0, 1.0)
+	var dolly_mix := cam_dolly_fov_weight * clampf(P("cam_dolly_strength"), 0.0, 1.0)
+	var dolly_fov_add := maxf(P("cam_dolly_fov"), 0.0) * dolly_mix
+	cam.fov = clampf(base_fov + dolly_fov_add, 8.0, 130.0)
+	var shake_fov_gain := tan(deg_to_rad(cam.fov * 0.5)) / maxf(tan(deg_to_rad(base_fov * 0.5)), 0.001)
 	shake_imp = maxf(0.0, shake_imp - dt * 1.4)
 	var sk := P("cam_shake")
 	if sk > 0.001 and frame > 3 and ui.state != "menu":                         # тряска камеры: от тяги, скорости и ударов
@@ -3571,30 +3584,72 @@ func _cam_tail(dt: float) -> void:                                          # у
 		var hp := ship_health()
 		var kth: float = float(SHAKE_SHIP_K[ship_id]) * lerpf(SHAKE_HEALTH_MIN, 1.0, hp)     # чем сильнее корабль разбит, тем ниже порог
 		var a_amp := 0.0 if (p_fin or p_dsq) else clampf((acc_s - SHAKE_ACC0 * kth) / ((SHAKE_ACC1 - SHAKE_ACC0) * kth), 0.0, 1.0)
-		var amp := (a_amp * 0.8 + shake_imp) * sk * (1.0 + (1.0 - hp) * 1.2)             # и сильнее колбасит
+		var amp := (a_amp * 0.8 + shake_imp) * sk * (1.0 + (1.0 - hp) * 1.2) * shake_fov_gain # компенсируем визуальное ослабление тряски при широком FOV
 		if amp > 0.001:
 			var off2 := Vector3(sin(tt * 83.0), sin(tt * 67.0 + 1.7), sin(tt * 97.0 + 0.4)) * 0.5 * amp
 			cam.global_position += cam.global_transform.basis * off2
 			cam.rotate_object_local(Vector3.FORWARD, sin(tt * 53.0) * 0.004 * amp)
 
+func _cam_dolly_cancel() -> void:
+	cam_dolly_elapsed = -1.0
+	cam_dolly_weight = 0.0
+	cam_dolly_fov_weight = 0.0
+	cam_dolly_armed = true
+
+func _cam_dolly_step(dt: float) -> float:
+	var threshold := maxf(P("cam_dolly_accel"), 0.0)
+	var duration := clampf(P("cam_dolly_duration"), 0.0, 3.0)
+	var strength := clampf(P("cam_dolly_strength"), 0.0, 1.0)
+	var away_dir := (ship.global_position - cam.global_position).normalized()
+	var away_accel := accel_vec_s.dot(away_dir)
+	var ship_back := ship.global_transform.basis.z.normalized()
+	var ship_to_camera := (cam.global_position - ship.global_position).normalized()
+	var rear_angle := rad_to_deg(ship_back.angle_to(ship_to_camera))
+	var allowed_rear_angle := clampf(P("cam_dolly_rear_angle"), 0.0, 180.0)
+	var camera_is_behind := ship_back.dot(ship_to_camera) > 0.0 and rear_angle <= allowed_rear_angle
+	if not racing or start_t > 0.0 or P("cam_dolly_enabled") < 0.5 or threshold <= 0.0 or duration <= 0.0 or strength <= 0.001:
+		cam_dolly_elapsed = -1.0
+		cam_dolly_weight = 0.0
+		cam_dolly_fov_weight = 0.0
+		if not racing or threshold <= 0.0 or away_accel < threshold * 0.65: cam_dolly_armed = true
+		return 0.0
+	if cam_dolly_elapsed < 0.0 and away_accel < threshold * 0.65: cam_dolly_armed = true
+	if cam_dolly_elapsed < 0.0 and cam_dolly_armed and camera_is_behind and away_accel >= threshold:
+		cam_dolly_elapsed = 0.0
+		cam_dolly_armed = false
+		return 0.0
+	if cam_dolly_elapsed < 0.0: return 0.0
+	cam_dolly_elapsed += minf(dt, 0.05)
+	if cam_dolly_elapsed >= duration:
+		cam_dolly_elapsed = -1.0
+		cam_dolly_armed = away_accel < threshold * 0.65
+		return 0.0
+	var progress := clampf(cam_dolly_elapsed / duration, 0.0, 1.0)
+	var fade_phase := progress * 2.0 if progress <= 0.5 else (1.0 - progress) * 2.0
+	return fade_phase * fade_phase * fade_phase * (fade_phase * (fade_phase * 6.0 - 15.0) + 10.0)
+
 func _camera(dt: float) -> void:
-	if (ui_shot == "cutcam" or ui_shot == "hatchcam" or ui_shot == "spurcam" or ui_shot == "cutship" or ui_shot == "gridcam" or ui_shot == "liverycam" or ui_shot == "shippic") and cc_on: cam.global_transform = cc_tf; cam.fov = cc_fov; return
+	if (ui_shot == "cutcam" or ui_shot == "hatchcam" or ui_shot == "spurcam" or ui_shot == "cutship" or ui_shot == "gridcam" or ui_shot == "liverycam" or ui_shot == "shippic") and cc_on: _cam_dolly_cancel(); cam.global_transform = cc_tf; cam.fov = cc_fov; return
 	var t := ship.global_transform
 	if ui_shot == "tour" and tour_ready:                                      # режим съёмки: камера за ботом
+		_cam_dolly_cancel()
 		if tour_phase == "fixed_wait": cam.global_transform = fixed_cam; return
 		var tb: Dictionary = bots[tour_bot]; var trb := tb["rb"] as RigidBody3D
 		var tfw := -trb.global_transform.basis.z
 		var cpos := trb.global_position - tfw * 190.0 + Vector3(0, 55, 0)
 		cam.global_transform = Transform3D(Basis.IDENTITY, cpos).looking_at(trb.global_position + tfw * 260.0, Vector3.UP); return
 	if intro_on and start_t > INTRO_T - INTRO_CUT:                           # катсцена под вступление: облёт стартовой решётки
+		_cam_dolly_cancel()
 		cam_snap = true; _intro_cam(INTRO_T - start_t); return
 	if ui != null and ui.state == "menu":                                    # главное меню: камера медленно облетает корабль
+		_cam_dolly_cancel()
 		var ya := Time.get_ticks_msec() / 1000.0 * 0.22
 		var cp := t.origin + Vector3(sin(ya) * 125.0, 22.0, cos(ya) * 125.0)
 		var look := t.origin + Vector3(0, 2, 0)
 		var rgt := Vector3(cp.z - t.origin.z, 0.0, -(cp.x - t.origin.x)).normalized()
 		cam.global_transform = Transform3D(Basis.IDENTITY, cp).looking_at(look - rgt * 46.0, Vector3.UP); return        # корабль смещён вправо от тёмной панели меню
 	if CAM_MODES[cam_mode] == "cockpit":                                     # вид из кабины: камера жёстко закреплена на корабле
+		_cam_dolly_cancel()
 		if not interior_vis: interior_vis = true; _apply_interior()
 		var tgt := Vector2(-look_in.x * LOOK_YAW, -look_in.y * LOOK_PITCH)          # стик вправо — взгляд вправо, вверх — вверх
 		var kl := 1.0 - exp(-minf(dt, 0.1) * (9.0 if look_in.length() > 0.01 else 3.5))      # за стиком быстро, обратно к «вперёд» плавно
@@ -3613,25 +3668,37 @@ func _camera(dt: float) -> void:
 			rel = Vector3(sin(free_yaw), 0.25, cos(free_yaw)) * 110.0; look = t.origin; up = Vector3.UP
 	# камера «следует»: смещение относительно корабля догоняет плавно (на скорости не отстаёт, при манёврах запаздывает)
 	var cs := maxf(P("cam_smooth"), 0.0)
+	cam_dolly_weight = _cam_dolly_step(dt)
+	var dolly_mix := cam_dolly_weight * clampf(P("cam_dolly_strength"), 0.0, 1.0)
+	cam_dolly_fov_weight = cam_dolly_weight
 	var k_off := 1.0 if cs * P("cam_off_lag") < 0.001 else 1.0 - exp(-dt / (cs * P("cam_off_lag")))
 	var fresh := frame < 4 or cam_snap
 	cam_rel = rel if fresh else cam_rel.lerp(rel, k_off)
 	cam_up = up if fresh else cam_up.lerp(up, k_off).normalized()
 	# якорь камеры: пружина по положению + по скорости (предсказание), поэтому на постоянной скорости нет отставания
 	var lag := cs * P("cam_pos_lag")
-	if fresh or lag < 0.01 or (cam_p - t.origin).length() > 3000.0:
+	if fresh or (cam_p - t.origin).length() > 3000.0:
 		cam_p = t.origin; cam_v = ship.linear_velocity
 	else:
-		var w := 1.0 / lag
-		var acc := w * w * (t.origin - cam_p) + 2.0 * w * (ship.linear_velocity - cam_v)
-		cam_v += acc * dt; cam_p += cam_v * dt
+		if lag < 0.01:
+			cam_p = t.origin; cam_v = ship.linear_velocity
+		else:
+			var w := 1.0 / lag
+			var acc := w * w * (t.origin - cam_p) + 2.0 * w * (ship.linear_velocity - cam_v)
+			cam_v += acc * dt; cam_p += cam_v * dt
 	var pos := cam_p + cam_rel
+	# Dolly zoom: move toward the ship by a tunable distance; FOV widening is tuned separately.
+	var dolly_offset := maxf(P("cam_dolly_offset"), 0.0) * dolly_mix
+	if dolly_offset > 0.001:
+		var toward_ship := t.origin - pos
+		if toward_ship.length() > 0.001: pos += toward_ship.normalized() * dolly_offset
 	# не проваливаться в землю: луч от корабля к камере + не ниже рельефа
 	var q := PhysicsRayQueryParameters3D.create(t.origin + t.basis.y * 8.0, pos, 1)
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if not hit.is_empty(): pos = hit["position"] + (hit["normal"] as Vector3) * 6.0
 	var off := pos - t.origin                                   # не ближе 70 м к кораблю, иначе при ударе камера оказывается внутри него
-	if off.length() < 70.0: pos = t.origin + (off.normalized() if off.length() > 0.5 else Vector3.UP) * 70.0
+	var min_camera_distance := maxf(10.0, 70.0 - dolly_offset)
+	if off.length() < min_camera_distance: pos = t.origin + (off.normalized() if off.length() > 0.5 else Vector3.UP) * min_camera_distance
 	pos.y = maxf(pos.y, height(pos.x, pos.z) + 10.0)
 	var dir := look - pos
 	if dir.length() < 1.0: dir = -t.basis.z

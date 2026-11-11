@@ -135,7 +135,7 @@ const ACH := [
 const DEV_RECORD := 137.36                                                  # рекорд разработчика, с (2:17.36, «Дальнобойщик»): один на все уровни и корабли; обновляется с версиями игры
 const OS_ACH := {"Windows": "os_win", "macOS": "os_mac", "Linux": "os_linux", "FreeBSD": "os_linux", "NetBSD": "os_linux", "OpenBSD": "os_linux", "BSD": "os_linux", "Android": "os_android", "iOS": "os_ios"}
 const MUSIC_ALL := ["tuman.mp3", "radium.mp3", "avenger.mp3", "globacide.mp3", "retribution.mp3", "results.mp3"]
-const PAGES_ALL := ["settings", "controls", "sound", "camera", "interface", "keys", "pad", "advanced", "ach", "about", "project", "exit"]
+const PAGES_ALL := ["settings", "controls", "sound", "camera", "camera_dolly", "interface", "keys", "pad", "advanced", "ach", "about", "project", "exit"]
 const PROJECT_SECTIONS := [
 	{"t": "О проекте", "body": "Карнавальская Гонка — игра по мотивам цикла Ольги Громыко «Космоолухи»: гонка транспортных кораблей по гигантскому каньону планеты Карнавал, где побеждает не самый быстрый, а самый хитрый, везучий и живучий. Главная цель — передать дух книжных гонок: ветвящуюся трассу, где путь выбирают на ходу, подножки соперникам, обвалы, тупики и отыгрыш ролей.\n\nСейчас перед вами демо-прототип на движке Godot. Он нужен, чтобы обкатать управление кораблём, поведение соперников и показать идею. Полноценная игра будет делаться на Unreal Engine."},
 	{"t": "Режимы игры", "body": "Тренировочный режим. Гонка с ботами. Можно выбрать участок реальной трассы из книги длиной 3–5 минут игрового времени и отрабатывать именно его. Правила выбывания (застрял, перевёрнут, вылетел за кромку) задаются отдельно для каждого режима и хранятся как данные, а не зашиты в код.\n\nRP-режим. Игра служит средой для ролевой игры: гонка идёт по всей трассе целиком. Сломанный корабль не дисквалифицируется автоматически, он ждёт эвакуации, а решения (штраф, возврат на трассу, дисквалификация) принимают живые судьи.\n\nСетевая гонка без RP: правила применяет автомат. В далёкой перспективе возможна ролевая игра (RPG)."},
@@ -444,6 +444,11 @@ func _on_static_dialog_secondary() -> void:
 func _bool_item(label: String, key: String, hint := "") -> Dictionary:
 	return {"t": "%s:  %s" % [label, "ВКЛ" if main.cfg[key] else "выкл"], "l": label, "kind": "toggle", "on": bool(main.cfg[key]), "d": hint, "a": func(): _tog(key), "s": func(_d): _tog(key)}
 
+func _tv_bool_item(label: String, key: String, hint := "") -> Dictionary:
+	var enabled := float(main.tune.v.get(key, 1.0)) >= 0.5
+	var toggle := func(): _set_tv(key, 0.0 if enabled else 1.0); _refresh_items()
+	return {"t": "%s:  %s" % [label, "ВКЛ" if enabled else "выкл"], "l": label, "kind": "toggle", "on": enabled, "d": hint, "a": toggle, "s": func(_d): toggle.call()}
+
 func _num_item(label: String, get_v: Callable, set_v: Callable, step: float, lo: float, hi: float, hint := "", fmt := "%.2f") -> Dictionary:
 	var stepf := func(d: int): set_v.call(clampf(snappedf(float(get_v.call()) + d * step, step * 0.01), lo, hi))
 	return {"t": ("%s:  ◀ " + fmt + " ▶") % [label, get_v.call()], "l": label, "kind": "slider", "pct": (float(get_v.call()) - lo) / maxf(hi - lo, 0.0001), "vtxt": fmt % get_v.call(), "tw": 300.0, "d": hint, "a": func(): stepf.call(1), "s": stepf}
@@ -532,8 +537,17 @@ func _page_items() -> Array:
 			var cvn: String = main.CAM_NAMES[clampi(int(main.cfg["cam_view"]), 0, main.CAM_NAMES.size() - 1)]
 			it = [{"t": "Вид камеры:  ◀ %s ▶" % cvn, "l": "Вид камеры", "kind": "choice", "val": cvn, "cw": 320.0, "cfs": 26, "d": "Какой вид камеры включается в начале гонки. Во время гонки его можно менять клавишей камеры. «От первого лица» — из кабины, камера жёстко закреплена на корабле.", "s": func(d): _change_cam_view(d), "a": func(): _change_cam_view(1)},
 				_tv_item("Плавность следования камеры", "cam_smooth", 0.1, 0.0, 5.0, "0 — жёсткая камера, больше — плавнее отстаёт от корабля.", "%.1f"),
+				{"t": "Dolly Zoom…", "kind": "action", "d": "Чувствительность, длительность, смещение камеры и расширение угла при разгоне.", "a": func(): goto_page("camera_dolly")},
 				_tv_item("Тряска камеры", "cam_shake", 0.1, 0.0, 2.0, "Тряска только при очень больших ускорениях (свыше ≈50 g) и при ударах. 0 — без тряски.", "%.1f"),
 				_bool_item("Вибрация геймпада при ударах", "rumble", "Короткая вибрация геймпада при столкновениях; сила зависит от удара."), back]
+		"camera_dolly":
+			it = [_tv_bool_item("Dolly Zoom", "cam_dolly_enabled", "Включает или отключает эффект. По умолчанию включён."),
+				_tv_item("Порог ускорения", "cam_dolly_accel", 50.0, 0.0, 3000.0, "Эффект включается только если камера находится позади корабля в пределах заданного угла. 0 — выключено.", "%.0f м/с²"),
+				_tv_item("Допустимый угол сзади", "cam_dolly_rear_angle", 1.0, 0.0, 90.0, "Максимальное отклонение камеры от задней оси корабля для срабатывания эффекта.", "%.0f°"),
+				_tv_item("Смещение камеры к кораблю", "cam_dolly_offset", 1.0, 0.0, 40.0, "Насколько приблизить камеру при силе эффекта 1. Уменьшите, если ближняя часть корабля становится слишком крупной.", "%.0f м"),
+				_tv_item("Добавка угла FOV", "cam_dolly_fov", 1.0, 0.0, 40.0, "Сколько градусов добавить к обычному углу обзора при силе эффекта 1. Настраивается независимо от приближения.", "%.0f°"),
+				_tv_item("Сила эффекта", "cam_dolly_strength", 0.05, 0.0, 1.0, "0 — эффект выключен; 1 — используются полные смещение камеры и добавка FOV.", "%.2f"),
+				_tv_item("Длительность эффекта", "cam_dolly_duration", 0.1, 0.0, 3.0, "Половина времени занимает приближение камеры, половина — плавное возвращение. Шаг 0,1 с; 0 — выключено.", "%.1f с"), back]
 		_:
 			if page.begins_with("organ:"):
 				var o: String = page.substr(6)
@@ -638,7 +652,7 @@ func goto_page(p: String) -> void:
 
 func back_page() -> void:
 	capturing = ""; pm_sel = ""; sfx.play("back"); check_custom()
-	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
+	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "camera_dolly": "camera", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
 	if page.begins_with("organ:"): page = "advanced"
 	elif page == "main": return
 	else: page = parent.get(page, "main")
@@ -655,6 +669,7 @@ func _page_title() -> String:
 		"advanced": return "УПРАВЛЕНИЕ › РАСШИРЕННЫЕ"
 		"sound": return "НАСТРОЙКИ › ЗВУК"
 		"camera": return "НАСТРОЙКИ › КАМЕРА"
+		"camera_dolly": return "КАМЕРА › DOLLY ZOOM"
 		"interface": return "НАСТРОЙКИ › ИНТЕРФЕЙС"
 		"ach": return "ДОСТИЖЕНИЯ"
 		"about": return "ОБ ИГРЕ"
