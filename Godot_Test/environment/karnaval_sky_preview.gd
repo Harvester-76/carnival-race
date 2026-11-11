@@ -30,10 +30,7 @@ func _ready() -> void:
 	environment.sky = controller.create_sky()
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	environment.ambient_light_energy = 0.9
-	environment.fog_enabled = true
-	environment.fog_light_color = Color(0.85, 0.68, 0.5)
-	environment.fog_density = 0.00012
-	environment.fog_sky_affect = 0.15
+	SKY_CONTROLLER.apply_fog_profile(environment)
 	environment.glow_enabled = true
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	var world := WorldEnvironment.new()

@@ -15,6 +15,7 @@
 	"bot_virtual": 1.0,
 	"cam_dolly_accel": 800.0,
 	"cam_dolly_duration": 2.5,
+	"cam_dolly_enabled": 1.0,
 	"cam_dolly_fov": 18.0,
 	"cam_dolly_offset": 10.0,
 	"cam_dolly_rear_angle": 30.0,

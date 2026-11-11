@@ -1347,7 +1347,7 @@ func _build_world() -> void:
 	add_child(sky_controller)
 	env.background_mode = Environment.BG_SKY; env.sky = sky_controller.create_sky()
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY; env.ambient_light_energy = 0.9
-	env.fog_enabled = true; env.fog_light_color = Color(0.85, 0.68, 0.5); env.fog_density = 0.00012; env.fog_sky_affect = 0.15
+	KARNAVAL_SKY_CONTROLLER.apply_fog_profile(env)
 	env.glow_enabled = true; env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	if "nofog" in OS.get_cmdline_user_args(): env.fog_enabled = false
 	var we := WorldEnvironment.new(); we.environment = env; add_child(we); world_env = env

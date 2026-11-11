@@ -4,6 +4,14 @@ class_name KarnavalSkyController
 enum Preset { CLEAR, VARIABLE, OVERCAST }
 
 const DEFAULT_SKY_MATERIAL := preload("res://environment/materials/karnaval_planet_sky.tres")
+const FOG_PROFILE := preload("res://environment/materials/karnaval_fog_profile.tres")
+
+static func apply_fog_profile(environment: Environment) -> void:
+	var profile := FOG_PROFILE as Environment
+	environment.fog_enabled = profile.fog_enabled
+	environment.fog_light_color = profile.fog_light_color
+	environment.fog_density = profile.fog_density
+	environment.fog_sky_affect = profile.fog_sky_affect
 
 ## Replace this resource to use another ShaderMaterial with the same shader interface.
 @export var sky_material_template: ShaderMaterial = DEFAULT_SKY_MATERIAL
