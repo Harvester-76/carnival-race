@@ -1,17 +1,77 @@
-[gd_resource type="Resource" script_class="TerrainLayerStack" format=3 uid="uid://cc3o6evuxbqjm"]
+[gd_resource type="Resource" script_class="TerrainLayerStack" load_steps=19 format=3 uid="uid://cc3o6evuxbqjm"]
 
-[ext_resource type="Script" uid="uid://byguq2ylciuc5" path="res://terrain/terrain_layer_stack.gd" id="1_stack_script"]
-[ext_resource type="Script" uid="uid://bagw8big25o8v" path="res://terrain/terrain_surface_layer.gd" id="2_layer_script"]
-[ext_resource type="Resource" uid="uid://dpw0xlu3unjpf" path="res://terrain/materials/layer_channel.tres" id="3_channel"]
-[ext_resource type="Resource" uid="uid://clvq6wdac3mqt" path="res://terrain/materials/layer_shale.tres" id="4_shale"]
-[ext_resource type="Resource" uid="uid://clf0y2jeua4n5" path="res://terrain/materials/layer_red_rock.tres" id="5_red_rock"]
-[ext_resource type="Resource" uid="uid://dv04tk0jdoe0a" path="res://terrain/materials/layer_terracotta.tres" id="6_terracotta"]
-[ext_resource type="Resource" uid="uid://cx8mtprkunc7m" path="res://terrain/materials/layer_sandstone_red.tres" id="7_red_sandstone"]
-[ext_resource type="Resource" uid="uid://gc4yhpstuneu" path="res://terrain/materials/layer_sandstone.tres" id="8_sandstone"]
-[ext_resource type="Resource" uid="uid://b36pfv2x2c7k1" path="res://terrain/materials/layer_light_sandstone.tres" id="9_light_sandstone"]
-[ext_resource type="Resource" uid="uid://8531hvot2x1v" path="res://terrain/materials/layer_limestone.tres" id="10_limestone"]
+[ext_resource type="Script" path="res://terrain/terrain_layer_stack.gd" id="1_stack_script"]
+[ext_resource type="Script" path="res://terrain/terrain_stratum.gd" id="2_stratum_script"]
+[ext_resource type="Material" uid="uid://dsf4p1iprl45y" path="res://terrain/materials/channel_rock.tres" id="3_channel_material"]
+[ext_resource type="Material" uid="uid://b7xk05u5v1yxy" path="res://terrain/materials/dark_shale.tres" id="4_shale_material"]
+[ext_resource type="Material" uid="uid://cku6y4wmp4rfa" path="res://terrain/materials/red_rock.tres" id="5_red_rock_material"]
+[ext_resource type="Material" uid="uid://da42amppmsb1t" path="res://terrain/materials/terracotta.tres" id="6_terracotta_material"]
+[ext_resource type="Material" uid="uid://fb7p0s14idk0" path="res://terrain/materials/sandstone_red.tres" id="7_red_sandstone_material"]
+[ext_resource type="Material" uid="uid://8fy6owooh5ss" path="res://terrain/materials/sandstone.tres" id="8_sandstone_material"]
+[ext_resource type="Material" uid="uid://cd7kousp4vutu" path="res://terrain/materials/light_sandstone.tres" id="9_light_sandstone_material"]
+[ext_resource type="Material" uid="uid://pifjg1sw2g7x" path="res://terrain/materials/limestone_cap.tres" id="10_limestone_material"]
+
+[sub_resource type="Resource" id="Stratum_Channel"]
+script = ExtResource("2_stratum_script")
+label = "Русло"
+material = ExtResource("3_channel_material")
+thickness_m = 650.0
+transition_width_m = 70.0
+
+[sub_resource type="Resource" id="Stratum_Shale"]
+script = ExtResource("2_stratum_script")
+label = "Тёмный сланец"
+material = ExtResource("4_shale_material")
+thickness_m = 650.0
+
+[sub_resource type="Resource" id="Stratum_RedRock"]
+script = ExtResource("2_stratum_script")
+label = "Красная порода"
+material = ExtResource("5_red_rock_material")
+thickness_m = 700.0
+transition_width_m = 100.0
+texture_uv_scale = 0.001
+height_enabled = true
+height_depth_m = 1.5
+height_normal_strength = 3.0
+parallax_steps = 6
+
+[sub_resource type="Resource" id="Stratum_Terracotta"]
+script = ExtResource("2_stratum_script")
+label = "Терракота"
+material = ExtResource("6_terracotta_material")
+thickness_m = 700.0
+transition_width_m = 110.0
+
+[sub_resource type="Resource" id="Stratum_RedSandstone"]
+script = ExtResource("2_stratum_script")
+label = "Красный песчаник"
+material = ExtResource("7_red_sandstone_material")
+thickness_m = 700.0
+transition_width_m = 110.0
+
+[sub_resource type="Resource" id="Stratum_Sandstone"]
+script = ExtResource("2_stratum_script")
+label = "Песчаник"
+material = ExtResource("8_sandstone_material")
+thickness_m = 750.0
+transition_width_m = 120.0
+
+[sub_resource type="Resource" id="Stratum_LightSandstone"]
+script = ExtResource("2_stratum_script")
+label = "Светлый песчаник"
+material = ExtResource("9_light_sandstone_material")
+thickness_m = 800.0
+transition_width_m = 120.0
+
+[sub_resource type="Resource" id="Stratum_Limestone"]
+script = ExtResource("2_stratum_script")
+label = "Известняковая шапка"
+material = ExtResource("10_limestone_material")
+thickness_m = 900.0
+transition_width_m = 140.0
 
 [resource]
 script = ExtResource("1_stack_script")
-layers = Array[ExtResource("2_layer_script")]([ExtResource("3_channel"), ExtResource("4_shale"), ExtResource("5_red_rock"), ExtResource("6_terracotta"), ExtResource("7_red_sandstone"), ExtResource("8_sandstone"), ExtResource("9_light_sandstone"), ExtResource("10_limestone")])
+strata = Array[ExtResource("2_stratum_script")]([SubResource("Stratum_Channel"), SubResource("Stratum_Shale"), SubResource("Stratum_RedRock"), SubResource("Stratum_Terracotta"), SubResource("Stratum_RedSandstone"), SubResource("Stratum_Sandstone"), SubResource("Stratum_LightSandstone"), SubResource("Stratum_Limestone")])
 slope_tint = Color(0.66, 0.5, 0.36, 1)
