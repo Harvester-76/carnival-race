@@ -21,16 +21,26 @@ static func create_material(stack: TerrainLayerStack) -> ShaderMaterial:
 	result.set_shader_parameter("steep_slope_darkening", stack.steep_slope_darkening)
 	for i in MAX_LAYERS:
 		var layer: TerrainSurfaceLayer
-		if i < count: layer = stack.layers[i]
+		if i < count:
+			layer = stack.layers[i]
 		var material: StandardMaterial3D = layer.material if layer != null else null
 		var color := material.albedo_color if material != null else Color.WHITE
-		var texture: Texture2D = material.albedo_texture if material != null else null
+		var albedo: Texture2D = material.albedo_texture if material != null else null
+		var height: Texture2D = material.heightmap_texture if material != null and material.heightmap_enabled else null
+		var height_on := layer != null and layer.height_enabled and height != null
 		result.set_shader_parameter("layer_tint_%d" % i, color)
-		result.set_shader_parameter("layer_has_texture_%d" % i, texture != null)
-		if texture != null: result.set_shader_parameter("layer_texture_%d" % i, texture)
+		result.set_shader_parameter("layer_has_texture_%d" % i, albedo != null)
+		if albedo != null:
+			result.set_shader_parameter("layer_texture_%d" % i, albedo)
 		result.set_shader_parameter("layer_uv_scale_%d" % i, layer.texture_uv_scale if layer != null else 0.05)
 		result.set_shader_parameter("layer_roughness_%d" % i, material.roughness if material != null else 0.95)
 		result.set_shader_parameter("layer_metallic_%d" % i, material.metallic if material != null else 0.0)
 		result.set_shader_parameter("layer_thickness_%d" % i, maxf(layer.thickness_m, 0.01) if layer != null else 700.0)
 		result.set_shader_parameter("layer_transition_%d" % i, maxf(layer.transition_width_m, 0.0) if layer != null else 90.0)
+		result.set_shader_parameter("layer_has_height_%d" % i, height_on)
+		if height_on:
+			result.set_shader_parameter("layer_height_texture_%d" % i, height)
+		result.set_shader_parameter("layer_height_depth_%d" % i, layer.height_depth_m if layer != null else 0.0)
+		result.set_shader_parameter("layer_height_normal_strength_%d" % i, layer.height_normal_strength if layer != null else 0.0)
+		result.set_shader_parameter("layer_parallax_steps_%d" % i, layer.parallax_steps if layer != null else 4)
 	return result

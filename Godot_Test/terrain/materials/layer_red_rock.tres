@@ -9,3 +9,7 @@ label = "Красная порода"
 material = ExtResource("2_material")
 transition_width_m = 100.0
 texture_uv_scale = 0.001
+height_enabled = true
+height_depth_m = 1.5
+height_normal_strength = 3.0
+parallax_steps = 6
