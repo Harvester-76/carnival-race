@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="TerrainSurfaceLayer" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="TerrainSurfaceLayer" format=3 uid="uid://dpw0xlu3unjpf"]
 
-[ext_resource type="Script" path="res://terrain/terrain_surface_layer.gd" id="1_script"]
-[ext_resource type="StandardMaterial3D" path="res://terrain/materials/channel_rock.tres" id="2_material"]
+[ext_resource type="Script" uid="uid://bagw8big25o8v" path="res://terrain/terrain_surface_layer.gd" id="1_script"]
+[ext_resource type="Material" uid="uid://dsf4p1iprl45y" path="res://terrain/materials/channel_rock.tres" id="2_material"]
 
 [resource]
 script = ExtResource("1_script")
@@ -9,4 +9,3 @@ label = "Русло"
 material = ExtResource("2_material")
 thickness_m = 650.0
 transition_width_m = 70.0
-texture_uv_scale = 0.05

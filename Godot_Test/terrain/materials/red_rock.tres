@@ -1,6 +1,13 @@
-[gd_resource type="StandardMaterial3D" format=3]
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cku6y4wmp4rfa"]
+
+[ext_resource type="Texture2D" uid="uid://rpyunyyqoi4i" path="res://terrain/materials/Red_rock_albedo.png" id="1_nw81h"]
+[ext_resource type="Texture2D" uid="uid://ds5vdqp5k486g" path="res://terrain/materials/Red_rock_height.png" id="2_fpjkx"]
 
 [resource]
-albedo_color = Color(0.51, 0.28, 0.18, 1)
+albedo_color = Color(0.50980395, 0.2784314, 0.18039216, 0)
+albedo_texture = ExtResource("1_nw81h")
 roughness = 0.95
-metallic = 0.0
+heightmap_enabled = true
+heightmap_scale = 16.0
+heightmap_texture = ExtResource("2_fpjkx")
+uv1_scale = Vector3(0.001, 0.001, 0.001)

@@ -1,12 +1,10 @@
-[gd_resource type="Resource" script_class="TerrainSurfaceLayer" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="TerrainSurfaceLayer" format=3 uid="uid://clvq6wdac3mqt"]
 
-[ext_resource type="Script" path="res://terrain/terrain_surface_layer.gd" id="1_script"]
-[ext_resource type="StandardMaterial3D" path="res://terrain/materials/dark_shale.tres" id="2_material"]
+[ext_resource type="Script" uid="uid://bagw8big25o8v" path="res://terrain/terrain_surface_layer.gd" id="1_script"]
+[ext_resource type="Material" uid="uid://b7xk05u5v1yxy" path="res://terrain/materials/dark_shale.tres" id="2_material"]
 
 [resource]
 script = ExtResource("1_script")
 label = "Тёмный сланец"
 material = ExtResource("2_material")
 thickness_m = 650.0
-transition_width_m = 90.0
-texture_uv_scale = 0.05
