@@ -24,11 +24,43 @@ label = "Тёмный сланец"
 material = ExtResource("4_shale_material")
 thickness_m = 650.0
 
-[sub_resource type="Resource" id="Stratum_RedRock"]
+[sub_resource type="Resource" id="Stratum_RedRock0"]
 script = ExtResource("2_stratum_script")
 label = "Красная порода"
 material = ExtResource("5_red_rock_material")
-thickness_m = 700.0
+thickness_m = 650.0
+transition_width_m = 100.0
+texture_uv_scale = 0.001
+height_enabled = true
+height_depth_m = 1.5
+height_normal_strength = 3.0
+parallax_steps = 6
+
+[sub_resource type="Resource" id="Stratum_Sandstone0"]
+script = ExtResource("2_stratum_script")
+label = "Песчаник"
+material = ExtResource("8_sandstone_material")
+thickness_m = 70.0
+transition_width_m = 1.0
+
+
+[sub_resource type="Resource" id="Stratum_RedRock1"]
+script = ExtResource("2_stratum_script")
+label = "Красная порода"
+material = ExtResource("5_red_rock_material")
+thickness_m = 2000.0
+transition_width_m = 100.0
+texture_uv_scale = 0.001
+height_enabled = true
+height_depth_m = 1.5
+height_normal_strength = 3.0
+parallax_steps = 6
+
+[sub_resource type="Resource" id="Stratum_RedRock2"]
+script = ExtResource("2_stratum_script")
+label = "Красная порода"
+material = ExtResource("5_red_rock_material")
+thickness_m = 1000.0
 transition_width_m = 100.0
 texture_uv_scale = 0.001
 height_enabled = true
@@ -40,38 +72,38 @@ parallax_steps = 6
 script = ExtResource("2_stratum_script")
 label = "Терракота"
 material = ExtResource("6_terracotta_material")
-thickness_m = 700.0
-transition_width_m = 110.0
+thickness_m = 50.0
+transition_width_m = 1.0
 
 [sub_resource type="Resource" id="Stratum_RedSandstone"]
 script = ExtResource("2_stratum_script")
 label = "Красный песчаник"
 material = ExtResource("7_red_sandstone_material")
-thickness_m = 700.0
-transition_width_m = 110.0
+thickness_m = 50.0
+transition_width_m = 1.0
 
 [sub_resource type="Resource" id="Stratum_Sandstone"]
 script = ExtResource("2_stratum_script")
 label = "Песчаник"
 material = ExtResource("8_sandstone_material")
-thickness_m = 750.0
-transition_width_m = 120.0
+thickness_m = 100.0
+transition_width_m = 1.0
 
 [sub_resource type="Resource" id="Stratum_LightSandstone"]
 script = ExtResource("2_stratum_script")
 label = "Светлый песчаник"
 material = ExtResource("9_light_sandstone_material")
-thickness_m = 800.0
-transition_width_m = 120.0
+thickness_m = 50.0
+transition_width_m = 2.0
 
 [sub_resource type="Resource" id="Stratum_Limestone"]
 script = ExtResource("2_stratum_script")
 label = "Известняковая шапка"
 material = ExtResource("10_limestone_material")
-thickness_m = 900.0
-transition_width_m = 140.0
+thickness_m = 150.0
+transition_width_m = 2.0
 
 [resource]
 script = ExtResource("1_stack_script")
-strata = Array[ExtResource("2_stratum_script")]([SubResource("Stratum_Channel"), SubResource("Stratum_Shale"), SubResource("Stratum_RedRock"), SubResource("Stratum_Terracotta"), SubResource("Stratum_RedSandstone"), SubResource("Stratum_Sandstone"), SubResource("Stratum_LightSandstone"), SubResource("Stratum_Limestone")])
+strata = Array[ExtResource("2_stratum_script")]([SubResource("Stratum_RedRock0"), SubResource("Stratum_Sandstone0"), SubResource("Stratum_RedRock1"), SubResource("Stratum_Terracotta"), SubResource("Stratum_RedSandstone"), SubResource("Stratum_Sandstone"), SubResource("Stratum_LightSandstone"), SubResource("Stratum_RedRock2"), SubResource("Stratum_Limestone"), SubResource("Stratum_RedRock2")])
 slope_tint = Color(0.66, 0.5, 0.36, 1)

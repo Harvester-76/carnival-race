@@ -6,7 +6,7 @@
 [resource]
 albedo_color = Color(0.50980395, 0.2784314, 0.18039216, 0)
 albedo_texture = ExtResource("1_nw81h")
-roughness = 0.95
+roughness = 1.0
 heightmap_enabled = true
 heightmap_scale = 16.0
 heightmap_texture = ExtResource("2_fpjkx")
