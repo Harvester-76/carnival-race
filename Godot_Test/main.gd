@@ -797,7 +797,7 @@ func _track_at(sv: float) -> Array:
 	var t := (sv - trk_s[lo]) / maxf(0.001, seg.length())
 	return [a + seg * t, seg.normalized()]
 
-const SHELF_EXTRA := 240.0   # расширение второго яруса: полка втрое шире прежней (было 120 ед. dd)
+const SHELF_EXTRA := 120.0   # расширение второго яруса уменьшено на 50%: было 240 ед. dd
 # NARROW_S заменён переменной narrow_s   # редкие места, где ярусы сужены почти до прежнего (первый поворот s=9..24 км всегда широкий)
 func _wk(sv: float) -> float:                                              # множитель ширины каньона на участке (1 = базовая); у ручной трассы всегда 1
 	if wv.is_empty(): return 1.0
