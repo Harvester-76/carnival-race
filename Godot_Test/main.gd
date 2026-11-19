@@ -9,11 +9,10 @@ const STATIC_TRACK_RUNTIME := preload("res://static_track_runtime.gd")
 const PERFORMANCE_DIAGNOSTICS := preload("res://performance_diagnostics.gd")
 const CARNIVAL_ATMOSPHERE := preload("res://physics/carnival_atmosphere.gd")
 const CARNIVAL_AERODYNAMICS := preload("res://physics/carnival_aerodynamics.gd")
-const AERO_PROFILE := {
-	"front_area_m2": 18.0,
-	"side_area_m2": 24.0,
-	"top_area_m2": 18.0
-}
+const SHIP_CATALOG_SCRIPT := preload("res://ship_catalog.gd")
+var AERO_PROFILE: Dictionary = CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE.duplicate(true)
+var ship_profiles: Array[Dictionary] = []
+var active_ship_profile: Dictionary = {}
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
 const TERRAIN_MATERIAL_FACTORY := preload("res://terrain/terrain_material_factory.gd")
 const TERRAIN_LAYER_STACK := preload("res://terrain/canyon_terrain_stack.tres")
@@ -25,11 +24,7 @@ const MASS := 40000.0
 # Корабли-участники из книг (порядок от сильнейшего бота к слабейшему): Космоолухи-4 «Космотехнолухи», Космоолухи-9 «Киберканикулы»
 const BOT_NAMES := ["Галлюцинация", "Долгоносик", "Звездолов", "Маленькое Стремительное Копье", "Аргамак", "Семикрылый", "Золотая рыбка", "Ломовой Пегас", "Каракатица", "Любовница шторма", "Бешеный Самовар"]
 const G := 9.8
-const SHIP_NAMES := ["Третий шанс", "Фрея", "Долгоносик", "Аргамак"]
-const FREYA_VARIANT := {"cabins": -3}
-const SHIP_SCALE := [1.0, 0.8, 1.0, 1.0]
-const SHIP_VARIANTS := {1: FREYA_VARIANT, 2: {"nose": [-22.0, 1.55], "nose_engine": true}, 3: {"nose": [-22.0, 0.88], "cabins": 1}}   # корпуса «Долгоносика» и «Аргамака» те же, что у ботов под этими именами
-const SHIP_LIVERY := {2: 1, 3: 4}                      # номер бота, чья ливрея у этого корабля
+var ship_names: Array[String] = []
 const NOSE_ENG := "SM_Engine_Shunt_Nose"
 const NOSE_BRAKE := 0.5                                 # торможение носовым маневровым: доля от максимального ускорения тяговых
 const SHIP_SLOGANS := ["Стартует последним, а ставят на него первым", "Мы же Команда, верно?! — КОМАНДА!", "Молодая щучка среди карасей", "Транспортник с лицензией на лазерные пушки"]
@@ -964,7 +959,17 @@ func _ready() -> void:
 		static_mode = false
 		static_track_error = "Подготовленная Static-трасса отсутствует или повреждена. Её можно распаковать перед запуском гонки."
 		push_warning(static_track_error)
-	ship_id = clampi(int(cfg.get("ship", 0)), 0, SHIP_NAMES.size() - 1)
+	ship_profiles = SHIP_CATALOG_SCRIPT.load_ships()
+	ship_names.clear()
+	for profile in ship_profiles: ship_names.append(String(profile["name"]))
+	if ship_profiles.is_empty():
+		push_error("[SHIP_CATALOG] No valid ship profiles found")
+		return
+	ship_id = clampi(int(cfg.get("ship", 0)), 0, ship_profiles.size() - 1)
+	active_ship_profile = ship_profiles[ship_id]
+	AERO_PROFILE = Dictionary(active_ship_profile.get("aerodynamics", CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE)).duplicate(true)
+	var motor_profile: Dictionary = active_ship_profile.get("motors", {})
+	for motor_key in motor_profile: tune.v[motor_key] = float(motor_profile[motor_key])
 	var has_shot := false
 	for a2 in ua: if a2.begins_with("uishot="): has_shot = true
 	use_loading = not (evo_mode or test_mode or shot_mode or soak or has_shot)
@@ -1726,7 +1731,7 @@ func _spawn_bots() -> void:                                                  # �
 		rb.continuous_cd = true; rb.can_sleep = false; rb.freeze = true
 		rb.contact_monitor = true; rb.max_contacts_reported = 4
 		var btex := bot_tex.duplicate()                                     # своя ливрея: краска, полосы, номер, имя и эмблема (tools/make_liveries.py)
-		var swapped: bool = int(SHIP_LIVERY.get(ship_id, -1)) == i                    # игрок выбрал корабль этого бота: на его месте летит «Третий шанс», чтобы не было двойников
+		var swapped: bool = int(active_ship_profile.get("livery_bot_index", -1)) == i                    # игрок выбрал корабль этого бота: на его месте летит «Третий шанс», чтобы не было двойников
 		if not evo_mode and not swapped and ResourceLoader.exists("res://ship/tex/livery_%d_albedo.png" % i):
 			btex["alb"] = load("res://ship/tex/livery_%d_albedo.png" % i); btex["dec"] = load("res://ship/tex/livery_%d_decal.png" % i); btex["two_sided"] = true
 		await _lt(0.30 + 0.62 * float(i) / float(N_BOTS), "Соперники: %d из %d" % [i + 1, N_BOTS])
@@ -2194,7 +2199,7 @@ func _mesh_children(n: Node) -> Array:
 	return r
 
 func _build_ship() -> void:
-	var ps: PackedScene = load("res://ship/ship.glb")
+	var ps: PackedScene = load(String(active_ship_profile.get("model", "res://ship/ship.glb")))
 	ship_scene = ps
 	ship = RigidBody3D.new(); ship.name = "Ship"; ship.mass = MASS; ship.gravity_scale = 1.0
 	ship.collision_layer = 8; ship.collision_mask = 1 | 2 | 8
@@ -2202,20 +2207,24 @@ func _build_ship() -> void:
 	ship.angular_damp_mode = RigidBody3D.DAMP_MODE_REPLACE; ship.angular_damp = 0.0
 	add_child(ship)
 	var hull_shape: ConvexPolygonShape3D = null
-	_fill_variant(ship, "ship%d" % ship_id, SHIP_VARIANTS.get(ship_id, {}))     # по книге у «Фреи» четыре каюты (у базового корабля десять): подрезка по схеме ботов
-	ship_sc = float(SHIP_SCALE[ship_id])                                      # «Фрея» меньше: все части уменьшаются вместе с их положениями
+	_fill_variant(ship, "ship_" + String(active_ship_profile.get("id", str(ship_id))), Dictionary(active_ship_profile.get("variant", {})))
+	ship_sc = float(active_ship_profile.get("scale", 1.0))                                      # «Фрея» меньше: все части уменьшаются вместе с их положениями
 	if ship_sc != 1.0:
 		for n in ship.get_children():
 			if n is Node3D: (n as Node3D).position *= ship_sc; (n as Node3D).scale = Vector3.ONE * ship_sc
 	hull_pos0 = (ship.get_node("SM_Hull_Body") as Node3D).position / ship_sc
-	var hull_tex := {"alb": load("res://ship/tex/hull_albedo_4096.png"), "rgh": load("res://ship/tex/hull_roughness_4096.png"), "mtl": load("res://ship/tex/hull_metallic_4096.png"), "dec": load("res://ship/tex/decal_third_chance.png")}
-	if ship_id == 1:
-		hull_tex = {"alb": load("res://ship/tex/freya_albedo.png"), "rgh": load("res://ship/tex/freya_rough.png"), "mtl": load("res://ship/tex/freya_metal.png"), "dec": load("res://ship/tex/freya_decal.png"), "two_sided": true,
-			"bite": {"part": "SM_Wing_Top_R", "c": Vector3(21.0, 8.5, 27.0), "r": 7.5}}
-	if SHIP_LIVERY.has(ship_id):                                                # «Долгоносик» и «Аргамак» летят в своих ливреях
-		var li: int = SHIP_LIVERY[ship_id]
-		if ResourceLoader.exists("res://ship/tex/livery_%d_albedo.png" % li):
-			hull_tex["alb"] = load("res://ship/tex/livery_%d_albedo.png" % li); hull_tex["dec"] = load("res://ship/tex/livery_%d_decal.png" % li); hull_tex["two_sided"] = true
+	var texture_profile: Dictionary = active_ship_profile.get("textures", {})
+	var hull_tex := {
+		"alb": load(String(texture_profile.get("albedo", "res://ship/tex/hull_albedo_4096.png"))),
+		"rgh": load(String(texture_profile.get("roughness", "res://ship/tex/hull_roughness_4096.png"))),
+		"mtl": load(String(texture_profile.get("metallic", "res://ship/tex/hull_metallic_4096.png"))),
+		"dec": load(String(texture_profile.get("decal", "res://ship/tex/decal_third_chance.png"))),
+		"two_sided": bool(texture_profile.get("two_sided", false))
+	}
+	if texture_profile.has("bite"):
+		var bite: Dictionary = texture_profile["bite"]
+		var coords: Array = bite.get("c", [0.0, 0.0, 0.0])
+		hull_tex["bite"] = {"part": String(bite.get("part", "")), "c": Vector3(float(coords[0]), float(coords[1]), float(coords[2])), "r": float(bite.get("r", 0.0))}
 	lamp_mats.clear(); lens_halos.clear(); spot_lights.clear()
 	for n in ship.get_children():
 		if n is not MeshInstance3D or n.is_queued_for_deletion(): continue       # вырезанные при подрезке корпуса окна ещё числятся детьми до конца кадра: в части разрушения их брать нельзя
