@@ -2,7 +2,7 @@ extends Node3D
 # Тестовый полёт «Третьего шанса»: модель, схема управления (клавиатура + геймпад, 2 схемы), отлёт деталей, чекпоинты.
 # Ось корабля в Godot: нос = -Z, верх = +Y, правый борт = +X.
 # Моторы: взлётные (днище) держат высоту над уровнем моря и тянут вдоль «верха» корабля; тяговые (корма) тянут вперёд, без тормоза;
-# маневровые (концы крыльев, 4 шт.) дают вектор тяги, который задаёт пилот. Атмосферы нет: инерция почти не гасится.
+# маневровые (концы крыльев, 4 шт.) дают вектор тяги, который задаёт пилот. Атмосферное сопротивление рассчитывается отдельной физической подсистемой.
 
 const APP_VERSION := "0.1.2"
 const STATIC_TRACK_RUNTIME := preload("res://static_track_runtime.gd")
@@ -245,16 +245,14 @@ func _log_row(ctrl: Dictionary) -> void:
 	var agl := p.y - height(p.x, p.z)
 	var avg_speed := race_dist / maxf(race_t, 0.001)
 	var remaining := maxf(race_len - p_prog, 0.0)
+	var air := CARNIVAL_ATMOSPHERE.sample(p.y)
+	var aero := CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(air["density_kg_m3"]), float(air["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)
 	var row := [snappedf(log_t, 0.01), snappedf(race_t, 0.01), int(p_prog), int(race_len), int(remaining), int(race_dist), int(avg_speed), int(p_max_v), int(agl), int(p.x), int(p.y), int(p.z), int(v.x), int(v.y), int(v.z), int(v.length()), snappedf(bs.y.y, 0.001), snappedf(bank, 0.1), snappedf(pitch, 0.1), snappedf(_slip(), 0.1),
 		snappedf(float(ctrl["thr"]), 0.001), snappedf(thr, 0.001), snappedf(float(ctrl["lift"]), 0.01), snappedf(lift_hold, 0.01), snappedf(float(dbg.get("li", 0.0)), 0.001),
 		snappedf(float(dbg.get("t_lift", 0.0)) / mg, 0.01), snappedf(float(dbg.get("tmax", 0.0)) / mg, 0.01), dbg.get("limit", ""), snappedf(float(dbg.get("want", 0.0)) / mg, 0.01), snappedf(float(dbg.get("cap", 0.0)) / mg, 0.01),
 		snappedf(float(dbg.get("dump", 0.0)) / mg, 0.01), int(dbg.get("inv", 0)), int(hold_alt), int(clr), snappedf(gyv.x, 0.01), snappedf(gyv.y, 0.01), snappedf(gyv.z, 0.01), snappedf(trv.x, 0.01), snappedf(trv.z, 0.01),
 		snappedf(float(ctrl["boost"]), 0.01), snappedf(_remaining("lift"), 0.01), snappedf(_remaining("main"), 0.01), snappedf(_remaining("shunt"), 0.01), parts.size(), log_ev,
-		float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]),
-		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["mach"]),
-		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["cd"]),
-		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["force_n"].length()),
-		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["dynamic_pressure_pa"])]
+		float(air["density_kg_m3"]), float(aero["mach"]), float(aero["cd"]), float(aero["force_n"].length()), float(aero["dynamic_pressure_pa"])]
 	log_f.store_line(",".join(PackedStringArray(row.map(func(x): return str(x)))))
 	log_ev = ""
 	log_n += 1
