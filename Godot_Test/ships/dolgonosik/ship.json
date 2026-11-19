@@ -4,8 +4,14 @@
   "order": 2,
   "base_profile": "../base/ship.json",
   "model": "res://ship/ship.glb",
-  "scale": 1.0,
-  "variant": {"nose": [-22.0, 1.55], "nose_engine": true},
+  "scale": 1,
+  "variant": {
+    "nose": [
+      -22,
+      1.55
+    ],
+    "nose_engine": true
+  },
   "livery_bot_index": 1,
   "textures": {
     "albedo": "res://ship/tex/livery_1_albedo.png",
@@ -13,5 +19,6 @@
     "metallic": "res://ship/tex/hull_metallic_4096.png",
     "decal": "res://ship/tex/livery_1_decal.png",
     "two_sided": true
-  }
+  },
+  "camera_shake_scale": 2
 }
