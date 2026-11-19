@@ -5,7 +5,9 @@
   "base_profile": "../base/ship.json",
   "model": "res://ship/ship.glb",
   "scale": 0.8,
-  "variant": {"cabins": -3},
+  "variant": {
+    "cabins": -3
+  },
   "livery_bot_index": -1,
   "textures": {
     "albedo": "res://ship/tex/freya_albedo.png",
@@ -13,6 +15,15 @@
     "metallic": "res://ship/tex/freya_metal.png",
     "decal": "res://ship/tex/freya_decal.png",
     "two_sided": true,
-    "bite": {"part": "SM_Wing_Top_R", "c": [21.0, 8.5, 27.0], "r": 7.5}
-  }
+    "bite": {
+      "part": "SM_Wing_Top_R",
+      "c": [
+        21,
+        8.5,
+        27
+      ],
+      "r": 7.5
+    }
+  },
+  "camera_shake_scale": 1
 }
