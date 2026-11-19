@@ -189,8 +189,10 @@ var log_f: FileAccess
 var log_n := 0
 var log_ev := ""
 var log_t := 0.0
+var log_disabled := false
 var dbg := {}
 func _log_open() -> void:
+	if log_disabled or log_f != null or not racing: return
 	var log_path := ProjectSettings.globalize_path("res://flight_log.csv")
 	print("[FLIGHT_LOG] target: ", log_path)
 	log_f = FileAccess.open(log_path, FileAccess.WRITE)
@@ -200,9 +202,19 @@ func _log_open() -> void:
 			error_string(FileAccess.get_open_error())
 		])
 		return
-	print("[FLIGHT_LOG] opened successfully")
+	log_n = 0
+	log_t = 0.0
+	log_ev = ""
+	print("[FLIGHT_LOG] opened for active race")
 	log_f.store_line("# tuning " + JSON.stringify(tune.v) + " scheme=" + str(scheme) + " gravity=" + str(gravity_on))
 	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event")
+func _log_close(reason: String) -> void:
+	if log_f == null: return
+	log_f.store_line("# END " + reason + " race_t_s=" + str(snappedf(race_t, 0.01)) + " progress_m=" + str(int(p_prog)))
+	log_f.flush()
+	log_f.close()
+	log_f = null
+	log_ev = ""
 # снос: угол между направлением носа и скоростью в горизонтали (+ = нос правее движения); от него зависит, куда толкают взлётные при крене
 func _slip() -> float:
 	var f := -ship.global_transform.basis.z
@@ -211,6 +223,7 @@ func _slip() -> float:
 	var a := Vector2(f.x, f.z).angle_to(Vector2(v.x, v.z))
 	return -rad_to_deg(a)
 func _log_event(t: String) -> void:
+	if log_f == null: return
 	log_ev += (";" if log_ev != "" else "") + t
 func _log_row(ctrl: Dictionary) -> void:
 	if log_f == null: return
@@ -975,7 +988,7 @@ func _ready() -> void:
 	_build_arches()
 	_build_cut_props()
 	_build_hud()
-	if not evo_mode and "no_flight_log" not in ua: _log_open()
+	log_disabled = "no_flight_log" in ua
 	cam = Camera3D.new(); cam.far = 90000.0; cam.fov = 70.0; add_child(cam)
 	_reset()
 	if evo_mode: ship.freeze = true; ship.global_position = Vector3(300000.0, 1000.0, 300000.0)
@@ -1596,6 +1609,7 @@ func _depenetrate(dt: float) -> void:                                      # к�
 		_log_event("DEPEN %.1f" % worst)
 
 func _exit_tree() -> void:
+	_log_close("application_exit")
 	for k in chunk_jobs.keys(): WorkerThreadPool.wait_for_task_completion(chunk_jobs[k])
 	chunk_jobs.clear()
 
@@ -3017,8 +3031,9 @@ func _physics_process(dt: float) -> void:
 	elif stab_on and Vector2(ctrl["shl"].y, ctrl["shr"].y).length() < 0.05: av = av.move_toward(Vector3.ZERO, P("assist_damp") * dt)
 	if av.length() > P("max_spin"): av = av.normalized() * P("max_spin")
 	ship.angular_velocity = bs * av
-	log_t += dt
-	if frame % 6 == 0: _log_row(ctrl)
+	if log_f != null:
+		log_t += dt
+		if frame % 6 == 0: _log_row(ctrl)
 	_step_bots(dt)
 	if "reset" in OS.get_cmdline_user_args() and frame == 120: _reset_now = true
 	if test_mode:
@@ -3087,6 +3102,8 @@ func _unstick() -> void:                                                    # в
 	ui.sfx.play("pop"); _log_event("UNSTICK %d s=%.0f" % [unstick_n, st])
 
 func _disqualify() -> void:                                                 # заезд для игрока окончен: корабль зависает, показывается таблица, как на финише
+	_log_event("DISQUALIFIED")
+	_log_close("disqualified")
 	msg_t = 0.0; warn_label.visible = false
 	p_dsq = true; rim_t = 0.0; hold_alt = ship.global_position.y; assist = true
 	ui._show_state("results"); ui._update_results()
@@ -3446,6 +3463,7 @@ func _process(dt: float) -> void:
 		if intro_on and not intro_skipped and not intro_seen and start_t <= INTRO_T - INTRO_CUT: intro_seen = true; ui.cutscene_seen()
 		if start_t <= 0.0:
 			racing = true
+			_log_open()
 			if intro_on: intro_on = false; music.race_started()
 	if racing: race_t += dt
 	# запретная зона по высоте: границы не видно и не бьёт, но надо выйти за RIM_GRACE секунд
@@ -3470,7 +3488,10 @@ func _process(dt: float) -> void:
 	p_prog = _acc_prog(p_prog, p_rel, prel); p_rel = prel
 	var pprog := p_prog
 	lap = int(floor(pprog / trk_len)) if pprog > 0.0 else -1
-	if not p_fin and not p_dsq and pprog >= race_len: p_fin = true; p_fin_t = race_t; hold_alt = ship.global_position.y; assist = true      # дальше корабль сам тормозит и зависает
+	if not p_fin and not p_dsq and pprog >= race_len:
+		p_fin = true; p_fin_t = race_t; hold_alt = ship.global_position.y; assist = true
+		_log_event("FINISH")
+		_log_close("finish")      # дальше корабль сам тормозит и зависает
 	rank = 1
 	for b in bots:
 		if p_fin:
