@@ -1,12 +1,12 @@
 extends RefCounted
-## First-pass aerodynamic drag model. SI units throughout.
-## Areas are effective projected reference areas, not mesh bounds.
-## Cd is interpolated against Mach; table is deliberately exposed for tuning.
+## Anisotropic aerodynamic drag. SI units throughout.
+## Velocity is resolved in ship-local axes so lateral drag cannot masquerade as a
+## general-purpose stabilizer. Areas are effective reference areas per axis.
 
 const DEFAULT_PROFILE := {
 	"front_area_m2": 18.0,
-	"side_area_m2": 65.0,
-	"top_area_m2": 45.0,
+	"side_area_m2": 24.0,
+	"top_area_m2": 18.0,
 	"cd_mach": [
 		Vector2(0.0, 0.24),
 		Vector2(0.8, 0.25),
@@ -37,23 +37,40 @@ static func evaluate_drag(body: RigidBody3D, density_kg_m3: float, speed_of_soun
 	var relative_velocity := body.linear_velocity - wind_mps
 	var speed := relative_velocity.length()
 	if speed < 0.01 or density_kg_m3 <= 0.0 or speed_of_sound_mps <= 0.0:
-		return {"force_n": Vector3.ZERO, "speed_mps": speed, "mach": 0.0, "cd": 0.0, "area_m2": 0.0, "dynamic_pressure_pa": 0.0}
-	var direction := relative_velocity / speed
+		return {
+			"force_n": Vector3.ZERO, "longitudinal_force_n": Vector3.ZERO,
+			"transverse_force_n": Vector3.ZERO, "speed_mps": speed,
+			"mach": 0.0, "cd": 0.0, "area_m2": 0.0,
+			"dynamic_pressure_pa": 0.0
+		}
+
 	var basis := body.global_transform.basis
-	var projected_area := (
-		float(profile.get("front_area_m2", DEFAULT_PROFILE["front_area_m2"])) * absf(direction.dot(-basis.z)) +
-		float(profile.get("side_area_m2", DEFAULT_PROFILE["side_area_m2"])) * absf(direction.dot(basis.x)) +
-		float(profile.get("top_area_m2", DEFAULT_PROFILE["top_area_m2"])) * absf(direction.dot(basis.y))
-	)
+	var local_velocity := basis.inverse() * relative_velocity
 	var mach := speed / speed_of_sound_mps
 	var cd := cd_for_mach(mach, profile)
 	var dynamic_pressure := 0.5 * density_kg_m3 * speed * speed
-	var drag_force := -direction * dynamic_pressure * cd * projected_area
+
+	# Independent quadratic components: forward (local Z), lateral (X), vertical (Y).
+	# This avoids the previous projected-area model's 65/45 m2 side/top penalty.
+	var local_drag := Vector3(
+		-0.5 * density_kg_m3 * cd * float(profile.get("side_area_m2", DEFAULT_PROFILE["side_area_m2"])) * local_velocity.x * absf(local_velocity.x),
+		-0.5 * density_kg_m3 * cd * float(profile.get("top_area_m2", DEFAULT_PROFILE["top_area_m2"])) * local_velocity.y * absf(local_velocity.y),
+		-0.5 * density_kg_m3 * cd * float(profile.get("front_area_m2", DEFAULT_PROFILE["front_area_m2"])) * local_velocity.z * absf(local_velocity.z)
+	)
+	var longitudinal_local := Vector3(0.0, 0.0, local_drag.z)
+	var transverse_local := Vector3(local_drag.x, local_drag.y, 0.0)
+	var total_force := basis * local_drag
+	var longitudinal_force := basis * longitudinal_local
+	var transverse_force := basis * transverse_local
+	var effective_area := total_force.length() / maxf(dynamic_pressure * cd, 0.0001) / maxf(speed, 0.0001)
+
 	return {
-		"force_n": drag_force,
+		"force_n": total_force,
+		"longitudinal_force_n": longitudinal_force,
+		"transverse_force_n": transverse_force,
 		"speed_mps": speed,
 		"mach": mach,
 		"cd": cd,
-		"area_m2": projected_area,
+		"area_m2": effective_area,
 		"dynamic_pressure_pa": dynamic_pressure
 	}
