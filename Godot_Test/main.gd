@@ -30,6 +30,7 @@ const NOSE_BRAKE := 0.5                                 # торможение �
 const SHIP_SLOGANS := ["Стартует последним, а ставят на него первым", "Мы же Команда, верно?! — КОМАНДА!", "Молодая щучка среди карасей", "Транспортник с лицензией на лазерные пушки"]
 const SHIP_DESC := ["Транспортник Стрелка, фаворит списка. Козыря избили накануне гонки, за штурвалом Тед «Гризли».", "Пятьдесят метров металлолома, доставшиеся Натану от деда: подёргивается и вздыхает, как старая ломовая лошадь, зато движок отлажен идеально.", "Переоборудованный транспортник Тощего Грэга: узкий обтекаемый корпус с «зубами»-выступами и отличные движки. Носовой маневровый на кронштейне направлен вперёд и тормозит корабль на форсаже.", "Грузовой транспортник капитана Юрия Гибульского с лицензией на лазерные пушки. Экипаж из пяти человек; корпус шире и тяжелее, чем у соперников, и отбиваться корабль не умеет."]
 var ship_id := 0
+var ship_mass_kg := 40000.0
 var ship_sc := 1.0
 var hull_pos0 := Vector3.ZERO                       # положение корпуса в исходных (не масштабированных) координатах модели
 const GRID_ROWS := 2          # рядов по высоте (в книге шесть при ~60 кораблях; у нас кораблей мало, поэтому два)
@@ -127,7 +128,6 @@ var prev_vel := Vector3.ZERO                # скорость прошлого 
 var acc_s := 0.0                                                            # сглаженное ускорение корабля, м/с²: тряска камеры включается только выше порога
 const SHAKE_ACC0 := 500.0                                                   # начало тряски (~51 g) у «Фреи»
 const SHAKE_ACC1 := 1300.0                                                  # полная тряска (~133 g)
-const SHAKE_SHIP_K := [2.0, 1.0, 2.0, 1.5]                                            # множитель порога по кораблям: у «Третьего шанса» вдвое выше (тяжелее, плавнее), «Фрея» трясётся как есть
 const SHAKE_HEALTH_MIN := 0.4                                               # порог у полностью разбитого корабля = 40% от исправного
 var health_w0 := 0.0                                                        # суммарный вес деталей целого корабля
 
@@ -967,6 +967,7 @@ func _ready() -> void:
 		return
 	ship_id = clampi(int(cfg.get("ship", 0)), 0, ship_profiles.size() - 1)
 	active_ship_profile = ship_profiles[ship_id]
+	ship_mass_kg = float(active_ship_profile.get("mass_kg", MASS))
 	AERO_PROFILE = Dictionary(active_ship_profile.get("aerodynamics", CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE)).duplicate(true)
 	var motor_profile: Dictionary = active_ship_profile.get("motors", {})
 	for motor_key in motor_profile: tune.v[motor_key] = float(motor_profile[motor_key])
@@ -2201,7 +2202,7 @@ func _mesh_children(n: Node) -> Array:
 func _build_ship() -> void:
 	var ps: PackedScene = load(String(active_ship_profile.get("model", "res://ship/ship.glb")))
 	ship_scene = ps
-	ship = RigidBody3D.new(); ship.name = "Ship"; ship.mass = MASS; ship.gravity_scale = 1.0
+	ship = RigidBody3D.new(); ship.name = "Ship"; ship.mass = ship_mass_kg; ship.gravity_scale = 1.0
 	ship.collision_layer = 8; ship.collision_mask = 1 | 2 | 8
 	ship.linear_damp_mode = RigidBody3D.DAMP_MODE_REPLACE; ship.linear_damp = 0.01
 	ship.angular_damp_mode = RigidBody3D.DAMP_MODE_REPLACE; ship.angular_damp = 0.0
@@ -2981,7 +2982,7 @@ func _physics_process(dt: float) -> void:
 	last_ctrl = ctrl
 	_track_stats(dt)
 	var bs := ship.global_transform.basis
-	var m := MASS
+	var m := ship_mass_kg
 	# --- тяговые: вперёд (-Z), без тормоза ---
 	thr = move_toward(thr, ctrl["thr"], P("main_spool") * dt)
 	var f_main := bs * Vector3(0, 0, -1) * m * P("main_acc") * thr * _remaining("main")
@@ -3683,7 +3684,7 @@ func _cam_tail(dt: float) -> void:                                          # у
 	if sk > 0.001 and frame > 3 and ui.state != "menu":                         # тряска камеры: от тяги, скорости и ударов
 		var tt := Time.get_ticks_msec() * 0.001
 		var hp := ship_health()
-		var kth: float = float(SHAKE_SHIP_K[ship_id]) * lerpf(SHAKE_HEALTH_MIN, 1.0, hp)     # чем сильнее корабль разбит, тем ниже порог
+		var kth: float = float(active_ship_profile.get("camera_shake_scale", 1.0)) * lerpf(SHAKE_HEALTH_MIN, 1.0, hp)     # чем сильнее корабль разбит, тем ниже порог
 		var a_amp := 0.0 if (p_fin or p_dsq) else clampf((acc_s - SHAKE_ACC0 * kth) / ((SHAKE_ACC1 - SHAKE_ACC0) * kth), 0.0, 1.0)
 		var amp := (a_amp * 0.8 + shake_imp) * sk * (1.0 + (1.0 - hp) * 1.2) * shake_fov_gain # компенсируем визуальное ослабление тряски при широком FOV
 		if amp > 0.001:
