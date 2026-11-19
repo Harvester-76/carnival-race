@@ -39,7 +39,8 @@ static func evaluate_drag(body: RigidBody3D, density_kg_m3: float, speed_of_soun
 	if speed < 0.01 or density_kg_m3 <= 0.0 or speed_of_sound_mps <= 0.0:
 		return {
 			"force_n": Vector3.ZERO, "longitudinal_force_n": Vector3.ZERO,
-			"transverse_force_n": Vector3.ZERO, "speed_mps": speed,
+			"transverse_force_n": Vector3.ZERO, "local_velocity_mps": Vector3.ZERO,
+			"local_force_n": Vector3.ZERO, "speed_mps": speed,
 			"mach": 0.0, "cd": 0.0, "area_m2": 0.0,
 			"dynamic_pressure_pa": 0.0
 		}
@@ -68,6 +69,8 @@ static func evaluate_drag(body: RigidBody3D, density_kg_m3: float, speed_of_soun
 		"force_n": total_force,
 		"longitudinal_force_n": longitudinal_force,
 		"transverse_force_n": transverse_force,
+		"local_velocity_mps": local_velocity,
+		"local_force_n": local_drag,
 		"speed_mps": speed,
 		"mach": mach,
 		"cd": cd,
