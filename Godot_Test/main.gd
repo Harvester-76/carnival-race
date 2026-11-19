@@ -7,6 +7,13 @@ extends Node3D
 const APP_VERSION := "0.1.2"
 const STATIC_TRACK_RUNTIME := preload("res://static_track_runtime.gd")
 const PERFORMANCE_DIAGNOSTICS := preload("res://performance_diagnostics.gd")
+const CARNIVAL_ATMOSPHERE := preload("res://physics/carnival_atmosphere.gd")
+const CARNIVAL_AERODYNAMICS := preload("res://physics/carnival_aerodynamics.gd")
+const AERO_PROFILE := {
+	"front_area_m2": 18.0,
+	"side_area_m2": 65.0,
+	"top_area_m2": 45.0
+}
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
 const TERRAIN_MATERIAL_FACTORY := preload("res://terrain/terrain_material_factory.gd")
 const TERRAIN_LAYER_STACK := preload("res://terrain/canyon_terrain_stack.tres")
@@ -207,7 +214,7 @@ func _log_open() -> void:
 	log_ev = ""
 	print("[FLIGHT_LOG] opened for active race")
 	log_f.store_line("# tuning " + JSON.stringify(tune.v) + " scheme=" + str(scheme) + " gravity=" + str(gravity_on))
-	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event")
+	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event,air_density_kg_m3,mach,cd,drag_n,dynamic_pressure_pa")
 func _log_close(reason: String) -> void:
 	if log_f == null: return
 	log_f.store_line("# END " + reason + " race_t_s=" + str(snappedf(race_t, 0.01)) + " progress_m=" + str(int(p_prog)))
@@ -242,7 +249,12 @@ func _log_row(ctrl: Dictionary) -> void:
 		snappedf(float(ctrl["thr"]), 0.001), snappedf(thr, 0.001), snappedf(float(ctrl["lift"]), 0.01), snappedf(lift_hold, 0.01), snappedf(float(dbg.get("li", 0.0)), 0.001),
 		snappedf(float(dbg.get("t_lift", 0.0)) / mg, 0.01), snappedf(float(dbg.get("tmax", 0.0)) / mg, 0.01), dbg.get("limit", ""), snappedf(float(dbg.get("want", 0.0)) / mg, 0.01), snappedf(float(dbg.get("cap", 0.0)) / mg, 0.01),
 		snappedf(float(dbg.get("dump", 0.0)) / mg, 0.01), int(dbg.get("inv", 0)), int(hold_alt), int(clr), snappedf(gyv.x, 0.01), snappedf(gyv.y, 0.01), snappedf(gyv.z, 0.01), snappedf(trv.x, 0.01), snappedf(trv.z, 0.01),
-		snappedf(float(ctrl["boost"]), 0.01), snappedf(_remaining("lift"), 0.01), snappedf(_remaining("main"), 0.01), snappedf(_remaining("shunt"), 0.01), parts.size(), log_ev]
+		snappedf(float(ctrl["boost"]), 0.01), snappedf(_remaining("lift"), 0.01), snappedf(_remaining("main"), 0.01), snappedf(_remaining("shunt"), 0.01), parts.size(), log_ev,
+		float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]),
+		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["mach"]),
+		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["cd"]),
+		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["force_n"].length()),
+		float(CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(CARNIVAL_ATMOSPHERE.sample(p.y)["density_kg_m3"]), float(CARNIVAL_ATMOSPHERE.sample(p.y)["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)["dynamic_pressure_pa"])]
 	log_f.store_line(",".join(PackedStringArray(row.map(func(x): return str(x)))))
 	log_ev = ""
 	log_n += 1
@@ -1784,6 +1796,11 @@ func _acc_prog(prog: float, rel_last: float, rel: float) -> float:
 	return prog + d
 
 # После финиша: торможение вдоль скорости с запасом до ближайшей стены (по формуле высоты), затем зависание
+func _apply_atmospheric_drag(body: RigidBody3D) -> void:
+	var air := CARNIVAL_ATMOSPHERE.sample(body.global_position.y)
+	var aero := CARNIVAL_AERODYNAMICS.evaluate_drag(body, float(air["density_kg_m3"]), float(air["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)
+	body.apply_central_force(aero["force_n"])
+
 func _finish_brake(body: RigidBody3D, mass: float) -> void:
 	var v := body.linear_velocity; var sp := v.length()
 	if sp < 8.0: return
@@ -1814,6 +1831,7 @@ func _step_bots(dt: float) -> void:
 		var rb: RigidBody3D = b["rb"]
 		if start_t > 0.0 or b.get("dnf", false) or b.get("done", false) or (ui_shot == "tour" and (tour_phase == "settle" or tour_phase == "fixed_wait") and bi == tour_bot): continue
 		var virt := bool(b.get("virt", false))                                  # вне зоны видимости: упрощённый режим без физики (см. _bot_virtual)
+		if not virt: _apply_atmospheric_drag(rb)
 		if rb.freeze and not virt: rb.freeze = false
 		var pos := rb.global_position; var vel := rb.linear_velocity
 		if pos.y > RIM_Y and not bool(b.get("fin", false)): b["above"] = float(b.get("above", 0.0)) + dt                  # время выше потолка гонки (обучение штрафует улёт вверх)
@@ -2929,6 +2947,7 @@ func _physics_process(dt: float) -> void:
 	thr = move_toward(thr, ctrl["thr"], P("main_spool") * dt)
 	var f_main := bs * Vector3(0, 0, -1) * m * P("main_acc") * thr * _remaining("main")
 	ship.apply_central_force(f_main)
+	_apply_atmospheric_drag(ship)
 	var lv := _lvl()
 	if (p_fin or p_dsq) and lv == 4: lv = 3                                             # после финиша автопилот работает как у Ветерана: тормозит и держит высоту
 	if prev_lvl < 0: prev_lvl = lv
