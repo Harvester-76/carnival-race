@@ -14,13 +14,13 @@ static func _read_json(path: String) -> Dictionary:
 		return {}
 	return parsed
 
-static func _merge(base: Dictionary, override: Dictionary) -> Dictionary:
+static func _merge(base: Dictionary, overrides: Dictionary) -> Dictionary:
 	var result := base.duplicate(true)
-	for key in override:
-		if typeof(override[key]) == TYPE_DICTIONARY and typeof(result.get(key, null)) == TYPE_DICTIONARY:
-			result[key] = _merge(result[key], override[key])
+	for key in overrides:
+		if typeof(overrides[key]) == TYPE_DICTIONARY and typeof(result.get(key, null)) == TYPE_DICTIONARY:
+			result[key] = _merge(result[key], overrides[key])
 		else:
-			result[key] = override[key]
+			result[key] = overrides[key]
 	return result
 
 static func load_ships() -> Array[Dictionary]:
@@ -46,7 +46,17 @@ static func load_ships() -> Array[Dictionary]:
 				elif not ResourceLoader.exists(String(merged.get("model", ""))):
 					push_error("[SHIP_CATALOG] Missing model for %s: %s" % [merged["id"], merged.get("model", "")])
 				else:
-					entries.append(merged)
+					var textures: Dictionary = merged.get("textures", {})
+					var missing_texture := ""
+					for texture_key in ["albedo", "roughness", "metallic", "decal"]:
+						var texture_path := String(textures.get(texture_key, ""))
+						if texture_path != "" and not ResourceLoader.exists(texture_path):
+							missing_texture = texture_path
+							break
+					if missing_texture != "":
+						push_error("[SHIP_CATALOG] Missing texture for %s: %s" % [merged["id"], missing_texture])
+					else:
+						entries.append(merged)
 		item = dir.get_next()
 	dir.list_dir_end()
 	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
