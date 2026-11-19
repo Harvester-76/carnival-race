@@ -191,8 +191,16 @@ var log_ev := ""
 var log_t := 0.0
 var dbg := {}
 func _log_open() -> void:
-	log_f = FileAccess.open(ProjectSettings.globalize_path("res://flight_log.csv"), FileAccess.WRITE)
-	if log_f == null: return
+	var log_path := ProjectSettings.globalize_path("res://flight_log.csv")
+	print("[FLIGHT_LOG] target: ", log_path)
+	log_f = FileAccess.open(log_path, FileAccess.WRITE)
+	if log_f == null:
+		push_error("[FLIGHT_LOG] Cannot open file: %s, error=%s" % [
+			log_path,
+			error_string(FileAccess.get_open_error())
+		])
+		return
+	print("[FLIGHT_LOG] opened successfully")
 	log_f.store_line("# tuning " + JSON.stringify(tune.v) + " scheme=" + str(scheme) + " gravity=" + str(gravity_on))
 	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event")
 # снос: угол между направлением носа и скоростью в горизонтали (+ = нос правее движения); от него зависит, куда толкают взлётные при крене
