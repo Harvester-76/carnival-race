@@ -1839,7 +1839,7 @@ func _step_bots(dt: float) -> void:
 		if rb.freeze and not virt: rb.freeze = false
 		var pos := rb.global_position; var vel := rb.linear_velocity
 		if pos.y > RIM_Y and not bool(b.get("fin", false)): b["above"] = float(b.get("above", 0.0)) + dt                  # время выше потолка гонки (обучение штрафует улёт вверх)
-		if vel.length() > P("max_speed"): vel = vel.limit_length(P("max_speed")); rb.linear_velocity = vel
+		if vel.length() > _max_speed_limit(): vel = vel.limit_length(_max_speed_limit()); rb.linear_velocity = vel
 		if not evo_mode and not virt and Vector2(pos.x - ship.global_position.x, pos.z - ship.global_position.z).length() > LOD0_R - 400.0:
 			var hg := height(pos.x, pos.z)                                     # далеко от игрока физического рельефа нет: считаем землю по формуле высоты
 			if pos.y < hg + 25.0:
@@ -1914,8 +1914,8 @@ func _step_bots(dt: float) -> void:
 		var vcurve := sqrt(float(gn["lat_acc"]) * cl / maxf(ang, 0.02))
 		var vdes := minf(float(gn["v_max"]), vcurve)
 		var lk := _bot_launch(b, bi)                                           # «втопить на старте»: первые секунды часть ботов жмёт на полную
-		if lk > 0.0: vdes = lerpf(vdes, maxf(vdes, P("max_speed") * 0.9), lk)
-		vdes = minf(vdes * _rubber(b), P("max_speed") * 0.97)                  # подстройка: игрок оторвался — боты быстрее, игрок отстал — медленнее
+		if lk > 0.0: vdes = lerpf(vdes, maxf(vdes, _max_speed_limit() * 0.9), lk)
+		vdes = minf(vdes * _rubber(b), _max_speed_limit() * 0.97)                  # подстройка: игрок оторвался — боты быстрее, игрок отстал — медленнее
 		var cutb: Dictionary = branches[pth - 1] if (pth > 0 and pth <= branches.size()) else {}
 		var needle_d := 1e9
 		if not cutb.is_empty() and float(cutb["needle_s"]) > 0.0:
@@ -2925,7 +2925,7 @@ func _physics_process(dt: float) -> void:
 		if p_hit_cd > 0.0: p_hit_cd -= dt
 		elif p_hit_pv - psp > 8.0 and frame - last_contact_f <= 24: p_hits += 1; p_hit_cd = 0.25
 		p_hit_pv = psp
-	if ship.linear_velocity.length() > P("max_speed"): ship.linear_velocity = ship.linear_velocity.limit_length(P("max_speed"))
+	if ship.linear_velocity.length() > _max_speed_limit(): ship.linear_velocity = ship.linear_velocity.limit_length(_max_speed_limit())
 	if frame > 10 and ship.global_position.y < -30.0:                  # спасалка: корабль провалился под рельеф (отрицательная высота) — поднять над землёй
 		var sp0 := ship.global_position; var hr := height(sp0.x, sp0.z)
 		ship.global_position = Vector3(sp0.x, hr + 400.0, sp0.z)
@@ -3628,7 +3628,7 @@ func _cockpit_eye() -> Vector3:                                           # гл
 	return Vector3(0.0, b.end.y + 0.25, b.position.z + b.size.z * 0.55)
 
 func _cam_tail(dt: float) -> void:                                          # угол обзора и тряска: общие для всех видов
-	var base_fov := 70.0 + 25.0 * clampf(ship.linear_velocity.length() / P("max_speed"), 0.0, 1.0)
+	var base_fov := 70.0 + 25.0 * clampf(ship.linear_velocity.length() / _max_speed_limit(), 0.0, 1.0)
 	var dolly_mix := cam_dolly_fov_weight * clampf(P("cam_dolly_strength"), 0.0, 1.0)
 	var dolly_fov_add := maxf(P("cam_dolly_fov"), 0.0) * dolly_mix
 	cam.fov = clampf(base_fov + dolly_fov_add, 8.0, 130.0)
