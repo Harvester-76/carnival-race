@@ -11,8 +11,8 @@ const CARNIVAL_ATMOSPHERE := preload("res://physics/carnival_atmosphere.gd")
 const CARNIVAL_AERODYNAMICS := preload("res://physics/carnival_aerodynamics.gd")
 const AERO_PROFILE := {
 	"front_area_m2": 18.0,
-	"side_area_m2": 65.0,
-	"top_area_m2": 45.0
+	"side_area_m2": 24.0,
+	"top_area_m2": 18.0
 }
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
 const TERRAIN_MATERIAL_FACTORY := preload("res://terrain/terrain_material_factory.gd")
@@ -56,6 +56,11 @@ const LOD2_FAR := 15000.0         # радиус грубых плиток во�
 const AHEAD_T := [1.0, 2.0, 3.5, 7.0, 12.0, 20.0]
 const LOD2_R := 24000.0          # очень грубый уровень (шаг 250 м, без коллизии) — далёкий горизонт
 const LOD0_AHEAD := 2200.0       # радиус подробных плиток вокруг упреждающих точек впереди по трассе
+
+var diagnostic_max_speed_override := 0.0
+
+func _max_speed_limit() -> float:
+	return diagnostic_max_speed_override if diagnostic_max_speed_override > 0.0 else P("max_speed")
 
 var ship: RigidBody3D
 var parts := {}
@@ -903,6 +908,7 @@ func _ready() -> void:
 	soak = "soak" in ua or fly or ram
 	for a in ua:
 		if a.begins_with("cam="): cam_mode = int(a.substr(4))
+		if a.begins_with("max_speed_override="): diagnostic_max_speed_override = maxf(float(a.substr(19)), 0.0)
 		if a.begins_with("scheme="): scheme = int(a.substr(7))
 		if a.begins_with("level="): cfg["level"] = int(a.substr(6))
 		if a.begins_with("ship="): cfg["ship"] = int(a.substr(5))
