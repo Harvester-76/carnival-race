@@ -38,7 +38,7 @@ func _grid_pos(slot: Vector2i, cols: int) -> Vector3: return Vector3((float(slot
 const START_ALT := 1700.0     # старт над вторым ярусом (полка на ~1100 м), а не в русле
 const PLATEAU_Y := 5500.0
 const RING_GAP := 1500.0
-const MAX_SPEED := 2300.0   # м/с (~8300 км/ч), потолок задаётся и в project.godot (Jolt)
+const MAX_SPEED := 2300.0   # УСТАРЕВШАЯ неиспользуемая константа; действующий лимит задаётся tuning.json: max_speed (3200 м/с)
 const TILE := 1000.0
 const GCELL := 500.0
 const INFL := 7500.0        # дальше этого от трассы только плато
@@ -194,7 +194,7 @@ func _log_open() -> void:
 	log_f = FileAccess.open(ProjectSettings.globalize_path("res://flight_log.csv"), FileAccess.WRITE)
 	if log_f == null: return
 	log_f.store_line("# tuning " + JSON.stringify(tune.v) + " scheme=" + str(scheme) + " gravity=" + str(gravity_on))
-	log_f.store_line("t,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event")
+	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event")
 # снос: угол между направлением носа и скоростью в горизонтали (+ = нос правее движения); от него зависит, куда толкают взлётные при крене
 func _slip() -> float:
 	var f := -ship.global_transform.basis.z
@@ -214,7 +214,10 @@ func _log_row(ctrl: Dictionary) -> void:
 	var bank := rad_to_deg(asin(clampf(bs.x.y, -1.0, 1.0)))
 	var pitch := rad_to_deg(asin(clampf(-bs.z.y, -1.0, 1.0)))
 	var mg := MASS * G
-	var row := [snappedf(log_t, 0.01), int(p.x), int(p.y), int(p.z), int(v.x), int(v.y), int(v.z), int(v.length()), snappedf(bs.y.y, 0.001), snappedf(bank, 0.1), snappedf(pitch, 0.1), snappedf(_slip(), 0.1),
+	var agl := p.y - height(p.x, p.z)
+	var avg_speed := race_dist / maxf(race_t, 0.001)
+	var remaining := maxf(race_len - p_prog, 0.0)
+	var row := [snappedf(log_t, 0.01), snappedf(race_t, 0.01), int(p_prog), int(race_len), int(remaining), int(race_dist), int(avg_speed), int(p_max_v), int(agl), int(p.x), int(p.y), int(p.z), int(v.x), int(v.y), int(v.z), int(v.length()), snappedf(bs.y.y, 0.001), snappedf(bank, 0.1), snappedf(pitch, 0.1), snappedf(_slip(), 0.1),
 		snappedf(float(ctrl["thr"]), 0.001), snappedf(thr, 0.001), snappedf(float(ctrl["lift"]), 0.01), snappedf(lift_hold, 0.01), snappedf(float(dbg.get("li", 0.0)), 0.001),
 		snappedf(float(dbg.get("t_lift", 0.0)) / mg, 0.01), snappedf(float(dbg.get("tmax", 0.0)) / mg, 0.01), dbg.get("limit", ""), snappedf(float(dbg.get("want", 0.0)) / mg, 0.01), snappedf(float(dbg.get("cap", 0.0)) / mg, 0.01),
 		snappedf(float(dbg.get("dump", 0.0)) / mg, 0.01), int(dbg.get("inv", 0)), int(hold_alt), int(clr), snappedf(gyv.x, 0.01), snappedf(gyv.y, 0.01), snappedf(gyv.z, 0.01), snappedf(trv.x, 0.01), snappedf(trv.z, 0.01),
@@ -931,6 +934,7 @@ func _ready() -> void:
 	await _lt(0.04, "Трасса")
 	var track_started := Time.get_ticks_usec()
 	_build_track()
+	print("[RACE_GEOMETRY] seed=%d open=%s centerline_m=%.1f race_route_m=%.1f finish_tail_m=%.1f cuts=%d" % [track_seed, str(track_open), trk_len, race_len, trk_len - race_len, branches.size()])
 	track_generation_ms = float(Time.get_ticks_usec() - track_started) / 1000.0
 	await _lt(0.08, "Мир")
 	_build_world()
