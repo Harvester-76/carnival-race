@@ -1,0 +1,44 @@
+{
+  "id": "base",
+  "name": "Базовый профиль",
+  "order": -1,
+  "model": "res://ship/ship.glb",
+  "textures": {
+    "albedo": "res://ship/tex/hull_albedo_4096.png",
+    "roughness": "res://ship/tex/hull_roughness_4096.png",
+    "metallic": "res://ship/tex/hull_metallic_4096.png",
+    "decal": "res://ship/tex/decal_third_chance.png"
+  },
+  "mass_kg": 40000.0,
+  "scale": 1.0,
+  "variant": {},
+  "livery_bot_index": -1,
+  "aerodynamics": {
+    "nose": {"area_m2": 18.0, "cd_scale": 1.0},
+    "tail": {"area_m2": 18.0, "cd_scale": 1.0},
+    "left": {"area_m2": 24.0, "cd_scale": 1.0},
+    "right": {"area_m2": 24.0, "cd_scale": 1.0},
+    "top": {"area_m2": 60.0, "cd_scale": 1.0},
+    "bottom": {"area_m2": 60.0, "cd_scale": 1.0}
+  },
+  "motors": {
+    "main_acc": 1500.0,
+    "main_spool": 5.0,
+    "lift_max": 200.0,
+    "lift_boost": 0.6,
+    "lift_down": 1.0,
+    "hold_kp": 1.5,
+    "hold_kd": 2.6,
+    "hold_acc_max": 30.0,
+    "hold_tilt_pow": 2.0,
+    "lift_cos": 1.0,
+    "lift_side": 5.0,
+    "lift_boost_tilt": 10.0,
+    "lift_inv_power": 0.0,
+    "lift_inv_cos": 0.15,
+    "shunt_acc": 14.0,
+    "shunt_boost_gain": 3.0,
+    "shunt_boost_fwd": 1.2,
+    "lift_idle_slide": 10.0
+  }
+}
