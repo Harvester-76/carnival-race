@@ -249,7 +249,7 @@ func _log_row(ctrl: Dictionary) -> void:
 	var gyv: Vector3 = ctrl["gyro"]; var trv: Vector3 = ctrl["tr"]
 	var bank := rad_to_deg(asin(clampf(bs.x.y, -1.0, 1.0)))
 	var pitch := rad_to_deg(asin(clampf(-bs.z.y, -1.0, 1.0)))
-	var mg := MASS * G
+	var mg := ship_mass_kg * G
 	var agl := p.y - height(p.x, p.z)
 	var avg_speed := race_dist / maxf(race_t, 0.001)
 	var remaining := maxf(race_len - p_prog, 0.0)
