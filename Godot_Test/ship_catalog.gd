@@ -23,6 +23,9 @@ static func _merge(base: Dictionary, overrides: Dictionary) -> Dictionary:
 			result[key] = overrides[key]
 	return result
 
+static func load_base() -> Dictionary:
+	return _read_json(BASE_PATH)
+
 static func load_ships() -> Array[Dictionary]:
 	var base := _read_json(BASE_PATH)
 	if base.is_empty():
@@ -39,7 +42,16 @@ static func load_ships() -> Array[Dictionary]:
 			var path := "%s/%s/ship.json" % [SHIPS_ROOT, item]
 			var specific := _read_json(path)
 			if not specific.is_empty():
-				var merged := _merge(base, specific)
+				var ship_base := base                                       # по умолчанию общая база ships/base/ship.json
+				var base_rel := String(specific.get("base_profile", ""))
+				if base_rel != "":
+					var base_path := (path.get_base_dir() + "/" + base_rel).simplify_path()
+					ship_base = _read_json(base_path)
+					if ship_base.is_empty():
+						push_error("[SHIP_CATALOG] Cannot load base_profile %s for %s" % [base_path, path])
+						item = dir.get_next()
+						continue
+				var merged := _merge(ship_base, specific)
 				merged["_directory"] = "%s/%s" % [SHIPS_ROOT, item]
 				if String(merged.get("id", "")) == "" or String(merged.get("name", "")) == "":
 					push_error("[SHIP_CATALOG] Profile requires id and name: %s" % path)

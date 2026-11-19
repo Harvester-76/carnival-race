@@ -3,17 +3,17 @@
   "name": "Фрея",
   "order": 1,
   "base_profile": "../base/ship.json",
-  "model": "res://ship/ship.glb",
+  "model": "res://ships/base/model/ship.glb",
   "scale": 0.8,
   "variant": {
     "cabins": -3
   },
   "livery_bot_index": -1,
   "textures": {
-    "albedo": "res://ship/tex/freya_albedo.png",
-    "roughness": "res://ship/tex/freya_rough.png",
-    "metallic": "res://ship/tex/freya_metal.png",
-    "decal": "res://ship/tex/freya_decal.png",
+    "albedo": "res://ships/freya/textures/freya_albedo.png",
+    "roughness": "res://ships/freya/textures/freya_rough.png",
+    "metallic": "res://ships/freya/textures/freya_metal.png",
+    "decal": "res://ships/freya/textures/freya_decal.png",
     "two_sided": true,
     "bite": {
       "part": "SM_Wing_Top_R",
@@ -25,5 +25,8 @@
       "r": 7.5
     }
   },
-  "camera_shake_scale": 1
+  "camera_shake_scale": 1,
+  "slogan": "Мы же Команда, верно?! — КОМАНДА!",
+  "desc": "Пятьдесят метров металлолома, доставшиеся Натану от деда: подёргивается и вздыхает, как старая ломовая лошадь, зато движок отлажен идеально.",
+  "menu_pic": "res://menu_v2/ship_1.png"
 }

@@ -36,7 +36,7 @@ var pending_t := 0.0
 func setup(main_node: Node) -> void:
 	m = main_node; process_mode = Node.PROCESS_MODE_ALWAYS
 	for n in ["engine_main", "engine_shunt", "parktronic", "crash_engine", "crash_wing", "crash_glass", "crash_small", "crash_hull", "crash_big"]:
-		var p := "res://ship/sfx/%s.wav" % n
+		var p := "res://ships/base/sfx/%s.wav" % n
 		if not ResourceLoader.exists(p): continue
 		var st := load(p) as AudioStreamWAV
 		if n in ["engine_main", "engine_shunt", "parktronic"]: st.loop_mode = AudioStreamWAV.LOOP_FORWARD; st.loop_begin = 0; st.loop_end = st.data.size() / 2

@@ -3,7 +3,7 @@
   "name": "Долгоносик",
   "order": 2,
   "base_profile": "../base/ship.json",
-  "model": "res://ship/ship.glb",
+  "model": "res://ships/base/model/ship.glb",
   "scale": 1,
   "variant": {
     "nose": [
@@ -14,11 +14,14 @@
   },
   "livery_bot_index": 1,
   "textures": {
-    "albedo": "res://ship/tex/livery_1_albedo.png",
-    "roughness": "res://ship/tex/hull_roughness_4096.png",
-    "metallic": "res://ship/tex/hull_metallic_4096.png",
-    "decal": "res://ship/tex/livery_1_decal.png",
+    "albedo": "res://ships/base/textures/livery_1_albedo.png",
+    "roughness": "res://ships/base/textures/hull_roughness_4096.png",
+    "metallic": "res://ships/base/textures/hull_metallic_4096.png",
+    "decal": "res://ships/base/textures/livery_1_decal.png",
     "two_sided": true
   },
-  "camera_shake_scale": 2
+  "camera_shake_scale": 2,
+  "slogan": "Молодая щучка среди карасей",
+  "desc": "Переоборудованный транспортник Тощего Грэга: узкий обтекаемый корпус с «зубами»-выступами и отличные движки. Носовой маневровый на кронштейне направлен вперёд и тормозит корабль на форсаже.",
+  "menu_pic": "res://menu_v2/ship_2.png"
 }

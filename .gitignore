@@ -15,6 +15,7 @@ Base ship/spaceship_3*.blend
 Base ship/spaceship_4_*.blend
 # запечённые варианты кораблей: пересоздаются godot --headless --script res://tools/bake_variants.gd
 */ship/variants/*.scn
+Godot_Test/ships/base/variants/*.scn
 # рендеры-превью: не модели, пересоздаются из .blend
 Base ship/renders/
 # Большой готовый статический экспорт (исходники и остальные исследования experiments/ сохраняются в Git).

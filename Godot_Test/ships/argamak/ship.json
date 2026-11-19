@@ -3,7 +3,7 @@
   "name": "Аргамак",
   "order": 3,
   "base_profile": "../base/ship.json",
-  "model": "res://ship/ship.glb",
+  "model": "res://ships/base/model/ship.glb",
   "scale": 1,
   "variant": {
     "nose": [
@@ -14,11 +14,14 @@
   },
   "livery_bot_index": 4,
   "textures": {
-    "albedo": "res://ship/tex/livery_4_albedo.png",
-    "roughness": "res://ship/tex/hull_roughness_4096.png",
-    "metallic": "res://ship/tex/hull_metallic_4096.png",
-    "decal": "res://ship/tex/livery_4_decal.png",
+    "albedo": "res://ships/base/textures/livery_4_albedo.png",
+    "roughness": "res://ships/base/textures/hull_roughness_4096.png",
+    "metallic": "res://ships/base/textures/hull_metallic_4096.png",
+    "decal": "res://ships/base/textures/livery_4_decal.png",
     "two_sided": true
   },
-  "camera_shake_scale": 1.5
+  "camera_shake_scale": 1.5,
+  "slogan": "Транспортник с лицензией на лазерные пушки",
+  "desc": "Грузовой транспортник капитана Юрия Гибульского с лицензией на лазерные пушки. Экипаж из пяти человек; корпус шире и тяжелее, чем у соперников, и отбиваться корабль не умеет.",
+  "menu_pic": "res://menu_v2/ship_3.png"
 }

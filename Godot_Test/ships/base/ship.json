@@ -2,12 +2,12 @@
   "id": "base",
   "name": "Базовый профиль",
   "order": -1,
-  "model": "res://ship/ship.glb",
+  "model": "res://ships/base/model/ship.glb",
   "textures": {
-    "albedo": "res://ship/tex/hull_albedo_4096.png",
-    "roughness": "res://ship/tex/hull_roughness_4096.png",
-    "metallic": "res://ship/tex/hull_metallic_4096.png",
-    "decal": "res://ship/tex/decal_third_chance.png"
+    "albedo": "res://ships/base/textures/hull_albedo_4096.png",
+    "roughness": "res://ships/base/textures/hull_roughness_4096.png",
+    "metallic": "res://ships/base/textures/hull_metallic_4096.png",
+    "decal": "res://ships/base/textures/decal_third_chance.png"
   },
   "mass_kg": 40000,
   "scale": 1,
@@ -59,5 +59,8 @@
     "shunt_boost_fwd": 1.2,
     "lift_idle_slide": 10
   },
-  "camera_shake_scale": 1
+  "camera_shake_scale": 1,
+  "slogan": "",
+  "desc": "",
+  "menu_pic": ""
 }

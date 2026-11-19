@@ -43,9 +43,10 @@ static func evaluate_drag(body: RigidBody3D, density_kg_m3: float, speed_of_soun
 	var base_cd := cd_for_mach(mach, profile)
 	var dynamic_pressure := 0.5 * density_kg_m3 * speed * speed
 
-	# Select the face exposed to the incoming relative airflow on each local axis.
-	var x_face := "left" if local_velocity.x >= 0.0 else "right"
-	var y_face := "bottom" if local_velocity.y >= 0.0 else "top"
+	# Выбирается наветренная грань: нормаль грани сонаправлена относительной скорости.
+	# Нос = -Z (как в main.gd): полёт вперёд (v_z < 0) бьёт в nose. Правый борт = +X, верх = +Y.
+	var x_face := "right" if local_velocity.x >= 0.0 else "left"
+	var y_face := "top" if local_velocity.y >= 0.0 else "bottom"
 	var z_face := "tail" if local_velocity.z >= 0.0 else "nose"
 	var xf := _face(profile, x_face)
 	var yf := _face(profile, y_face)

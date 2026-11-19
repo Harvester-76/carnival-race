@@ -11,6 +11,7 @@ const CARNIVAL_ATMOSPHERE := preload("res://physics/carnival_atmosphere.gd")
 const CARNIVAL_AERODYNAMICS := preload("res://physics/carnival_aerodynamics.gd")
 const SHIP_CATALOG_SCRIPT := preload("res://ship_catalog.gd")
 var AERO_PROFILE: Dictionary = CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE.duplicate(true)
+var BOT_AERO_PROFILE: Dictionary = CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE.duplicate(true)
 var ship_profiles: Array[Dictionary] = []
 var active_ship_profile: Dictionary = {}
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
@@ -31,6 +32,8 @@ const SHIP_SLOGANS := ["Стартует последним, а ставят н�
 const SHIP_DESC := ["Транспортник Стрелка, фаворит списка. Козыря избили накануне гонки, за штурвалом Тед «Гризли».", "Пятьдесят метров металлолома, доставшиеся Натану от деда: подёргивается и вздыхает, как старая ломовая лошадь, зато движок отлажен идеально.", "Переоборудованный транспортник Тощего Грэга: узкий обтекаемый корпус с «зубами»-выступами и отличные движки. Носовой маневровый на кронштейне направлен вперёд и тормозит корабль на форсаже.", "Грузовой транспортник капитана Юрия Гибульского с лицензией на лазерные пушки. Экипаж из пяти человек; корпус шире и тяжелее, чем у соперников, и отбиваться корабль не умеет."]
 var ship_id := 0
 var ship_mass_kg := 40000.0
+var bot_mass_kg := 40000.0                 # масса ботов из базового профиля (боты — общий корпус, а не корабль игрока)
+var bot_tune := {}                         # моторные константы ботов: снимок базового профиля до наложения моторов корабля игрока
 var ship_sc := 1.0
 var hull_pos0 := Vector3.ZERO                       # положение корпуса в исходных (не масштабированных) координатах модели
 const GRID_ROWS := 2          # рядов по высоте (в книге шесть при ~60 кораблях; у нас кораблей мало, поэтому два)
@@ -188,6 +191,24 @@ var lift_in := 0.0
 var lift_hold := 0.0
 var kb_t := {}               # орган -> время удержания кнопки, с
 var tune = preload("res://tune.gd").new()
+# Боты летают на общем корпусе (res://ships/base), поэтому их физика берётся из базового профиля,
+# а не из профиля выбранного игроком корабля; BP() — моторные ключи из снимка базы, P() — общие настройки.
+func BP(k: String) -> float: return float(bot_tune.get(k, tune.v.get(k, 0.0)))
+func ship_slogan(i: int) -> String:                                        # слоган корабля: из профиля, у старых кораблей — из констант
+	if i >= 0 and i < ship_profiles.size():
+		var s := String(ship_profiles[i].get("slogan", ""))
+		if s != "": return s
+	return SHIP_SLOGANS[i] if i >= 0 and i < SHIP_SLOGANS.size() else ""
+func ship_desc(i: int) -> String:
+	if i >= 0 and i < ship_profiles.size():
+		var d := String(ship_profiles[i].get("desc", ""))
+		if d != "": return d
+	return SHIP_DESC[i] if i >= 0 and i < SHIP_DESC.size() else ""
+func ship_menu_pic(i: int) -> Texture2D:                                   # портрет для карточки меню: путь из профиля, null если нет
+	if i >= 0 and i < ship_profiles.size():
+		var p := String(ship_profiles[i].get("menu_pic", ""))
+		if p != "" and ResourceLoader.exists(p): return load(p)
+	return null
 var tech_open := false
 var tech_shot_n := 0
 func P(k: String) -> float: return tune.v[k]
@@ -863,7 +884,7 @@ func _reload_game() -> void:                                                # п
 # Корпуса с вариациями строятся долго (разрезание сетки в GDScript), поэтому готовый набор частей хранится в Engine и копируется при перезагрузке сцены
 func _fill_variant(target: Node3D, key: String, spec: Dictionary) -> Dictionary:
 	if not spec.is_empty():                                                    # готовый корпус из tools/bake_variants.gd (разрезание сетки в игре занимает секунды)
-		var bp := "res://ship/variants/%s.scn" % key
+		var bp := "res://ships/base/variants/%s.scn" % key
 		if ResourceLoader.exists(bp):
 			var pk: PackedScene = Engine.get_meta("vp_" + key) if Engine.has_meta("vp_" + key) else (load(bp) as PackedScene)
 			Engine.set_meta("vp_" + key, pk)                                    # держим в памяти: при перезагрузке сцены не читать десятки мегабайт заново
@@ -965,6 +986,12 @@ func _ready() -> void:
 	if ship_profiles.is_empty():
 		push_error("[SHIP_CATALOG] No valid ship profiles found")
 		return
+	var base_profile: Dictionary = SHIP_CATALOG_SCRIPT.load_base()             # боты — общий корпус: физика из базы, не из корабля игрока
+	BOT_AERO_PROFILE = Dictionary(base_profile.get("aerodynamics", CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE)).duplicate(true)
+	bot_mass_kg = float(base_profile.get("mass_kg", MASS))
+	bot_tune.clear()
+	var base_motors: Dictionary = base_profile.get("motors", {})
+	for motor_key in base_motors: bot_tune[motor_key] = float(base_motors[motor_key])
 	ship_id = clampi(int(cfg.get("ship", 0)), 0, ship_profiles.size() - 1)
 	active_ship_profile = ship_profiles[ship_id]
 	ship_mass_kg = float(active_ship_profile.get("mass_kg", MASS))
@@ -1719,13 +1746,13 @@ func _spawn_bots() -> void:                                                  # �
 	hull_aabb = lod.mesh.get_aabb()
 	hull_aabb = AABB(hull_aabb.position * ship_sc, hull_aabb.size * ship_sc)
 	hull_inst.queue_free()
-	bot_tex = {"alb": load("res://ship/tex/hull_albedo_4096.png"), "rgh": load("res://ship/tex/hull_roughness_4096.png"), "mtl": load("res://ship/tex/hull_metallic_4096.png"), "dec": load("res://ship/tex/decal_third_chance.png")}
+	bot_tex = {"alb": load("res://ships/base/textures/hull_albedo_4096.png"), "rgh": load("res://ships/base/textures/hull_roughness_4096.png"), "mtl": load("res://ships/base/textures/hull_metallic_4096.png"), "dec": load("res://ships/base/textures/decal_third_chance.png")}
 	var glow := ShaderMaterial.new(); glow.shader = glow_shader; glow.set_shader_parameter("power", 0.6)
 	var core := ShaderMaterial.new(); core.shader = core_shader; core.set_shader_parameter("power", 0.6)
 	var blade := ShaderMaterial.new(); blade.shader = blade_shader; blade.set_shader_parameter("power", 0.6)
 	for i in N_BOTS:
 		var slot: Vector2i = slots[i + off]
-		var rb := RigidBody3D.new(); rb.name = "Bot%d" % i; rb.mass = MASS; rb.gravity_scale = 1.0
+		var rb := RigidBody3D.new(); rb.name = "Bot%d" % i; rb.mass = bot_mass_kg; rb.gravity_scale = 1.0
 		rb.collision_layer = 8; rb.collision_mask = 1 | 8
 		rb.linear_damp_mode = RigidBody3D.DAMP_MODE_REPLACE; rb.linear_damp = 0.01
 		rb.angular_damp_mode = RigidBody3D.DAMP_MODE_REPLACE; rb.angular_damp = 0.0
@@ -1733,8 +1760,8 @@ func _spawn_bots() -> void:                                                  # �
 		rb.contact_monitor = true; rb.max_contacts_reported = 4
 		var btex := bot_tex.duplicate()                                     # своя ливрея: краска, полосы, номер, имя и эмблема (tools/make_liveries.py)
 		var swapped: bool = int(active_ship_profile.get("livery_bot_index", -1)) == i                    # игрок выбрал корабль этого бота: на его месте летит «Третий шанс», чтобы не было двойников
-		if not evo_mode and not swapped and ResourceLoader.exists("res://ship/tex/livery_%d_albedo.png" % i):
-			btex["alb"] = load("res://ship/tex/livery_%d_albedo.png" % i); btex["dec"] = load("res://ship/tex/livery_%d_decal.png" % i); btex["two_sided"] = true
+		if not evo_mode and not swapped and ResourceLoader.exists("res://ships/base/textures/livery_%d_albedo.png" % i):
+			btex["alb"] = load("res://ships/base/textures/livery_%d_albedo.png" % i); btex["dec"] = load("res://ships/base/textures/livery_%d_decal.png" % i); btex["two_sided"] = true
 		await _lt(0.30 + 0.62 * float(i) / float(N_BOTS), "Соперники: %d из %d" % [i + 1, N_BOTS])
 		var vspec: Dictionary = BOT_VARIANTS.get(i, {}) if not (evo_mode or swapped or "novariants" in OS.get_cmdline_user_args()) else {}
 		var vres := _fill_variant(rb, "ship0" if swapped else "bot%d" % i, vspec)
@@ -1822,9 +1849,9 @@ func _acc_prog(prog: float, rel_last: float, rel: float) -> float:
 	return prog + d
 
 # После финиша: торможение вдоль скорости с запасом до ближайшей стены (по формуле высоты), затем зависание
-func _apply_atmospheric_drag(body: RigidBody3D) -> void:
+func _apply_atmospheric_drag(body: RigidBody3D, profile: Dictionary) -> void:
 	var air := CARNIVAL_ATMOSPHERE.sample(body.global_position.y)
-	var aero := CARNIVAL_AERODYNAMICS.evaluate_drag(body, float(air["density_kg_m3"]), float(air["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)
+	var aero := CARNIVAL_AERODYNAMICS.evaluate_drag(body, float(air["density_kg_m3"]), float(air["speed_of_sound_mps"]), Vector3.ZERO, profile)
 	body.apply_central_force(aero["force_n"])
 
 func _finish_brake(body: RigidBody3D, mass: float) -> void:
@@ -1857,7 +1884,7 @@ func _step_bots(dt: float) -> void:
 		var rb: RigidBody3D = b["rb"]
 		if start_t > 0.0 or b.get("dnf", false) or b.get("done", false) or (ui_shot == "tour" and (tour_phase == "settle" or tour_phase == "fixed_wait") and bi == tour_bot): continue
 		var virt := bool(b.get("virt", false))                                  # вне зоны видимости: упрощённый режим без физики (см. _bot_virtual)
-		if not virt: _apply_atmospheric_drag(rb)
+		if not virt: _apply_atmospheric_drag(rb, BOT_AERO_PROFILE)
 		if rb.freeze and not virt: rb.freeze = false
 		var pos := rb.global_position; var vel := rb.linear_velocity
 		if pos.y > RIM_Y and not bool(b.get("fin", false)): b["above"] = float(b.get("above", 0.0)) + dt                  # время выше потолка гонки (обучение штрафует улёт вверх)
@@ -1886,7 +1913,7 @@ func _step_bots(dt: float) -> void:
 			rb.linear_velocity = Vector3.ZERO; rb.freeze = true; rb.visible = true; b["done"] = true; continue
 		if b["fin"]:                                                           # финишировавший бот тормозит, зависает и стоит
 			if vel.length() > 8.0:
-				_finish_brake(rb, MASS); rb.gravity_scale = 0.0; rb.angular_velocity *= 0.95
+				_finish_brake(rb, bot_mass_kg); rb.gravity_scale = 0.0; rb.angular_velocity *= 0.95
 			else:
 				rb.linear_velocity = Vector3.ZERO; rb.angular_velocity = Vector3.ZERO; rb.freeze = true; b["done"] = true
 			continue
@@ -1944,7 +1971,7 @@ func _step_bots(dt: float) -> void:
 			needle_d = absf(sv - float(cutb["needle_s"])) * float(cutb["sc"])          # в метрах по самой срезке (s растянут)
 			if needle_d < 14000.0: vdes = minf(vdes, 420.0 + needle_d * 0.08); lane = 0.0      # «игольное ухо»: замедляемся и выходим на ось
 		var bs := rb.global_transform.basis
-		var m := MASS
+		var m := bot_mass_kg
 		var g := G if gravity_on else 0.0
 		rb.gravity_scale = 1.0 if gravity_on else 0.0
 		var fwd := -bs.z; var up := bs.y; var right := bs.x
@@ -1993,7 +2020,7 @@ func _step_bots(dt: float) -> void:
 					var away := Vector3(-cp.x, 0.0, -cp.z)
 					if away.length() < 5.0: away = Vector3(-dirv.z, 0.0, dirv.x)
 					a_des += away.normalized() * (1.0 - dm / 260.0) * (1.0 - tc / 6.0) * 180.0 * float(gn["avoid"])
-		var acap := lerpf(float(gn["a_cap"]), maxf(float(gn["a_cap"]), P("main_acc") * 0.9), lk)
+		var acap := lerpf(float(gn["a_cap"]), maxf(float(gn["a_cap"]), BP("main_acc") * 0.9), lk)
 		if a_des.length() > acap: a_des = a_des.normalized() * acap
 		# --- часть ускорения отдаём взлётным: крен даёт боковой сдвиг без рыскания, наклон носом вверх — торможение ---
 		var a_lift := Vector3.ZERO
@@ -2016,13 +2043,13 @@ func _step_bots(dt: float) -> void:
 			elif fl == 1 and vel.y < 50.0 and pos.y < ceil_y - 900.0: fl = 2
 			elif fl == 2 and cos_t > 0.6: fl = 0
 			b["fl"] = fl
-		var tmax := m * G * P("lift_max") * _bot_rem(b, "lift") * (1.0 + P("lift_side") * (1.0 - maxf(cos_t, 0.0)))
+		var tmax := m * G * BP("lift_max") * _bot_rem(b, "lift") * (1.0 + BP("lift_side") * (1.0 - maxf(cos_t, 0.0)))
 		var t_lift := 0.0
 		if gravity_on:
-			var a_c := P("hold_kp") * (float(b["hold"]) - pos.y) - P("hold_kd") * vel.y
-			if "botcap" in OS.get_cmdline_user_args() and P("hold_acc_max") > 0.0: a_c = minf(a_c, P("hold_acc_max") * pow(maxf(cos_t, 0.0), P("hold_tilt_pow")))
-			t_lift = m * (g + a_c) / clampf(cos_t, P("lift_cos"), 1.0)
-			if cos_t < P("lift_inv_cos") and t_lift > 0.0: t_lift = tmax
+			var a_c := BP("hold_kp") * (float(b["hold"]) - pos.y) - BP("hold_kd") * vel.y
+			if "botcap" in OS.get_cmdline_user_args() and BP("hold_acc_max") > 0.0: a_c = minf(a_c, BP("hold_acc_max") * pow(maxf(cos_t, 0.0), BP("hold_tilt_pow")))
+			t_lift = m * (g + a_c) / clampf(cos_t, BP("lift_cos"), 1.0)
+			if cos_t < BP("lift_inv_cos") and t_lift > 0.0: t_lift = tmax
 			var sin_t := sqrt(maxf(0.0, 1.0 - cos_t * cos_t))
 			if a_lift.length() > 1.0 and sin_t > 0.1:                          # форсаж взлётных в сторону уже наклонённого «верха»
 				var uh := Vector3(up.x, 0.0, up.z)
@@ -2065,15 +2092,15 @@ func _step_bots(dt: float) -> void:
 		var a_fwd := a_main.dot(fh)
 		var a_mag := a_main.length()
 		var align := clampf((fh.dot(nd) - float(gn["align_lo"])) / (1.0 - float(gn["align_lo"])), 0.0, 1.0)
-		var thr_cmd := clampf(a_mag / P("main_acc"), 0.0, 1.0) * align
+		var thr_cmd := clampf(a_mag / BP("main_acc"), 0.0, 1.0) * align
 		if fl != 0 and (fl == 2 or cos_t > -0.8): thr_cmd = 0.0              # в развороте у потолка основные выключены: иначе нос уходит вверх и подъём растёт
-		b["thr"] = move_toward(float(b["thr"]), thr_cmd, P("main_spool") * dt)
-		rb.apply_central_force(fwd * m * P("main_acc") * float(b["thr"]) * _bot_rem(b, "main"))
-		rb.apply_torque(_skew_torque(b["eng"], b["parts"], "main", fwd, m * P("main_acc") * float(b["thr"]) * _bot_rem(b, "main"), bs, rb.center_of_mass))
+		b["thr"] = move_toward(float(b["thr"]), thr_cmd, BP("main_spool") * dt)
+		rb.apply_central_force(fwd * m * BP("main_acc") * float(b["thr"]) * _bot_rem(b, "main"))
+		rb.apply_torque(_skew_torque(b["eng"], b["parts"], "main", fwd, m * BP("main_acc") * float(b["thr"]) * _bot_rem(b, "main"), bs, rb.center_of_mass))
 		# --- маневровые: тангаж/рыскание/крен, боковая подвижка, торможение ---
 		var rs := maxf(0.05, _bot_rem(b, "shunt"))
 		var strafe := clampf(1.0 - eang / 0.5, 0.0, 1.0)             # боковая подвижка только когда нос уже почти по курсу, иначе она гасит разворот
-		var trv := Vector3(clampf(a_main.dot(Vector3(right.x, 0.0, right.z).normalized()) / (4.0 * P("shunt_acc") * rs), -1.0, 1.0) * strafe, 0.0, clampf(-a_fwd / (4.0 * P("shunt_acc") * rs), 0.0, 1.0))
+		var trv := Vector3(clampf(a_main.dot(Vector3(right.x, 0.0, right.z).normalized()) / (4.0 * BP("shunt_acc") * rs), -1.0, 1.0) * strafe, 0.0, clampf(-a_fwd / (4.0 * BP("shunt_acc") * rs), 0.0, 1.0))
 		for k in b["eng"]:
 			if b["eng"][k]["kind"] != "shunt" or not b["parts"].has(k): continue
 			var epos: Vector3 = b["eng"][k]["pos"]
@@ -2081,7 +2108,7 @@ func _step_bots(dt: float) -> void:
 			var sg := 1.0 if epos.z >= rb.center_of_mass.z else -1.0                  # носовой маневровый (впереди центра масс) толкает в обратную сторону: момент тот же, поворот «за нос»
 			var rsg := 0.0 if absf(epos.x) < 1.0 else (-1.0 if left else 1.0)           # крен только от крыльевых (на оси корабля плеча по крену нет)
 			var f := Vector3(trv.x + sg * gy.y, -sg * gy.x + rsg * gy.z, trv.z).limit_length(1.0)
-			rb.apply_force(bs * f * m * P("shunt_acc"), bs * epos)
+			rb.apply_force(bs * f * m * BP("shunt_acc"), bs * epos)
 		var av := bs.inverse() * rb.angular_velocity
 		if assist and gy.length() < 0.02: av = av.move_toward(Vector3.ZERO, P("assist_damp") * dt)
 		if av.length() > P("max_spin"): av = av.normalized() * P("max_spin")
@@ -2200,7 +2227,7 @@ func _mesh_children(n: Node) -> Array:
 	return r
 
 func _build_ship() -> void:
-	var ps: PackedScene = load(String(active_ship_profile.get("model", "res://ship/ship.glb")))
+	var ps: PackedScene = load(String(active_ship_profile.get("model", "res://ships/base/model/ship.glb")))
 	ship_scene = ps
 	ship = RigidBody3D.new(); ship.name = "Ship"; ship.mass = ship_mass_kg; ship.gravity_scale = 1.0
 	ship.collision_layer = 8; ship.collision_mask = 1 | 2 | 8
@@ -2216,10 +2243,10 @@ func _build_ship() -> void:
 	hull_pos0 = (ship.get_node("SM_Hull_Body") as Node3D).position / ship_sc
 	var texture_profile: Dictionary = active_ship_profile.get("textures", {})
 	var hull_tex := {
-		"alb": load(String(texture_profile.get("albedo", "res://ship/tex/hull_albedo_4096.png"))),
-		"rgh": load(String(texture_profile.get("roughness", "res://ship/tex/hull_roughness_4096.png"))),
-		"mtl": load(String(texture_profile.get("metallic", "res://ship/tex/hull_metallic_4096.png"))),
-		"dec": load(String(texture_profile.get("decal", "res://ship/tex/decal_third_chance.png"))),
+		"alb": load(String(texture_profile.get("albedo", "res://ships/base/textures/hull_albedo_4096.png"))),
+		"rgh": load(String(texture_profile.get("roughness", "res://ships/base/textures/hull_roughness_4096.png"))),
+		"mtl": load(String(texture_profile.get("metallic", "res://ships/base/textures/hull_metallic_4096.png"))),
+		"dec": load(String(texture_profile.get("decal", "res://ships/base/textures/decal_third_chance.png"))),
 		"two_sided": bool(texture_profile.get("two_sided", false))
 	}
 	if texture_profile.has("bite"):
@@ -2988,7 +3015,7 @@ func _physics_process(dt: float) -> void:
 	var f_main := bs * Vector3(0, 0, -1) * m * P("main_acc") * thr * _remaining("main")
 	ship.apply_central_force(f_main)
 	log_engine_force_world += f_main
-	_apply_atmospheric_drag(ship)
+	_apply_atmospheric_drag(ship, AERO_PROFILE)
 	var lv := _lvl()
 	if (p_fin or p_dsq) and lv == 4: lv = 3                                             # после финиша автопилот работает как у Ветерана: тормозит и держит высоту
 	if prev_lvl < 0: prev_lvl = lv

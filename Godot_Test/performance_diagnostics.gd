@@ -167,7 +167,7 @@ func _metadata() -> Dictionary:
 		"start_slot_index": main.ab_slot_resolved,
 		"start_slot": [main.player_start.x, main.player_start.y, main.player_start.z],
 		"ship_id": main.ship_id,
-		"ship_name": main.SHIP_NAMES[main.ship_id],
+		"ship_name": main.ship_names[main.ship_id],
 		"difficulty": main._lvl(),
 		"camera_mode": main.cam_mode,
 		"input_scheme": main.scheme,

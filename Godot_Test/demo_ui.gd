@@ -459,8 +459,8 @@ func _tv_item(label: String, key: String, step: float, lo: float, hi: float, hin
 func _page_items() -> Array:
 	var lv: String = main.LEVEL_NAMES[main._lvl()]
 	var lvl_item := {"t": "Сложность:  ◀ %s ▶" % lv, "l": "Сложность", "kind": "choice", "val": lv, "cw": 300.0, "cfs": 26, "d": main.LEVEL_TAGS[main._lvl()] + "\n" + LEVEL_DESC[main._lvl()], "s": func(d): _change_level(d), "a": func(): _change_level(1), "id": "level"}
-	var sid: int = clampi(int(main.cfg.get("ship", 0)), 0, main.SHIP_NAMES.size() - 1)
-	var ship_item := {"t": "Корабль:  ◀ %s ▶" % main.SHIP_NAMES[sid], "l": "Корабль", "kind": "choice", "val": main.SHIP_NAMES[sid], "cw": 300.0, "cfs": 26, "d": main.SHIP_DESC[sid], "s": func(d): _change_ship(d), "a": func(): _change_ship(1), "id": "ship"}
+	var sid: int = clampi(int(main.cfg.get("ship", 0)), 0, main.ship_names.size() - 1)
+	var ship_item := {"t": "Корабль:  ◀ %s ▶" % main.ship_names[sid], "l": "Корабль", "kind": "choice", "val": main.ship_names[sid], "cw": 300.0, "cfs": 26, "d": main.ship_desc(sid), "s": func(d): _change_ship(d), "a": func(): _change_ship(1), "id": "ship"}
 	var back := {"t": "Назад", "a": func(): back_page()}
 	var it: Array = []
 	match page:
@@ -569,12 +569,12 @@ func _ach_prog(id: String) -> String:
 	var st := _stats()
 	match id:
 		"klutz": return "%d / 10" % int(st.get("dsq_streak", 0))
-		"pilot_test": return "%d / %d" % [_sarr("ships_done").size(), main.SHIP_NAMES.size()]
+		"pilot_test": return "%d / %d" % [_sarr("ships_done").size(), main.ship_names.size()]
 		"academy": return "%d / 5" % _sarr("levels_done").size()
 		"melomaniac": return "%d / %d" % [_sarr("heard").size(), MUSIC_ALL.size()]
 		"tester": return "%d / %d" % [_sarr("screens").size(), _screens_total()]
 		"km1000": return "%d / 20000 км" % int(float(st.get("km", 0.0)))
-		"graveyard": return "%d / %d" % [_sarr("wrecked").size(), main.SHIP_NAMES.size()]
+		"graveyard": return "%d / %d" % [_sarr("wrecked").size(), main.ship_names.size()]
 		"connoisseur":
 			var gt: Dictionary = main.cfg.get("ach", {}); var c4 := 0
 			for k4 in ["academy", "pilot_test", "melomaniac"]: if gt.has(k4): c4 += 1
@@ -729,8 +729,8 @@ func _sync_skin() -> void:                                                 # д�
 					var lvn: int = main._lvl()
 					skin.card = {"n": lvn + 1, "total": 5, "name": main.LEVEL_NAMES[lvn], "slogan": main.LEVEL_TAGS[lvn], "desc": LEVEL_DESC[lvn], "pic": load("res://menu_v2/levels/level_%d.png" % (lvn + 1))}
 				elif selected_id == "ship":
-					var sid: int = clampi(int(main.cfg.get("ship", 0)), 0, main.SHIP_NAMES.size() - 1)
-					skin.card = {"n": sid + 1, "total": main.SHIP_NAMES.size(), "name": main.SHIP_NAMES[sid], "slogan": main.SHIP_SLOGANS[sid], "desc": main.SHIP_DESC[sid], "pic": load("res://menu_v2/ship_%d.png" % sid)}
+					var sid: int = clampi(int(main.cfg.get("ship", 0)), 0, main.ship_names.size() - 1)
+					skin.card = {"n": sid + 1, "total": main.ship_names.size(), "name": main.ship_names[sid], "slogan": main.ship_slogan(sid), "desc": main.ship_desc(sid), "pic": main.ship_menu_pic(sid)}
 				elif selected_id == "track_mode":
 					skin.card = {"race_len": float(main.race_len)}
 			else:
@@ -822,7 +822,7 @@ func ship_wrecked(sid: int) -> void:                                         # �
 	if not _ach_on(): return
 	if _sadd("wrecked", sid):
 		main._save_cfg()
-		if _sarr("wrecked").size() >= main.SHIP_NAMES.size(): grant("graveyard")
+		if _sarr("wrecked").size() >= main.ship_names.size(): grant("graveyard")
 
 func _toast(txt: String) -> void:
 	if toast_lbl == null:
@@ -915,7 +915,7 @@ func _eval_finish() -> void:                                                # р
 	if main.rank == main.bots.size() + 1: earned.append("loser")
 	if t < DEV_RECORD: earned.append("beat_dev")
 	if sid == 2: earned.append("seagull")
-	if _sarr("ships_done").size() >= main.SHIP_NAMES.size(): earned.append("pilot_test")
+	if _sarr("ships_done").size() >= main.ship_names.size(): earned.append("pilot_test")
 	if _sarr("levels_done").size() >= 5: earned.append("academy")
 	if main.p_max_y <= 2000.0: earned.append("jeweler")
 	if main.p_bank_dist > 0.6 * main.race_len: earned.append("brave")
@@ -927,7 +927,7 @@ func _eval_finish() -> void:                                                # р
 	for pn in main.parts: if String(pn).begins_with("SM_Engine_"): eng_left = true
 	if main.rank == 1 and not eng_left: earned.append("will")
 	var got: Dictionary = main.cfg.get("ach", {}); var dt := Time.get_datetime_dict_from_system()
-	var when := "%02d.%02d.%d · %s, %s" % [dt["day"], dt["month"], dt["year"], main.LEVEL_NAMES[lvl], main.SHIP_NAMES[sid]]
+	var when := "%02d.%02d.%d · %s, %s" % [dt["day"], dt["month"], dt["year"], main.LEVEL_NAMES[lvl], main.ship_names[sid]]
 	for a in ACH:
 		if earned.has(a["id"]) and not got.has(a["id"]): got[a["id"]] = when; fin_info["ach"].append({"id": a["id"], "name": a["title"], "cond": a["cond"]})
 	for did in ["connoisseur", "collector"]:                                  # зависимые от других достижений могут открыться сразу вместе с финишем
@@ -1062,7 +1062,7 @@ func _change_track_source(d: int) -> void:
 	_set_track_mode(String(main.cfg.get("track_mode", "STATIC")) != "STATIC")
 
 func _reload_for_ship() -> void:                                            # выбран другой корабль: экран загрузки, затем сцена пересобирается и гонка стартует сразу
-	main.reload_title = "Загрузка корабля «%s»" % main.SHIP_NAMES[int(main.cfg["ship"])]
+	main.reload_title = "Загрузка корабля «%s»" % main.ship_names[int(main.cfg["ship"])]
 	Engine.time_scale = 1.0; Engine.set_meta("skip_menu", true)
 	main._reload_game()
 
@@ -1098,7 +1098,7 @@ func _step(d: int) -> void:
 		(s as Callable).call(d); _refresh_items()
 
 func _change_ship(d: int) -> void:                                           # в меню только листаем карточки; сцена с выбранным кораблём пересобирается при старте гонки (_start_race)
-	main.cfg["ship"] = posmod(int(main.cfg.get("ship", 0)) + d, main.SHIP_NAMES.size()); main._save_cfg()
+	main.cfg["ship"] = posmod(int(main.cfg.get("ship", 0)) + d, main.ship_names.size()); main._save_cfg()
 
 func _change_cam_view(d: int) -> void:
 	main.cfg["cam_view"] = posmod(int(main.cfg["cam_view"]) + d, main.CAM_NAMES.size()); main._save_cfg(); _refresh_items()
@@ -1320,7 +1320,7 @@ func _update_results() -> void:
 		var e2: Dictionary = ents[i]
 		rws.append({"n": e2["n"], "place": i + 1, "me": e2["me"], "dnf": not e2["fin"], "time": skin._mmss(float(e2["t"])) if e2["fin"] else (("дисквал." if (e2["me"] and main.p_dsq) else "сошёл") if e2["dnf"] else "%d%%" % int(clampf(float(e2["p"]) / main.race_len, 0.0, 1.0) * 100.0))})
 	skin.res["dsq"] = main.p_dsq; skin.res["rows"] = rws; skin.res["place"] = (main.bots.size() + 1 if main.p_dsq else main.rank); skin.res["of"] = main.bots.size() + 1
-	skin.res["ship"] = main.SHIP_NAMES[clampi(int(main.cfg.get("ship", 0)), 0, main.SHIP_NAMES.size() - 1)]; skin.res["level"] = main.LEVEL_NAMES[main._lvl()]
+	skin.res["ship"] = main.ship_names[clampi(int(main.cfg.get("ship", 0)), 0, main.ship_names.size() - 1)]; skin.res["level"] = main.LEVEL_NAMES[main._lvl()]
 	skin.res["time_txt"] = skin._mmss(main.p_fin_t) if main.p_fin else "—"
 	skin.res["rec_new"] = bool(fin_info.get("rec_new", false)); skin.res["rec_prev"] = skin._mmss(float(fin_info["rec_prev"])) if float(fin_info.get("rec_prev", -1.0)) >= 0.0 else ""
 	var rk: String = "%d:%d" % [main._lvl(), int(main.cfg.get("ship", 0))]

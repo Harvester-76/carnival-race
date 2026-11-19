@@ -3,15 +3,18 @@
   "name": "Третий шанс",
   "order": 0,
   "base_profile": "../base/ship.json",
-  "model": "res://ship/ship.glb",
+  "model": "res://ships/base/model/ship.glb",
   "scale": 1,
   "variant": {},
   "livery_bot_index": -1,
   "textures": {
-    "albedo": "res://ship/tex/hull_albedo_4096.png",
-    "roughness": "res://ship/tex/hull_roughness_4096.png",
-    "metallic": "res://ship/tex/hull_metallic_4096.png",
-    "decal": "res://ship/tex/decal_third_chance.png"
+    "albedo": "res://ships/base/textures/hull_albedo_4096.png",
+    "roughness": "res://ships/base/textures/hull_roughness_4096.png",
+    "metallic": "res://ships/base/textures/hull_metallic_4096.png",
+    "decal": "res://ships/base/textures/decal_third_chance.png"
   },
-  "camera_shake_scale": 2
+  "camera_shake_scale": 2,
+  "slogan": "Стартует последним, а ставят на него первым",
+  "desc": "Транспортник Стрелка, фаворит списка. Козыря избили накануне гонки, за штурвалом Тед «Гризли».",
+  "menu_pic": "res://menu_v2/ship_0.png"
 }
