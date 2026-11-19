@@ -62,7 +62,7 @@ static func evaluate_drag(body: RigidBody3D, density_kg_m3: float, speed_of_soun
 	var total_force := basis * local_drag
 	var longitudinal_force := basis * longitudinal_local
 	var transverse_force := basis * transverse_local
-	var effective_area := total_force.length() / maxf(dynamic_pressure * cd, 0.0001) / maxf(speed, 0.0001)
+	var effective_area := total_force.length() / maxf(dynamic_pressure * cd, 0.0001)
 
 	return {
 		"force_n": total_force,
