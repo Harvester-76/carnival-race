@@ -219,7 +219,7 @@ func _log_open() -> void:
 	log_ev = ""
 	print("[FLIGHT_LOG] opened for active race")
 	log_f.store_line("# tuning " + JSON.stringify(tune.v) + " scheme=" + str(scheme) + " gravity=" + str(gravity_on))
-	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event,air_density_kg_m3,mach,cd,drag_n,dynamic_pressure_pa")
+	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event,air_density_kg_m3,mach,cd,drag_n,dynamic_pressure_pa,local_vx_mps,local_vy_mps,local_vz_mps,drag_local_x_n,drag_local_y_n,drag_local_z_n")
 func _log_close(reason: String) -> void:
 	if log_f == null: return
 	log_f.store_line("# END " + reason + " race_t_s=" + str(snappedf(race_t, 0.01)) + " progress_m=" + str(int(p_prog)))
@@ -252,12 +252,16 @@ func _log_row(ctrl: Dictionary) -> void:
 	var remaining := maxf(race_len - p_prog, 0.0)
 	var air := CARNIVAL_ATMOSPHERE.sample(p.y)
 	var aero := CARNIVAL_AERODYNAMICS.evaluate_drag(ship, float(air["density_kg_m3"]), float(air["speed_of_sound_mps"]), Vector3.ZERO, AERO_PROFILE)
+	var aero_local_v: Vector3 = aero["local_velocity_mps"]
+	var aero_local_drag: Vector3 = aero["local_force_n"]
 	var row := [snappedf(log_t, 0.01), snappedf(race_t, 0.01), int(p_prog), int(race_len), int(remaining), int(race_dist), int(avg_speed), int(p_max_v), int(agl), int(p.x), int(p.y), int(p.z), int(v.x), int(v.y), int(v.z), int(v.length()), snappedf(bs.y.y, 0.001), snappedf(bank, 0.1), snappedf(pitch, 0.1), snappedf(_slip(), 0.1),
 		snappedf(float(ctrl["thr"]), 0.001), snappedf(thr, 0.001), snappedf(float(ctrl["lift"]), 0.01), snappedf(lift_hold, 0.01), snappedf(float(dbg.get("li", 0.0)), 0.001),
 		snappedf(float(dbg.get("t_lift", 0.0)) / mg, 0.01), snappedf(float(dbg.get("tmax", 0.0)) / mg, 0.01), dbg.get("limit", ""), snappedf(float(dbg.get("want", 0.0)) / mg, 0.01), snappedf(float(dbg.get("cap", 0.0)) / mg, 0.01),
 		snappedf(float(dbg.get("dump", 0.0)) / mg, 0.01), int(dbg.get("inv", 0)), int(hold_alt), int(clr), snappedf(gyv.x, 0.01), snappedf(gyv.y, 0.01), snappedf(gyv.z, 0.01), snappedf(trv.x, 0.01), snappedf(trv.z, 0.01),
 		snappedf(float(ctrl["boost"]), 0.01), snappedf(_remaining("lift"), 0.01), snappedf(_remaining("main"), 0.01), snappedf(_remaining("shunt"), 0.01), parts.size(), log_ev,
-		float(air["density_kg_m3"]), float(aero["mach"]), float(aero["cd"]), float(aero["force_n"].length()), float(aero["dynamic_pressure_pa"])]
+		float(air["density_kg_m3"]), float(aero["mach"]), float(aero["cd"]), float(aero["force_n"].length()), float(aero["dynamic_pressure_pa"]),
+		snappedf(aero_local_v.x, 0.01), snappedf(aero_local_v.y, 0.01), snappedf(aero_local_v.z, 0.01),
+		snappedf(aero_local_drag.x, 1.0), snappedf(aero_local_drag.y, 1.0), snappedf(aero_local_drag.z, 1.0)]
 	log_f.store_line(",".join(PackedStringArray(row.map(func(x): return str(x)))))
 	log_ev = ""
 	log_n += 1
