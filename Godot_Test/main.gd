@@ -228,6 +228,11 @@ var log_engine_force_local := Vector3.ZERO
 var log_assist_force_local := Vector3.ZERO
 var log_engine_force_world := Vector3.ZERO
 var log_assist_force_world := Vector3.ZERO
+# Applied physical moments about the center of mass, ship-local axes, N*m.
+var log_moment_wings_local := Vector3.ZERO
+var log_moment_shunt_local := Vector3.ZERO
+var log_moment_lift_local := Vector3.ZERO
+var log_moment_main_local := Vector3.ZERO
 var dbg := {}
 func _log_open() -> void:
 	if log_disabled or log_f != null or not racing: return
@@ -245,7 +250,7 @@ func _log_open() -> void:
 	log_ev = ""
 	print("[FLIGHT_LOG] opened for active race")
 	log_f.store_line("# tuning " + JSON.stringify(tune.v) + " scheme=" + str(scheme) + " gravity=" + str(gravity_on))
-	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event,air_density_kg_m3,mach,cd,drag_n,dynamic_pressure_pa,local_vx_mps,local_vy_mps,local_vz_mps,drag_local_x_n,drag_local_y_n,drag_local_z_n,local_dvx_tick_mps,local_dvy_tick_mps,local_dvz_tick_mps,gravity_local_x_mps2,gravity_local_y_mps2,gravity_local_z_mps2,engine_force_local_x_n,engine_force_local_y_n,engine_force_local_z_n,assist_force_local_x_n,assist_force_local_y_n,assist_force_local_z_n")
+	log_f.store_line("t,race_t_s,progress_m,race_length_m,remaining_m,integrated_distance_m,average_speed_mps,max_speed_seen_mps,altitude_agl_m,x,y,z,vx,vy,vz,speed,cos_tilt,bank_deg,pitch_deg,slip_deg,thr_cmd,thr,lift_in,lift_hold_s,li,t_lift_g,tmax_g,tmax_limit,boost_g,boost_cap_g,dump_g,inv,hold_alt,clear_ahead,gy_x,gy_y,gy_z,tr_x,tr_z,boost_in,lift_rem,main_rem,shunt_rem,parts,event,air_density_kg_m3,mach,cd,drag_n,dynamic_pressure_pa,local_vx_mps,local_vy_mps,local_vz_mps,drag_local_x_n,drag_local_y_n,drag_local_z_n,local_dvx_tick_mps,local_dvy_tick_mps,local_dvz_tick_mps,gravity_local_x_mps2,gravity_local_y_mps2,gravity_local_z_mps2,engine_force_local_x_n,engine_force_local_y_n,engine_force_local_z_n,assist_force_local_x_n,assist_force_local_y_n,assist_force_local_z_n,wing_moment_local_x_nm,wing_moment_local_y_nm,wing_moment_local_z_nm,shunt_moment_local_x_nm,shunt_moment_local_y_nm,shunt_moment_local_z_nm,lift_moment_local_x_nm,lift_moment_local_y_nm,lift_moment_local_z_nm,main_moment_local_x_nm,main_moment_local_y_nm,main_moment_local_z_nm")
 func _log_close(reason: String) -> void:
 	if log_f == null: return
 	log_f.store_line("# END " + reason + " race_t_s=" + str(snappedf(race_t, 0.01)) + " progress_m=" + str(int(p_prog)))
@@ -291,7 +296,11 @@ func _log_row(ctrl: Dictionary) -> void:
 		snappedf(log_local_delta_velocity_tick.x, 0.001), snappedf(log_local_delta_velocity_tick.y, 0.001), snappedf(log_local_delta_velocity_tick.z, 0.001),
 		snappedf(log_gravity_local_accel.x, 0.001), snappedf(log_gravity_local_accel.y, 0.001), snappedf(log_gravity_local_accel.z, 0.001),
 		snappedf(log_engine_force_local.x, 1.0), snappedf(log_engine_force_local.y, 1.0), snappedf(log_engine_force_local.z, 1.0),
-		snappedf(log_assist_force_local.x, 1.0), snappedf(log_assist_force_local.y, 1.0), snappedf(log_assist_force_local.z, 1.0)]
+		snappedf(log_assist_force_local.x, 1.0), snappedf(log_assist_force_local.y, 1.0), snappedf(log_assist_force_local.z, 1.0),
+		snappedf(log_moment_wings_local.x, 1.0), snappedf(log_moment_wings_local.y, 1.0), snappedf(log_moment_wings_local.z, 1.0),
+		snappedf(log_moment_shunt_local.x, 1.0), snappedf(log_moment_shunt_local.y, 1.0), snappedf(log_moment_shunt_local.z, 1.0),
+		snappedf(log_moment_lift_local.x, 1.0), snappedf(log_moment_lift_local.y, 1.0), snappedf(log_moment_lift_local.z, 1.0),
+		snappedf(log_moment_main_local.x, 1.0), snappedf(log_moment_main_local.y, 1.0), snappedf(log_moment_main_local.z, 1.0)]
 	log_f.store_line(",".join(PackedStringArray(row.map(func(x): return str(x)))))
 	log_ev = ""
 	log_n += 1
@@ -2967,6 +2976,10 @@ func _physics_process(dt: float) -> void:
 	log_assist_force_world = Vector3.ZERO
 	log_engine_force_local = Vector3.ZERO
 	log_assist_force_local = Vector3.ZERO
+	log_moment_wings_local = Vector3.ZERO
+	log_moment_shunt_local = Vector3.ZERO
+	log_moment_lift_local = Vector3.ZERO
+	log_moment_main_local = Vector3.ZERO
 	if unstick_cd > 0.0: unstick_cd -= dt
 	if frame > 3 and dt > 0.0:
 		var vv := ship.linear_velocity
@@ -3024,7 +3037,8 @@ func _physics_process(dt: float) -> void:
 	log_engine_force_world += f_main
 	_apply_atmospheric_drag(ship, AERO_PROFILE)
 	var wing_air := CARNIVAL_ATMOSPHERE.sample(ship.global_position.y)
-	CARNIVAL_WING_AERODYNAMICS.apply_forces(ship, wing_aero_surfaces, parts, float(wing_air["density_kg_m3"]), float(wing_air["speed_of_sound_mps"]), AERO_PROFILE)
+	var wing_aero_result := CARNIVAL_WING_AERODYNAMICS.apply_forces(ship, wing_aero_surfaces, parts, float(wing_air["density_kg_m3"]), float(wing_air["speed_of_sound_mps"]), AERO_PROFILE)
+	log_moment_wings_local = wing_aero_result.get("moment_local_nm", Vector3.ZERO)
 	var lv := _lvl()
 	if (p_fin or p_dsq) and lv == 4: lv = 3                                             # после финиша автопилот работает как у Ветерана: тормозит и держит высоту
 	if prev_lvl < 0: prev_lvl = lv
@@ -3039,7 +3053,10 @@ func _physics_process(dt: float) -> void:
 		if fs.length() > P("slip_amax"): fs = fs.normalized() * P("slip_amax")
 		ship.apply_central_force(fs * m)
 		log_assist_force_world += fs * m
-	if lv > 1: ship.apply_torque(_skew_torque(engines, parts, "main", bs * Vector3(0, 0, -1), f_main.length(), bs, ship.center_of_mass))
+	if lv > 1:
+		var main_skew_torque := _skew_torque(engines, parts, "main", bs * Vector3(0, 0, -1), f_main.length(), bs, ship.center_of_mass)
+		ship.apply_torque(main_skew_torque)
+		log_moment_main_local += bs.inverse() * main_skew_torque
 	# --- взлётные: удержание высоты, тяга вдоль «верха» корабля ---
 	var up := bs.y
 	var cos_t := up.dot(Vector3.UP)
@@ -3082,7 +3099,10 @@ func _physics_process(dt: float) -> void:
 	ship.apply_central_force(up * t_lift + boost_dump + idle_slide)
 	log_engine_force_world += up * t_lift
 	log_assist_force_world += boost_dump + idle_slide
-	if lv > 1: ship.apply_torque(_skew_torque(engines, parts, "lift", up, t_lift, bs, ship.center_of_mass))
+	if lv > 1:
+		var lift_skew_torque := _skew_torque(engines, parts, "lift", up, t_lift, bs, ship.center_of_mass)
+		ship.apply_torque(lift_skew_torque)
+		log_moment_lift_local += bs.inverse() * lift_skew_torque
 	# --- маневровые (концы крыльев, у кормы): сила в точке двигателя, поэтому толкают хвост и вращают корабль ---
 	var boost: float = 1.0 + P("shunt_boost_gain") * float(ctrl["boost"])
 	var gy: Vector3 = ctrl["gyro"]
@@ -3102,8 +3122,10 @@ func _physics_process(dt: float) -> void:
 		var b01: float = ctrl["boost"]
 		var fv := f.limit_length(1.0) * boost + Vector3(0, 0, -P("shunt_boost_fwd") * b01)       # форсаж без команды даёт тягу вперёд (струи назад)
 		eng_force[nm] = fv
-		ship.apply_force(bs * fv * m * P("shunt_acc"), bs * pos)
-		log_engine_force_world += bs * fv * m * P("shunt_acc")
+		var shunt_force_local := fv * m * P("shunt_acc")
+		ship.apply_force(bs * shunt_force_local, bs * pos)
+		log_engine_force_world += bs * shunt_force_local
+		log_moment_shunt_local += (pos - ship.center_of_mass).cross(shunt_force_local)
 	if engines.has(NOSE_ENG) and parts.has(NOSE_ENG):                           # «Долгоносик»: форсаж без команд на маневровые = носовой маневровый тормозит (струя вперёд), сила по оси корабля без перекоса
 		var cmd := Vector3(tr.x + gy.y, -gy.x + gy.z, tr.z) if scheme == 0 else Vector3(ctrl["shl"]) + Vector3(ctrl["shr"])
 		var b02: float = clampf(float(ctrl["boost"]), 0.0, 1.0) * (1.0 - clampf(cmd.length(), 0.0, 1.0))
@@ -3112,8 +3134,11 @@ func _physics_process(dt: float) -> void:
 		eng_force[NOSE_ENG] = fb
 		if b02 > 0.0:
 			var nose_force_world := bs * fb * m * P("main_acc")
-			ship.apply_force(nose_force_world, bs * Vector3(0.0, (ship.center_of_mass).y, (engines[NOSE_ENG]["pos"] as Vector3).z))
+			var nose_force_local := fb * m * P("main_acc")
+			var nose_force_offset := Vector3(0.0, ship.center_of_mass.y, (engines[NOSE_ENG]["pos"] as Vector3).z)
+			ship.apply_force(nose_force_world, bs * nose_force_offset)
 			log_engine_force_world += nose_force_world
+			log_moment_shunt_local += (nose_force_offset - ship.center_of_mass).cross(nose_force_local)
 	# --- стабилизация: гасит вращение, пока нет команды на вращение ---
 	var av := bs.inverse() * ship.angular_velocity
 	var stab_on := assist and (lv > 1 or _remaining("shunt") > 0.999)       # Салага/Ученик: при потере маневровых стабилизация отключается
