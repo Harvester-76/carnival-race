@@ -196,9 +196,6 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		else:
 			# Reverse flow and near-broadside incidence use a symmetric plate
 			# approximation; force opposes each in-plane velocity component.
-			var mach_blend_t := clampf((mach - 0.8) / 2.2, 0.0, 1.0)
-			mach_blend_t = mach_blend_t * mach_blend_t * (3.0 - 2.0 * mach_blend_t)
-			var cn_90 := lerpf(1.4, 1.8, mach_blend_t)
 			normal_coefficient = -signf(normal_speed) * cn_90 * sin(alpha_abs) * sin(alpha_abs)
 			axial_coefficient = signf(forward_speed) * profile_cd * absf(cos(alpha))
 		# Convert body-axis coefficients into wind-axis telemetry.
