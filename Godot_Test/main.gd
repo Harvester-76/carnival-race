@@ -239,6 +239,7 @@ var log_wing_force_local := Vector3.ZERO
 var log_wing_lift_n := 0.0
 var log_wing_drag_n := 0.0
 var log_wing_active_count := 0
+var log_wing_surface_diagnostics: Array = []
 var log_angular_velocity_local := Vector3.ZERO
 var log_angular_acceleration_local := Vector3.ZERO
 var log_prev_angular_velocity_local := Vector3.ZERO
@@ -327,6 +328,8 @@ func _log_row(ctrl: Dictionary) -> void:
 		snappedf(Vector3(ctrl.get("shr", Vector3.ZERO)).x, 0.01), snappedf(Vector3(ctrl.get("shr", Vector3.ZERO)).y, 0.01), snappedf(Vector3(ctrl.get("shr", Vector3.ZERO)).z, 0.01),
 		scheme, int(assist)]
 	log_f.store_line(",".join(PackedStringArray(row.map(func(x): return str(x)))))
+	# One machine-readable diagnostic record per CSV sample; existing CSV columns remain unchanged.
+	log_f.store_line("# wing_surface_sample " + JSON.stringify({"t": snappedf(log_t, 0.01), "race_t_s": snappedf(race_t, 0.01), "surfaces": log_wing_surface_diagnostics}))
 	log_ev = ""
 	log_n += 1
 	if log_n % 40 == 0: log_f.flush()
@@ -3011,6 +3014,7 @@ func _physics_process(dt: float) -> void:
 	log_wing_lift_n = 0.0
 	log_wing_drag_n = 0.0
 	log_wing_active_count = 0
+	log_wing_surface_diagnostics = []
 	log_stabilizer_delta_omega_local = Vector3.ZERO
 	if unstick_cd > 0.0: unstick_cd -= dt
 	if frame > 3 and dt > 0.0:
@@ -3078,6 +3082,7 @@ func _physics_process(dt: float) -> void:
 	log_wing_lift_n = float(wing_aero_result.get("lift_n", 0.0))
 	log_wing_drag_n = float(wing_aero_result.get("drag_n", 0.0))
 	log_wing_active_count = int(wing_aero_result.get("active_wings", 0))
+	log_wing_surface_diagnostics = wing_aero_result.get("surface_diagnostics", [])
 	var lv := _lvl()
 	if (p_fin or p_dsq) and lv == 4: lv = 3                                             # после финиша автопилот работает как у Ветерана: тормозит и держит высоту
 	if prev_lvl < 0: prev_lvl = lv
