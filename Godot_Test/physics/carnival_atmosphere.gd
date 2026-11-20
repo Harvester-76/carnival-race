@@ -10,11 +10,20 @@ const SEA_LEVEL_TEMPERATURE_K := 298.15 # 25 C; tune for Carnival
 const SEA_LEVEL_PRESSURE_PA := 80000.0 # 0.8 bar; provisional until planet pressure is decided
 
 # Atmosphere composition: equal molar (approximately equal volume) fractions.
+# Change these two fractions together so that their sum remains 1.0.
 const CO2_MOLAR_FRACTION := 0.5
 const N2_MOLAR_FRACTION := 0.5
-# Effective properties for the 50/50 molar CO2/N2 mixture near room temperature.
-const AIR_GAS_CONSTANT := 230.9 # J/(kg K)
-const AIR_GAMMA := 1.335
+const UNIVERSAL_GAS_CONSTANT := 8.314462618 # J/(mol K)
+const CO2_MOLAR_MASS_KG_MOL := 0.04401
+const N2_MOLAR_MASS_KG_MOL := 0.028014
+const CO2_CP_J_KG_K := 846.0 # approximate near room temperature
+const N2_CP_J_KG_K := 1040.0 # approximate near room temperature
+const MIXTURE_MOLAR_MASS_KG_MOL := CO2_MOLAR_FRACTION * CO2_MOLAR_MASS_KG_MOL + N2_MOLAR_FRACTION * N2_MOLAR_MASS_KG_MOL
+const CO2_MASS_FRACTION := CO2_MOLAR_FRACTION * CO2_MOLAR_MASS_KG_MOL / MIXTURE_MOLAR_MASS_KG_MOL
+const N2_MASS_FRACTION := N2_MOLAR_FRACTION * N2_MOLAR_MASS_KG_MOL / MIXTURE_MOLAR_MASS_KG_MOL
+const AIR_GAS_CONSTANT := UNIVERSAL_GAS_CONSTANT / MIXTURE_MOLAR_MASS_KG_MOL
+const MIXTURE_CP_J_KG_K := CO2_MASS_FRACTION * CO2_CP_J_KG_K + N2_MASS_FRACTION * N2_CP_J_KG_K
+const AIR_GAMMA := MIXTURE_CP_J_KG_K / (MIXTURE_CP_J_KG_K - AIR_GAS_CONSTANT)
 
 # Simplified vertical temperature profile.
 const GRAVITY_M_S2 := 9.80665
