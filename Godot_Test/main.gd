@@ -1886,12 +1886,12 @@ func _step_bots(dt: float) -> void:
 		var rb: RigidBody3D = b["rb"]
 		if start_t > 0.0 or b.get("dnf", false) or b.get("done", false) or (ui_shot == "tour" and (tour_phase == "settle" or tour_phase == "fixed_wait") and bi == tour_bot): continue
 		var virt := bool(b.get("virt", false))                                  # вне зоны видимости: упрощённый режим без физики (см. _bot_virtual)
-		if not virt:
-			_apply_atmospheric_drag(rb, BOT_AERO_PROFILE)
-			var bot_air := CARNIVAL_ATMOSPHERE.sample(pos.y)
-			CARNIVAL_WING_AERODYNAMICS.apply_forces(rb, b.get("wing_aero", []), b["parts"], float(bot_air["density_kg_m3"]), float(bot_air["speed_of_sound_mps"]), BOT_AERO_PROFILE)
+		if not virt: _apply_atmospheric_drag(rb, BOT_AERO_PROFILE)
 		if rb.freeze and not virt: rb.freeze = false
 		var pos := rb.global_position; var vel := rb.linear_velocity
+		if not virt:
+			var bot_air := CARNIVAL_ATMOSPHERE.sample(pos.y)
+			CARNIVAL_WING_AERODYNAMICS.apply_forces(rb, b.get("wing_aero", []), b["parts"], float(bot_air["density_kg_m3"]), float(bot_air["speed_of_sound_mps"]), BOT_AERO_PROFILE)
 		if pos.y > RIM_Y and not bool(b.get("fin", false)): b["above"] = float(b.get("above", 0.0)) + dt                  # время выше потолка гонки (обучение штрафует улёт вверх)
 		if vel.length() > _max_speed_limit(): vel = vel.limit_length(_max_speed_limit()); rb.linear_velocity = vel
 		if not evo_mode and not virt and Vector2(pos.x - ship.global_position.x, pos.z - ship.global_position.z).length() > LOD0_R - 400.0:
