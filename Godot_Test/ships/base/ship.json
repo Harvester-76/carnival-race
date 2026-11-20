@@ -16,27 +16,27 @@
   "aerodynamics": {
     "nose": {
       "area_m2": 18,
-      "cd_scale": 1
+      "cd_scale": 2
     },
     "tail": {
       "area_m2": 18,
-      "cd_scale": 1
+      "cd_scale": 5
     },
     "left": {
       "area_m2": 24,
-      "cd_scale": 1
+      "cd_scale": 3
     },
     "right": {
       "area_m2": 24,
-      "cd_scale": 1
+      "cd_scale": 3
     },
     "top": {
       "area_m2": 60,
-      "cd_scale": 1
+      "cd_scale": 7
     },
     "bottom": {
       "area_m2": 60,
-      "cd_scale": 1
+      "cd_scale": 8
     }
   },
   "motors": {
