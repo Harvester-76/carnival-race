@@ -37,6 +37,13 @@
     "bottom": {
       "area_m2": 60,
       "cd_scale": 8
+    },
+    "wings": {
+      "enabled": true,
+      "cl_max": 1.2,
+      "profile_cd": 0.025,
+      "oswald_efficiency": 0.8,
+      "min_speed_mps": 5
     }
   },
   "motors": {
