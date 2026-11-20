@@ -96,7 +96,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		if speed < min_speed:
 			continue
 		var mach := speed / speed_of_sound_mps
-		var alpha := atan2(local_velocity.y, maxf(-local_velocity.z, 0.001))
+		var alpha := atan2(local_velocity.y, maxf(absf(local_velocity.z), 0.001))
 		var slope := _lift_slope(mach, float(surface["aspect_ratio"]), efficiency)
 		var cl := cl_max * tanh(slope * alpha / cl_max)
 		var cd_induced := cl * cl / (PI * efficiency * maxf(float(surface["aspect_ratio"]), 0.1))
