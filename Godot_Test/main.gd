@@ -323,8 +323,8 @@ func _log_row(ctrl: Dictionary) -> void:
 		snappedf(log_angular_velocity_local.x, 0.0001), snappedf(log_angular_velocity_local.y, 0.0001), snappedf(log_angular_velocity_local.z, 0.0001),
 		snappedf(log_angular_acceleration_local.x, 0.001), snappedf(log_angular_acceleration_local.y, 0.001), snappedf(log_angular_acceleration_local.z, 0.001),
 		snappedf(log_stabilizer_delta_omega_local.x, 0.0001), snappedf(log_stabilizer_delta_omega_local.y, 0.0001), snappedf(log_stabilizer_delta_omega_local.z, 0.0001),
-		snappedf(Vector3(ctrl["shl"]).x, 0.01), snappedf(Vector3(ctrl["shl"]).y, 0.01), snappedf(Vector3(ctrl["shl"]).z, 0.01),
-		snappedf(Vector3(ctrl["shr"]).x, 0.01), snappedf(Vector3(ctrl["shr"]).y, 0.01), snappedf(Vector3(ctrl["shr"]).z, 0.01),
+		snappedf(Vector3(ctrl.get("shl", Vector3.ZERO)).x, 0.01), snappedf(Vector3(ctrl.get("shl", Vector3.ZERO)).y, 0.01), snappedf(Vector3(ctrl.get("shl", Vector3.ZERO)).z, 0.01),
+		snappedf(Vector3(ctrl.get("shr", Vector3.ZERO)).x, 0.01), snappedf(Vector3(ctrl.get("shr", Vector3.ZERO)).y, 0.01), snappedf(Vector3(ctrl.get("shr", Vector3.ZERO)).z, 0.01),
 		scheme, int(assist)]
 	log_f.store_line(",".join(PackedStringArray(row.map(func(x): return str(x)))))
 	log_ev = ""
@@ -3166,7 +3166,7 @@ func _physics_process(dt: float) -> void:
 		log_engine_force_world += bs * shunt_force_local
 		log_moment_shunt_local += (pos - ship.center_of_mass).cross(shunt_force_local)
 	if engines.has(NOSE_ENG) and parts.has(NOSE_ENG):                           # «Долгоносик»: форсаж без команд на маневровые = носовой маневровый тормозит (струя вперёд), сила по оси корабля без перекоса
-		var cmd := Vector3(tr.x + gy.y, -gy.x + gy.z, tr.z) if scheme == 0 else Vector3(ctrl["shl"]) + Vector3(ctrl["shr"])
+		var cmd := Vector3(tr.x + gy.y, -gy.x + gy.z, tr.z) if scheme == 0 else Vector3(ctrl.get("shl", Vector3.ZERO)) + Vector3(ctrl.get("shr", Vector3.ZERO))
 		var b02: float = clampf(float(ctrl["boost"]), 0.0, 1.0) * (1.0 - clampf(cmd.length(), 0.0, 1.0))
 		var vfw := -bs.z.dot(ship.linear_velocity)                                   # тормозит только пока корабль движется вперёд: назад не разгоняет
 		var fb := Vector3(0, 0, 1) * b02 * NOSE_BRAKE * clampf(vfw / 25.0, 0.0, 1.0)
