@@ -24,11 +24,11 @@
     },
     "left": {
       "area_m2": 24,
-      "cd_scale": 3
+      "cd_scale": 2
     },
     "right": {
       "area_m2": 24,
-      "cd_scale": 3
+      "cd_scale": 2
     },
     "top": {
       "area_m2": 60,
