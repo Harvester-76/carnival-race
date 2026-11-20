@@ -98,10 +98,14 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		var radius_world := center_world - body.global_position
 		var point_velocity_world := body.linear_velocity + body.angular_velocity.cross(radius_world)
 		var local_velocity := inverse_basis * point_velocity_world
-		var speed := local_velocity.length()
-		if speed < min_speed:
+		var total_speed := local_velocity.length()
+		# Wing span is local X. The lift polar describes the flow across the
+		# wing section (chord plane YZ), not the spanwise component.
+		var section_velocity_local := Vector3(0.0, local_velocity.y, local_velocity.z)
+		var section_speed := section_velocity_local.length()
+		if section_speed < min_speed:
 			continue
-		var mach := speed / speed_of_sound_mps
+		var mach := section_speed / speed_of_sound_mps
 		# AoA is measured in the chord plane (local YZ).
 		# Forward is -Z; local_velocity is the ship velocity, opposite to the incoming airflow.
 		# Keep the longitudinal sign: abs(z) incorrectly mirrors reverse flow into forward flow.
@@ -111,7 +115,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		var cl := cl_max * tanh(slope * alpha / cl_max)
 		var cd_induced := cl * cl / (PI * efficiency * maxf(float(surface["aspect_ratio"]), 0.1))
 		var cd := profile_cd + cd_induced
-		var q := 0.5 * density_kg_m3 * speed * speed
+		var q := 0.5 * density_kg_m3 * section_speed * section_speed
 		var area := float(surface["area_m2"])
 		# Reverse flow is outside this wing model's lift polar. Keep profile drag,
 		# but do not apply a forward-flight lift coefficient to a reversed flow.
@@ -120,10 +124,10 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			cd_induced = 0.0
 			cd = profile_cd
 		var lift_magnitude := q * area * cl
-		var velocity_dir_local := local_velocity / speed
-		# Lift must be perpendicular to the local airflow. Prefer the wing-span
-		# cross-flow direction, oriented toward projected ship-up. If flow is
-		# nearly parallel to the span, use projected ship-up as a stable fallback.
+		var velocity_dir_local := section_velocity_local / section_speed
+		# Lift and section profile drag are based on the flow in the chord plane.
+		# The spanwise component is retained in diagnostics but is not fed into
+		# the 2D section lift polar or its dynamic pressure.
 		var up_projected := Vector3.UP - velocity_dir_local * Vector3.UP.dot(velocity_dir_local)
 		var lift_dir_local := Vector3.RIGHT.cross(velocity_dir_local)
 		if lift_dir_local.length_squared() > 0.000001:
@@ -136,7 +140,9 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			lift_dir_local = Vector3.ZERO
 		var drag_dir_local := -velocity_dir_local
 		var force_local := lift_dir_local * lift_magnitude + drag_dir_local * (q * area * cd)
-		body.apply_force(basis * force_local, center_local)
+		# RigidBody3D.apply_force() expects the application offset in world
+		# coordinates, relative to the body's origin (not a local-space point).
+		body.apply_force(basis * force_local, radius_world)
 		var surface_moment_local := (center_local - body.center_of_mass).cross(force_local)
 		# Diagnostic snapshot only: does not participate in force or moment calculation.
 		surface_diagnostics.append({
@@ -144,7 +150,10 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			"area_m2": area,
 			"center_local_m": [center_local.x, center_local.y, center_local.z],
 			"local_velocity_mps": [local_velocity.x, local_velocity.y, local_velocity.z],
-			"speed_mps": speed,
+			"total_speed_mps": total_speed,
+			"spanwise_velocity_mps": local_velocity.x,
+			"section_speed_mps": section_speed,
+			"speed_mps": section_speed,
 			"mach": mach,
 			"alpha_rad": alpha,
 			"dynamic_pressure_pa": q,
