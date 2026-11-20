@@ -178,6 +178,9 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		var high_aoa_blend := 1.0
 		var normal_coefficient := 0.0
 		var axial_coefficient := 0.0
+		var mach_blend_t := clampf((mach - 0.8) / 2.2, 0.0, 1.0)
+		mach_blend_t = mach_blend_t * mach_blend_t * (3.0 - 2.0 * mach_blend_t)
+		var cn_90 := lerpf(1.4, 1.8, mach_blend_t)
 		if forward_speed > 0.001 and alpha_abs < PI * 0.5:
 			# Preserve the established attached-flow polar at low incidence.
 			var old_normal := cl_attached * cos(alpha) + cd_attached * sin(alpha)
@@ -186,9 +189,6 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			high_aoa_blend = blend_t * blend_t * (3.0 - 2.0 * blend_t)
 			# Conservative finite broadside normal-force coefficient. This is a
 			# bounded engineering approximation, not a validated polar for this craft.
-			var mach_blend_t := clampf((mach - 0.8) / 2.2, 0.0, 1.0)
-			mach_blend_t = mach_blend_t * mach_blend_t * (3.0 - 2.0 * mach_blend_t)
-			var cn_90 := lerpf(1.4, 1.8, mach_blend_t)
 			var plate_normal := -signf(normal_speed) * cn_90 * sin(alpha_abs) * sin(alpha_abs)
 			var plate_axial := profile_cd * cos(alpha_abs)
 			normal_coefficient = lerpf(old_normal, plate_normal, high_aoa_blend)
