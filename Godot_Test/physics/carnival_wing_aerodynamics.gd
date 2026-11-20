@@ -212,7 +212,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		surface_diagnostics.append({
 			"name": name,
 			"area_m2": area,
-			"span_m": float(surface["span_axis_local"].length()) * (maxf(float(surface.get("span_m", 0.0)), 0.0)),
+			"span_m": float(surface.get("span_m", 0.0)),
 			"center_local_m": [center_local.x, center_local.y, center_local.z],
 			"local_velocity_mps": [local_velocity.x, local_velocity.y, local_velocity.z],
 			"total_speed_mps": total_speed,
