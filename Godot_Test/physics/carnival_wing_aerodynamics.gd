@@ -80,6 +80,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 	var inverse_basis := basis.inverse()
 	var total_lift := 0.0
 	var total_drag := 0.0
+	var total_moment_local := Vector3.ZERO
 	var active_count := 0
 	for surface in surfaces:
 		var name := String(surface["name"])
@@ -116,7 +117,13 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		var drag_dir_local := -velocity_dir_local
 		var force_local := lift_dir_local * lift_magnitude + drag_dir_local * (q * area * cd)
 		body.apply_force(basis * force_local, center_local)
+		total_moment_local += (center_local - body.center_of_mass).cross(force_local)
 		total_lift += absf(lift_magnitude)
 		total_drag += q * area * cd
 		active_count += 1
-	return {"lift_n": total_lift, "drag_n": total_drag, "active_wings": active_count}
+	return {
+		"lift_n": total_lift,
+		"drag_n": total_drag,
+		"moment_local_nm": total_moment_local,
+		"active_wings": active_count
+	}
