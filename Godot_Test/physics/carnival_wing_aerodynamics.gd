@@ -37,7 +37,7 @@ static func _estimate_le_slope(points: Array[Vector2], span_min: float, span_max
 
 static func _normal_force_coefficient_90(mach: float) -> float:
 	# Modified-Newtonian stagnation pressure coefficient. For subsonic flow,
-	# use the measured broadside flat-plate benchmark (approximately 1.28).
+	# use a broadside flat-plate engineering reference value (approximately 1.28).
 	const GAMMA := 1.4
 	if mach <= 1.0:
 		return 1.28
@@ -232,6 +232,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			"section_speed_mps": section_speed,
 			"speed_mps": section_speed,
 			"mach": mach,
+			"normal_mach": mach,
 			"alpha_rad": alpha,
 			"dynamic_pressure_pa": q,
 			"cl": cl,
