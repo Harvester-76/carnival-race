@@ -35,6 +35,19 @@ static func _estimate_le_slope(points: Array[Vector2], span_min: float, span_max
 		return 0.0
 	return (tip_z - root_z) / (tip_x - root_x)
 
+static func _normal_force_coefficient_90(mach: float) -> float:
+	# Modified-Newtonian stagnation pressure coefficient. For subsonic flow,
+	# use the measured broadside flat-plate benchmark (approximately 1.28).
+	const GAMMA := 1.4
+	if mach <= 1.0:
+		return 1.28
+	var mach_sq := mach * mach
+	var p2_p1 := 1.0 + 2.0 * GAMMA / (GAMMA + 1.0) * (mach_sq - 1.0)
+	var downstream_mach_sq := (1.0 + 0.5 * (GAMMA - 1.0) * mach_sq) / (GAMMA * mach_sq - 0.5 * (GAMMA - 1.0))
+	var p02_p1 := p2_p1 * pow(1.0 + 0.5 * (GAMMA - 1.0) * downstream_mach_sq, GAMMA / (GAMMA - 1.0))
+	var dynamic_pressure_ratio := 0.5 * GAMMA * mach_sq
+	return (p02_p1 - 1.0) / dynamic_pressure_ratio
+
 static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for key in parts.keys():
@@ -178,17 +191,16 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		var high_aoa_blend := 1.0
 		var normal_coefficient := 0.0
 		var axial_coefficient := 0.0
-		var mach_blend_t := clampf((mach - 0.8) / 2.2, 0.0, 1.0)
-		mach_blend_t = mach_blend_t * mach_blend_t * (3.0 - 2.0 * mach_blend_t)
-		var cn_90 := lerpf(1.4, 1.8, mach_blend_t)
+		var cn_90 := _normal_force_coefficient_90(mach)
 		if forward_speed > 0.001 and alpha_abs < PI * 0.5:
 			# Preserve the established attached-flow polar at low incidence.
 			var old_normal := cl_attached * cos(alpha) + cd_attached * sin(alpha)
 			var old_axial := -cl_attached * sin(alpha) + cd_attached * cos(alpha)
 			var blend_t := clampf((alpha_abs - deg_to_rad(45.0)) / deg_to_rad(30.0), 0.0, 1.0)
 			high_aoa_blend = blend_t * blend_t * (3.0 - 2.0 * blend_t)
-			# Conservative finite broadside normal-force coefficient. This is a
-			# bounded engineering approximation, not a validated polar for this craft.
+			# Blend the attached-flow polar into a modified-Newtonian broadside
+			# normal-force model. This is still a strip-theory approximation for
+			# this finite swept planform, not a craft-specific validated polar.
 			var plate_normal := -signf(normal_speed) * cn_90 * sin(alpha_abs) * sin(alpha_abs)
 			var plate_axial := profile_cd * cos(alpha_abs)
 			normal_coefficient = lerpf(old_normal, plate_normal, high_aoa_blend)
