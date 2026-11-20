@@ -85,6 +85,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 	var bottom_moment_local := Vector3.ZERO
 	var total_force_local := Vector3.ZERO
 	var active_count := 0
+	var surface_diagnostics: Array[Dictionary] = []
 	for surface in surfaces:
 		var name := String(surface["name"])
 		if not parts.has(name):
@@ -137,6 +138,24 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		var force_local := lift_dir_local * lift_magnitude + drag_dir_local * (q * area * cd)
 		body.apply_force(basis * force_local, center_local)
 		var surface_moment_local := (center_local - body.center_of_mass).cross(force_local)
+		# Diagnostic snapshot only: does not participate in force or moment calculation.
+		surface_diagnostics.append({
+			"name": name,
+			"area_m2": area,
+			"center_local_m": [center_local.x, center_local.y, center_local.z],
+			"local_velocity_mps": [local_velocity.x, local_velocity.y, local_velocity.z],
+			"speed_mps": speed,
+			"mach": mach,
+			"alpha_rad": alpha,
+			"dynamic_pressure_pa": q,
+			"cl": cl,
+			"cd": cd,
+			"lift_n": lift_magnitude,
+			"drag_n": q * area * cd,
+			"lift_direction_local": [lift_dir_local.x, lift_dir_local.y, lift_dir_local.z],
+			"force_local_n": [force_local.x, force_local.y, force_local.z],
+			"moment_local_nm": [surface_moment_local.x, surface_moment_local.y, surface_moment_local.z]
+		})
 		total_moment_local += surface_moment_local
 		if name.begins_with("SM_Wing_Top_"):
 			top_moment_local += surface_moment_local
@@ -153,5 +172,6 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		"top_moment_local_nm": top_moment_local,
 		"bottom_moment_local_nm": bottom_moment_local,
 		"force_local_n": total_force_local,
-		"active_wings": active_count
+		"active_wings": active_count,
+		"surface_diagnostics": surface_diagnostics
 	}
