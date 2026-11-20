@@ -1,5 +1,5 @@
 extends RefCounted
-## Aerodynamic lift and induced/profile drag for detachable wing meshes.
+## Swept-wing aerodynamic forces from mesh-derived planform geometry.
 ## Geometry is measured from the mesh actually instantiated by the ship.
 ## SI units throughout.
 
@@ -11,42 +11,29 @@ const DEFAULT_WING_PROFILE := {
 	"min_speed_mps": 5.0
 }
 
-static func _estimate_le_slope(points: Array[Vector2], span_extent: float) -> float:
-	# Fit the forward (minimum-Z) planform boundary in spanwise bins.
-	# Binning suppresses duplicate vertices and local triangulation noise.
+static func _estimate_le_slope(points: Array[Vector2], span_min: float, span_max: float) -> float:
+	# Estimate the leading-edge line from the forwardmost points near the root
+	# and tip. Using endpoint bands avoids mistaking sparse trailing-edge
+	# vertices for the leading edge in imported triangulated meshes.
+	var span_extent := span_max - span_min
 	if span_extent <= 0.001 or points.is_empty():
 		return 0.0
-	const BIN_COUNT := 16
-	var leading_z := PackedFloat32Array()
-	leading_z.resize(BIN_COUNT)
-	leading_z.fill(INF)
+	var root_limit := span_min + span_extent * 0.18
+	var tip_limit := span_max - span_extent * 0.18
+	var root_x := INF
+	var root_z := INF
+	var tip_x := -INF
+	var tip_z := INF
 	for point in points:
-		if point.x < span_extent * 0.04 or point.x > span_extent * 0.96:
-			continue
-		var bin := clampi(int(point.x / span_extent * BIN_COUNT), 0, BIN_COUNT - 1)
-		leading_z[bin] = minf(leading_z[bin], point.y)
-	var sum_x := 0.0
-	var sum_z := 0.0
-	var count := 0
-	for i in BIN_COUNT:
-		if leading_z[i] >= INF:
-			continue
-		sum_x += (float(i) + 0.5) / float(BIN_COUNT) * span_extent
-		sum_z += leading_z[i]
-		count += 1
-	if count < 4:
+		if point.x <= root_limit and point.y < root_z:
+			root_x = point.x
+			root_z = point.y
+		if point.x >= tip_limit and point.y < tip_z:
+			tip_x = point.x
+			tip_z = point.y
+	if root_x >= INF or tip_x <= -INF or tip_x - root_x <= 0.001:
 		return 0.0
-	var mean_x := sum_x / float(count)
-	var mean_z := sum_z / float(count)
-	var covariance := 0.0
-	var variance := 0.0
-	for i in BIN_COUNT:
-		if leading_z[i] >= INF:
-			continue
-		var x := (float(i) + 0.5) / float(BIN_COUNT) * span_extent
-		covariance += (x - mean_x) * (leading_z[i] - mean_z)
-		variance += (x - mean_x) * (x - mean_x)
-	return covariance / variance if variance > 0.000001 else 0.0
+	return (tip_z - root_z) / (tip_x - root_x)
 
 static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -63,6 +50,7 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 		var projected_area_sum := 0.0
 		var weighted_center := Vector3.ZERO
 		var planform_points: Array[Vector2] = []
+		var min_abs_x := INF
 		var max_abs_x := 0.0
 		for i in range(0, faces.size() - 2, 3):
 			var a: Vector3 = mi.transform * faces[i]
@@ -70,6 +58,7 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 			var c: Vector3 = mi.transform * faces[i + 2]
 			for p in [a, b, c]:
 				planform_points.append(Vector2(absf(p.x), p.z))
+				min_abs_x = minf(min_abs_x, absf(p.x))
 				max_abs_x = maxf(max_abs_x, absf(p.x))
 			var projected_triangle_area := absf((b - a).cross(c - a).y) * 0.5
 			if projected_triangle_area <= 0.000001:
@@ -82,7 +71,7 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 			continue
 		var center_local := weighted_center / projected_area_sum
 		var side_sign := -1.0 if name.ends_with("_L") else 1.0
-		var le_slope := _estimate_le_slope(planform_points, max_abs_x)
+		var le_slope := _estimate_le_slope(planform_points, min_abs_x, max_abs_x)
 		# The span axis follows the leading edge in plan view. Its orientation is
 		# chosen consistently (+X); the sign of sweep mirrors between left/right.
 		var span_axis := Vector3(1.0, 0.0, side_sign * le_slope).normalized()
@@ -92,7 +81,7 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 		if normal_axis.y < 0.0:
 			span_axis = -span_axis
 			normal_axis = -normal_axis
-		var span := maxf(max_abs_x * 2.0, 0.1)
+		var span := maxf(max_abs_x - min_abs_x, 0.1)
 		var aspect_ratio := maxf(span * span / planform_area, 0.1)
 		result.append({
 			"name": name,
@@ -104,7 +93,8 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 			"span_axis_local": span_axis,
 			"chord_axis_local": chord_axis,
 			"normal_axis_local": normal_axis,
-			"leading_edge_sweep_rad": atan(absf(le_slope))
+			"leading_edge_sweep_rad": atan(absf(le_slope)),
+			"span_m": span
 		})
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return String(a["name"]) < String(b["name"]))
@@ -184,7 +174,6 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			lift_dir_local = lift_dir_local.normalized()
 		else:
 			lift_dir_local = Vector3.ZERO
-		var drag_dir_local := -velocity_dir_local
 		var aft_axis := -chord_axis
 		var high_aoa_blend := 1.0
 		var normal_coefficient := 0.0
@@ -216,7 +205,6 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		var cl := normal_coefficient * cos(alpha) - axial_coefficient * sin(alpha)
 		var cd := normal_coefficient * sin(alpha) + axial_coefficient * cos(alpha)
 		var lift_magnitude := q * area * cl
-		var drag_magnitude := q * area * cd
 		var force_local := normal_axis * (q * area * normal_coefficient) + aft_axis * (q * area * axial_coefficient)
 		body.apply_force(basis * force_local, radius_world)
 		var surface_moment_local := (center_local - body.center_of_mass).cross(force_local)
@@ -224,6 +212,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		surface_diagnostics.append({
 			"name": name,
 			"area_m2": area,
+			"span_m": float(surface["span_axis_local"].length()) * (maxf(float(surface.get("span_m", 0.0)), 0.0)),
 			"center_local_m": [center_local.x, center_local.y, center_local.z],
 			"local_velocity_mps": [local_velocity.x, local_velocity.y, local_velocity.z],
 			"total_speed_mps": total_speed,
