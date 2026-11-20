@@ -61,7 +61,8 @@ static func _lift_slope(mach: float, aspect_ratio: float, efficiency: float) -> 
 	var sup_beta := sqrt(maxf(mach * mach - 1.0, 0.04))
 	var a0_sub := minf(2.0 * PI / sub_beta, 12.0)
 	var a0_sup := minf(4.0 / sup_beta, 12.0)
-	var blend := smoothstep(0.85, 1.15, mach)
+	var blend_t := clampf((mach - 0.85) / 0.3, 0.0, 1.0)
+	var blend := blend_t * blend_t * (3.0 - 2.0 * blend_t)
 	var a0 := lerpf(a0_sub, a0_sup, blend)
 	return a0 / (1.0 + a0 / (PI * e * ar))
 
