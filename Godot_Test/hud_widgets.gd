@@ -21,6 +21,7 @@ const EARTH := Color("8A5428")
 const GROUND := Color("4A3220")
 const TERRAIN := Color("C08A55")
 const ROUTE_MAP_VIEW := preload("res://route_map_view.gd")
+const ATMOSPHERE := preload("res://physics/carnival_atmosphere.gd")
 
 const CEIL_Y := 5350.0                                                       # потолок гонки (main.RIM_Y)
 const ALT_K := 0.168                                                         # px/м на ленте высоты
@@ -199,6 +200,8 @@ func _update_state(dt: float) -> void:
 	var p: Vector3 = tr.origin; var v: Vector3 = sh.linear_velocity
 	var f := -b.z
 	S["speed"] = v.length(); S["alt"] = p.y
+	var atmosphere_sample: Dictionary = ATMOSPHERE.sample(p.y)
+	S["sound_speed"] = float(atmosphere_sample["speed_of_sound_mps"])
 	var gh := float(m.height(p.x, p.z)); S["agl"] = p.y - gh; S["vs"] = v.y
 	S["ground_t"] = _ground_time(p, v)
 	var terr := []
@@ -483,6 +486,15 @@ func _draw_spd(c: Control) -> void:
 	for s in [0, 500, 1000, 1500, 2000]:
 		var p := _pt(float(s) / SPEED_MAX, 84); _tx(c, "m7", 11, str(s), p.x - 20, p.y - 8, STEEL, HORIZONTAL_ALIGNMENT_CENTER, 40, 16)
 	c.draw_line(_pt(2300.0 / SPEED_MAX, 126), _pt(2300.0 / SPEED_MAX, 136), WHITE, 3.0, true)
+	# Маленькая красная стрелка показывает локальную скорость звука на той же шкале.
+	var sound_speed := float(S.get("sound_speed", 0.0))
+	var sound_f := clampf(sound_speed, 0.0, SPEED_MAX) / SPEED_MAX
+	var sound_tip := _pt(sound_f, 114.0)
+	var sound_base := _pt(sound_f, 130.0)
+	var sound_tangent := Vector2(-(sound_tip - Vector2(140, 140)).y, (sound_tip - Vector2(140, 140)).x).normalized() * 5.0
+	var sound_arrow := PackedVector2Array([sound_tip, sound_base + sound_tangent, sound_base - sound_tangent])
+	c.draw_colored_polygon(sound_arrow, DANGER)
+	c.draw_polyline(PackedVector2Array([sound_arrow[0], sound_arrow[1], sound_arrow[2], sound_arrow[0]]), INK, 1.5, true)
 	_line2(c, _pt(f, 100), _pt(f, 132), WHITE, 4.0, 5.0)
 	var shown := int(round(disp_speed / 10.0)) * 10 if mock_id == 0 else int(v)
 	_txc(c, "m8", 56, str(shown), 140, 106, CREAM, 56)
