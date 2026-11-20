@@ -101,22 +101,38 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		if speed < min_speed:
 			continue
 		var mach := speed / speed_of_sound_mps
-		# AoA is positive when the nose is above the flight path.
-		# local_velocity is the ship velocity, opposite to the incoming airflow.
-		var alpha := atan2(-local_velocity.y, maxf(absf(local_velocity.z), 0.001))
+		# AoA is measured in the chord plane (local YZ).
+		# Forward is -Z; local_velocity is the ship velocity, opposite to the incoming airflow.
+		# Keep the longitudinal sign: abs(z) incorrectly mirrors reverse flow into forward flow.
+		var forward_speed := -local_velocity.z
+		var alpha := atan2(-local_velocity.y, forward_speed) if forward_speed > 0.001 else 0.0
 		var slope := _lift_slope(mach, float(surface["aspect_ratio"]), efficiency)
 		var cl := cl_max * tanh(slope * alpha / cl_max)
 		var cd_induced := cl * cl / (PI * efficiency * maxf(float(surface["aspect_ratio"]), 0.1))
 		var cd := profile_cd + cd_induced
 		var q := 0.5 * density_kg_m3 * speed * speed
 		var area := float(surface["area_m2"])
+		# Reverse flow is outside this wing model's lift polar. Keep profile drag,
+		# but do not apply a forward-flight lift coefficient to a reversed flow.
+		if forward_speed <= 0.001:
+			cl = 0.0
+			cd_induced = 0.0
+			cd = profile_cd
 		var lift_magnitude := q * area * cl
 		var velocity_dir_local := local_velocity / speed
-		# Use the common aircraft-up direction for both left and right wings.
+		# Lift must be perpendicular to the local airflow. Prefer the wing-span
+		# cross-flow direction, oriented toward projected ship-up. If flow is
+		# nearly parallel to the span, use projected ship-up as a stable fallback.
+		var up_projected := Vector3.UP - velocity_dir_local * Vector3.UP.dot(velocity_dir_local)
 		var lift_dir_local := Vector3.RIGHT.cross(velocity_dir_local)
-		if lift_dir_local.length_squared() < 0.000001:
-			continue
-		lift_dir_local = lift_dir_local.normalized()
+		if lift_dir_local.length_squared() > 0.000001:
+			lift_dir_local = lift_dir_local.normalized()
+			if up_projected.length_squared() > 0.000001 and lift_dir_local.dot(up_projected) < 0.0:
+				lift_dir_local = -lift_dir_local
+		elif up_projected.length_squared() > 0.000001:
+			lift_dir_local = up_projected.normalized()
+		else:
+			lift_dir_local = Vector3.ZERO
 		var drag_dir_local := -velocity_dir_local
 		var force_local := lift_dir_local * lift_magnitude + drag_dir_local * (q * area * cd)
 		body.apply_force(basis * force_local, center_local)
