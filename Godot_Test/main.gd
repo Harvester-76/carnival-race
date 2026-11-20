@@ -9,9 +9,11 @@ const STATIC_TRACK_RUNTIME := preload("res://static_track_runtime.gd")
 const PERFORMANCE_DIAGNOSTICS := preload("res://performance_diagnostics.gd")
 const CARNIVAL_ATMOSPHERE := preload("res://physics/carnival_atmosphere.gd")
 const CARNIVAL_AERODYNAMICS := preload("res://physics/carnival_aerodynamics.gd")
+const CARNIVAL_WING_AERODYNAMICS := preload("res://physics/carnival_wing_aerodynamics.gd")
 const SHIP_CATALOG_SCRIPT := preload("res://ship_catalog.gd")
 var AERO_PROFILE: Dictionary = CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE.duplicate(true)
 var BOT_AERO_PROFILE: Dictionary = CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE.duplicate(true)
+var wing_aero_surfaces: Array[Dictionary] = []
 var ship_profiles: Array[Dictionary] = []
 var active_ship_profile: Dictionary = {}
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
@@ -1810,7 +1812,7 @@ func _spawn_bots() -> void:                                                  # �
 		add_child(rb)
 		rb.global_transform = Transform3D(Basis.IDENTITY, _grid_pos(slot, cols))
 		var gg := _bot_genes(i)
-		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "ptot": bparts.size(), "eng": beng, "halos": bhalos, "lamps": blamps, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
+		bots.append({"rb": rb, "g": gg, "lane_x": float(gg["lane"]), "lane_y": lerpf(250.0, 1700.0, float(gg["alt_pref"])), "hits": 0, "resp": 0, "vbase": 0.0, "last_s": 0.0, "lap": 0, "prog": 0.0, "rel": 0.0, "rel_init": false, "ct": -999, "path": 0, "fk": 0, "fkd": -1, "fin": false, "fin_t": 0.0, "still": 0.0, "parts": bparts, "wing_aero": CARNIVAL_WING_AERODYNAMICS.build_surfaces(bparts), "ptot": bparts.size(), "eng": beng, "halos": bhalos, "lamps": blamps, "tot": btot, "thr": 0.0, "hold": _grid_pos(slot, cols).y, "pv": 0.0, "icd": 0.0, "name": "Третий шанс" if swapped else BOT_NAMES[i % BOT_NAMES.size()]})
 
 func _bot_genes(i: int) -> Dictionary:
 	var lst: Array = []
@@ -1884,7 +1886,10 @@ func _step_bots(dt: float) -> void:
 		var rb: RigidBody3D = b["rb"]
 		if start_t > 0.0 or b.get("dnf", false) or b.get("done", false) or (ui_shot == "tour" and (tour_phase == "settle" or tour_phase == "fixed_wait") and bi == tour_bot): continue
 		var virt := bool(b.get("virt", false))                                  # вне зоны видимости: упрощённый режим без физики (см. _bot_virtual)
-		if not virt: _apply_atmospheric_drag(rb, BOT_AERO_PROFILE)
+		if not virt:
+			_apply_atmospheric_drag(rb, BOT_AERO_PROFILE)
+			var bot_air := CARNIVAL_ATMOSPHERE.sample(pos.y)
+			CARNIVAL_WING_AERODYNAMICS.apply_forces(rb, b.get("wing_aero", []), b["parts"], float(bot_air["density_kg_m3"]), float(bot_air["speed_of_sound_mps"]), BOT_AERO_PROFILE)
 		if rb.freeze and not virt: rb.freeze = false
 		var pos := rb.global_position; var vel := rb.linear_velocity
 		if pos.y > RIM_Y and not bool(b.get("fin", false)): b["above"] = float(b.get("above", 0.0)) + dt                  # время выше потолка гонки (обучение штрафует улёт вверх)
@@ -2286,6 +2291,8 @@ func _build_ship() -> void:
 				var sl := _make_spot(mi)
 				if sl != null: spot_lights[nm] = sl
 		if nm.begins_with("SM_Engine_"): _setup_engine(mi)
+	wing_aero_surfaces = CARNIVAL_WING_AERODYNAMICS.build_surfaces(parts)
+	print("[WING_AERO] surfaces=", wing_aero_surfaces.map(func(s: Dictionary) -> String: return "%s: %.2f m2 @ %s" % [s["name"], s["area_m2"], s["center_local"]]))
 	health_w0 = 0.0
 	for pn in parts: health_w0 += part_weight(String(pn))
 	_apply_lights()
@@ -3016,6 +3023,8 @@ func _physics_process(dt: float) -> void:
 	ship.apply_central_force(f_main)
 	log_engine_force_world += f_main
 	_apply_atmospheric_drag(ship, AERO_PROFILE)
+	var wing_air := CARNIVAL_ATMOSPHERE.sample(ship.global_position.y)
+	CARNIVAL_WING_AERODYNAMICS.apply_forces(ship, wing_aero_surfaces, parts, float(wing_air["density_kg_m3"]), float(wing_air["speed_of_sound_mps"]), AERO_PROFILE)
 	var lv := _lvl()
 	if (p_fin or p_dsq) and lv == 4: lv = 3                                             # после финиша автопилот работает как у Ветерана: тормозит и держит высоту
 	if prev_lvl < 0: prev_lvl = lv
