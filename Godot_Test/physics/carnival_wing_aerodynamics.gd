@@ -83,17 +83,16 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 		if planform_area <= 0.01 or projected_area_sum <= 0.000001:
 			continue
 		var center_local := weighted_center / projected_area_sum
-		var side_sign := -1.0 if name.ends_with("_L") else 1.0
 		var le_slope := _estimate_le_slope(planform_points, min_abs_x, max_abs_x)
-		# The span axis follows the leading edge in plan view. Its orientation is
-		# chosen consistently (+X); the sign of sweep mirrors between left/right.
-		var span_axis := Vector3(1.0, 0.0, side_sign * le_slope).normalized()
+		# Aerodynamic section axes follow the actual wing geometry:
+		# local X is the span direction, local -Z is the chord direction,
+		# and local +Y is the surface normal. Leading-edge sweep is a separate
+		# planform property; it must not rotate the span axis or chord axis.
+		# Sweep is retained as geometry metadata until a validated swept-wing
+		# correction is applied to the aerodynamic coefficients.
+		var span_axis := Vector3.RIGHT
 		var chord_axis := Vector3(0.0, 0.0, -1.0)
-		chord_axis = (chord_axis - span_axis * chord_axis.dot(span_axis)).normalized()
-		var normal_axis := span_axis.cross(chord_axis).normalized()
-		if normal_axis.y < 0.0:
-			span_axis = -span_axis
-			normal_axis = -normal_axis
+		var normal_axis := Vector3.UP
 		var span := maxf(max_abs_x - min_abs_x, 0.1)
 		var aspect_ratio := maxf(span * span / planform_area, 0.1)
 		result.append({
