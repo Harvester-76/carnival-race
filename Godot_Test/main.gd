@@ -2286,7 +2286,7 @@ func _estimate_ship_center_of_mass(root: Node3D) -> Dictionary:
 			continue
 		var nm := String(mi.name)
 		# LOD/collision hull meshes are alternate representations, not extra mass.
-		if nm == "SM_Hull_Body_LOD1" or nm.begins_with("SM_Hull_Solid") or nm.begins_with("UCX_"):
+		if nm.begins_with("SM_Hull_Body_LOD1") or nm.begins_with("SM_Hull_Solid") or nm.begins_with("UCX_"):
 			continue
 		var group := "other"
 		if nm.begins_with("SM_Hull_Body"):
