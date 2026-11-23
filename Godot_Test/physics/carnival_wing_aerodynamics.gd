@@ -207,6 +207,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 	var bottom_moment_local := Vector3.ZERO
 	var total_force_local := Vector3.ZERO
 	var active_count := 0
+	var active_surface_names: Dictionary = {}
 	var surface_diagnostics: Array[Dictionary] = []
 	for surface in surfaces:
 		var strips: Array = surface.get("strips", [])
@@ -223,9 +224,8 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			var point_velocity_world := body.linear_velocity + body.angular_velocity.cross(radius_world)
 			var local_velocity := inverse_basis * point_velocity_world
 			var total_speed := local_velocity.length()
-			# Resolve flow in the plane normal to the measured leading edge.
-			# Spanwise flow is removed; the remaining velocity contains vertical
-			# incidence and the chord-normal component affected by sweep.
+			# Resolve local flow at this strip centroid. Local X is the geometric
+			# span axis; removing its component leaves chordwise and normal flow.
 			var span_axis: Vector3 = surface.get("span_axis_local", Vector3.RIGHT)
 			var chord_axis: Vector3 = surface.get("chord_axis_local", Vector3(0.0, 0.0, -1.0))
 			var normal_axis: Vector3 = surface.get("normal_axis_local", Vector3.UP)
@@ -324,6 +324,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 			total_lift += absf(lift_magnitude)
 			total_drag += q * area * cd
 			active_count += 1
+			active_surface_names[name] = true
 	return {
 		"lift_n": total_lift,
 		"drag_n": total_drag,
@@ -331,6 +332,7 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 		"top_moment_local_nm": top_moment_local,
 		"bottom_moment_local_nm": bottom_moment_local,
 		"force_local_n": total_force_local,
-		"active_wings": active_count,
+		"active_wings": active_surface_names.size(),
+		"active_strips": active_count,
 		"surface_diagnostics": surface_diagnostics
 	}
