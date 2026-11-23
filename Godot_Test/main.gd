@@ -14,6 +14,10 @@ const SHIP_CATALOG_SCRIPT := preload("res://ship_catalog.gd")
 var AERO_PROFILE: Dictionary = CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE.duplicate(true)
 var BOT_AERO_PROFILE: Dictionary = CARNIVAL_AERODYNAMICS.DEFAULT_PROFILE.duplicate(true)
 var wing_aero_surfaces: Array[Dictionary] = []
+var wing_aero_test_enabled := false
+var wing_aero_test_speed_mps := 500.0
+var wing_aero_test_altitude_m := 1000.0
+var wing_aero_test_alpha_deg := 0.0
 var ship_profiles: Array[Dictionary] = []
 var active_ship_profile: Dictionary = {}
 const TRACK_STORAGE_SCRIPT := preload("res://static_track_pipeline/track_storage.gd")
@@ -971,6 +975,11 @@ func _ready() -> void:
 	track_storage.ensure_root()
 	_load_cfg()
 	var ua := OS.get_cmdline_user_args()
+	wing_aero_test_enabled = "wing_aero_test" in ua
+	for arg in ua:
+		if arg.begins_with("wing_aero_test_speed="): wing_aero_test_speed_mps = maxf(float(arg.substr(21)), 5.0)
+		if arg.begins_with("wing_aero_test_altitude="): wing_aero_test_altitude_m = maxf(float(arg.substr(24)), 0.0)
+		if arg.begins_with("wing_aero_test_alpha="): wing_aero_test_alpha_deg = clampf(float(arg.substr(22)), -30.0, 30.0)
 	shot_mode = "shot" in ua
 	test_mode = "test" in ua
 	evo_mode = "evo" in ua
@@ -3061,6 +3070,42 @@ func _read_controls(dt: float) -> Dictionary:
 	return c
 
 func _physics_process(dt: float) -> void:
+	if wing_aero_test_enabled:
+		wing_aero_test_enabled = false
+		ship.freeze = false
+		ship.gravity_scale = 0.0
+		ship.axis_lock_angular_x = true
+		ship.axis_lock_angular_y = true
+		ship.axis_lock_angular_z = true
+		ship.collision_layer = 0
+		ship.collision_mask = 0
+		var test_basis := Basis.IDENTITY
+		ship.global_transform = Transform3D(test_basis, Vector3(0.0, wing_aero_test_altitude_m, 0.0))
+		var incidence := deg_to_rad(wing_aero_test_alpha_deg)
+		ship.linear_velocity = Vector3(0.0, -wing_aero_test_speed_mps * sin(incidence), -wing_aero_test_speed_mps * cos(incidence))
+		ship.angular_velocity = Vector3.ZERO
+		var test_air := CARNIVAL_ATMOSPHERE.sample(wing_aero_test_altitude_m)
+		var test_result := CARNIVAL_WING_AERODYNAMICS.apply_forces(ship, wing_aero_surfaces, parts, float(test_air["density_kg_m3"]), float(test_air["speed_of_sound_mps"]), AERO_PROFILE)
+		var sum_abs_vertical := 0.0
+		for sample in test_result.get("surface_diagnostics", []):
+			var force_values: Array = sample.get("force_local_n", [0.0, 0.0, 0.0])
+			sum_abs_vertical += absf(float(force_values[1]))
+		var report := {
+			"test": "wing_aero_zero_incidence",
+			"requested_speed_mps": wing_aero_test_speed_mps,
+			"requested_altitude_m": wing_aero_test_altitude_m,
+			"requested_alpha_deg": wing_aero_test_alpha_deg,
+			"density_kg_m3": float(test_air["density_kg_m3"]),
+			"speed_of_sound_mps": float(test_air["speed_of_sound_mps"]),
+			"resultant_force_local_n": test_result.get("force_local_n", Vector3.ZERO),
+			"sum_abs_vertical_force_n": sum_abs_vertical,
+			"active_wings": test_result.get("active_wings", 0),
+			"active_strips": test_result.get("active_strips", 0),
+			"strips": test_result.get("surface_diagnostics", [])
+		}
+		print("[WING_AERO_TEST] ", JSON.stringify(report, "\\t"))
+		get_tree().quit()
+		return
 	frame += 1
 	var log_basis := ship.global_transform.basis
 	var log_local_velocity_now := log_basis.inverse() * ship.linear_velocity
