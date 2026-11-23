@@ -3090,14 +3090,15 @@ func _physics_process(dt: float) -> void:
 		for sample in test_result.get("surface_diagnostics", []):
 			var force_values: Array = sample.get("force_local_n", [0.0, 0.0, 0.0])
 			sum_abs_vertical += absf(float(force_values[1]))
+		var resultant_force: Vector3 = test_result.get("force_local_n", Vector3.ZERO)
 		var report := {
-			"test": "wing_aero_zero_incidence",
+			"test": "wing_aero_incidence",
 			"requested_speed_mps": wing_aero_test_speed_mps,
 			"requested_altitude_m": wing_aero_test_altitude_m,
 			"requested_alpha_deg": wing_aero_test_alpha_deg,
 			"density_kg_m3": float(test_air["density_kg_m3"]),
 			"speed_of_sound_mps": float(test_air["speed_of_sound_mps"]),
-			"resultant_force_local_n": test_result.get("force_local_n", Vector3.ZERO),
+			"resultant_force_local_n": [resultant_force.x, resultant_force.y, resultant_force.z],
 			"sum_abs_vertical_force_n": sum_abs_vertical,
 			"active_wings": test_result.get("active_wings", 0),
 			"active_strips": test_result.get("active_strips", 0),
