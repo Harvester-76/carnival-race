@@ -979,7 +979,7 @@ func _ready() -> void:
 	for arg in ua:
 		if arg.begins_with("wing_aero_test_speed="): wing_aero_test_speed_mps = maxf(float(arg.substr(21)), 5.0)
 		if arg.begins_with("wing_aero_test_altitude="): wing_aero_test_altitude_m = maxf(float(arg.substr(24)), 0.0)
-		if arg.begins_with("wing_aero_test_alpha="): wing_aero_test_alpha_deg = clampf(float(arg.substr(22)), -30.0, 30.0)
+		if arg.begins_with("wing_aero_test_alpha="): wing_aero_test_alpha_deg = clampf(float(arg.substr(21)), -30.0, 30.0)
 	shot_mode = "shot" in ua
 	test_mode = "test" in ua
 	evo_mode = "evo" in ua
@@ -3103,7 +3103,7 @@ func _physics_process(dt: float) -> void:
 			"active_strips": test_result.get("active_strips", 0),
 			"strips": test_result.get("surface_diagnostics", [])
 		}
-		print("[WING_AERO_TEST] ", JSON.stringify(report, "\\t"))
+		print("[WING_AERO_TEST] ", JSON.stringify(report, "\t"))
 		get_tree().quit()
 		return
 	frame += 1
