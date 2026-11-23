@@ -2268,6 +2268,68 @@ func _mesh_children(n: Node) -> Array:
 		if c is MeshInstance3D: r.append(c)
 	return r
 
+func _estimate_ship_center_of_mass(root: Node3D) -> Dictionary:
+	# Предварительная массовая модель: доли массы распределяются по группам,
+	# внутри каждой группы — пропорционально площади треугольников мешей.
+	# Это инженерная оценка, а не физические массы из GLB.
+	const MASS_FRACTIONS := {"hull": 0.70, "wings": 0.12, "engines": 0.15, "other": 0.03}
+	var area_by_group := {"hull": 0.0, "wings": 0.0, "engines": 0.0, "other": 0.0}
+	var weighted_center_by_group := {
+		"hull": Vector3.ZERO, "wings": Vector3.ZERO,
+		"engines": Vector3.ZERO, "other": Vector3.ZERO
+	}
+	for child in root.get_children():
+		if child is not MeshInstance3D:
+			continue
+		var mi := child as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var nm := String(mi.name)
+		# LOD/collision hull meshes are alternate representations, not extra mass.
+		if nm == "SM_Hull_Body_LOD1" or nm.begins_with("SM_Hull_Solid") or nm.begins_with("UCX_"):
+			continue
+		var group := "other"
+		if nm == "SM_Hull_Body":
+			group = "hull"
+		elif nm.begins_with("SM_Wing_"):
+			group = "wings"
+		elif nm.begins_with("SM_Engine_"):
+			group = "engines"
+		elif not nm.begins_with("SM_"):
+			continue
+		var faces := mi.mesh.get_faces()
+		for i in range(0, faces.size() - 2, 3):
+			var a: Vector3 = mi.transform * faces[i]
+			var b: Vector3 = mi.transform * faces[i + 1]
+			var c: Vector3 = mi.transform * faces[i + 2]
+			var triangle_area := (b - a).cross(c - a).length() * 0.5
+			if triangle_area <= 0.000001:
+				continue
+			area_by_group[group] += triangle_area
+			weighted_center_by_group[group] += (a + b + c) / 3.0 * triangle_area
+	var center := Vector3.ZERO
+	var included_mass_fraction := 0.0
+	var group_centers := {}
+	for group in MASS_FRACTIONS:
+		var area := float(area_by_group[group])
+		if area <= 0.000001:
+			continue
+		var group_center: Vector3 = weighted_center_by_group[group] / area
+		var mass_fraction := float(MASS_FRACTIONS[group])
+		center += group_center * mass_fraction
+		included_mass_fraction += mass_fraction
+		group_centers[group] = group_center
+	if included_mass_fraction <= 0.0:
+		return {"center": Vector3.ZERO, "groups": {}, "valid": false}
+	center /= included_mass_fraction
+	return {
+		"center": center,
+		"groups": group_centers,
+		"areas": area_by_group,
+		"mass_fractions": MASS_FRACTIONS,
+		"valid": true
+	}
+
 func _build_ship() -> void:
 	var ps: PackedScene = load(String(active_ship_profile.get("model", "res://ships/base/model/ship.glb")))
 	ship_scene = ps
@@ -2334,9 +2396,15 @@ func _build_ship() -> void:
 	for pn in parts: health_w0 += part_weight(String(pn))
 	_apply_lights()
 	var hc := CollisionShape3D.new(); hc.shape = hull_shape; ship.add_child(hc)
-	var aabb := AABB()
-	if ship.has_node("SM_Hull_Body"): aabb = (ship.get_node("SM_Hull_Body") as MeshInstance3D).get_aabb()
-	ship.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM; ship.center_of_mass = (ship.get_node("SM_Hull_Body") as Node3D).position + aabb.get_center() * ship_sc
+	ship.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	var com_estimate := _estimate_ship_center_of_mass(ship)
+	if bool(com_estimate.get("valid", false)):
+		ship.center_of_mass = com_estimate["center"]
+		print("[SHIP_COM] estimated=", ship.center_of_mass, " mass_kg=", ship_mass_kg, " fractions=", com_estimate["mass_fractions"], " group_centers=", com_estimate["groups"])
+	else:
+		push_warning("[SHIP_COM] Geometry-based estimate failed; falling back to hull AABB center.")
+		var aabb := (ship.get_node("SM_Hull_Body") as MeshInstance3D).get_aabb()
+		ship.center_of_mass = (ship.get_node("SM_Hull_Body") as Node3D).position + aabb.get_center() * ship_sc
 	ship.can_sleep = false; ship.continuous_cd = true
 	ship.contact_monitor = true; ship.max_contacts_reported = 4      # удар = настоящее касание; торможение двигателями ударом не считается
 	if ship_id == 1:                                                           # «Фрея»: два мотора дымят уже со старта
