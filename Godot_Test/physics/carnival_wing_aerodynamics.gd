@@ -83,6 +83,7 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 		if planform_area <= 0.01 or projected_area_sum <= 0.000001:
 			continue
 		var center_local := weighted_center / projected_area_sum
+		var side_sign := -1.0 if name.ends_with("_L") else 1.0
 		var le_slope := _estimate_le_slope(planform_points, min_abs_x, max_abs_x)
 		# Aerodynamic section axes follow the actual wing geometry:
 		# local X is the span direction, local -Z is the chord direction,
