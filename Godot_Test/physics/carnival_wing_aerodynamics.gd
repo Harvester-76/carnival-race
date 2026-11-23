@@ -48,8 +48,81 @@ static func _normal_force_coefficient_90(mach: float) -> float:
 	var dynamic_pressure_ratio := 0.5 * GAMMA * mach_sq
 	return (p02_p1 - 1.0) / dynamic_pressure_ratio
 
+
+static func _clip_polygon_span(polygon: Array[Vector3], boundary: float, keep_greater: bool, side_sign: float) -> Array[Vector3]:
+	var output: Array[Vector3] = []
+	if polygon.is_empty():
+		return output
+	for i in range(polygon.size()):
+		var current: Vector3 = polygon[i]
+		var previous: Vector3 = polygon[(i - 1 + polygon.size()) % polygon.size()]
+		var current_r := current.x * side_sign
+		var previous_r := previous.x * side_sign
+		var current_inside := current_r >= boundary if keep_greater else current_r <= boundary
+		var previous_inside := previous_r >= boundary if keep_greater else previous_r <= boundary
+		if current_inside != previous_inside:
+			var denominator := current_r - previous_r
+			if absf(denominator) > 0.000001:
+				var t := (boundary - previous_r) / denominator
+				output.append(previous.lerp(current, clampf(t, 0.0, 1.0)))
+		if current_inside:
+			output.append(current)
+	return output
+
+static func _accumulate_projected_polygon(polygon: Array[Vector3]) -> Dictionary:
+	var area_sum := 0.0
+	var weighted_center := Vector3.ZERO
+	if polygon.size() < 3:
+		return {"area": 0.0, "weighted_center": Vector3.ZERO}
+	var origin: Vector3 = polygon[0]
+	for i in range(1, polygon.size() - 1):
+		var b: Vector3 = polygon[i]
+		var c: Vector3 = polygon[i + 1]
+		var area := absf((b - origin).cross(c - origin).y) * 0.5
+		if area <= 0.000001:
+			continue
+		area_sum += area
+		weighted_center += (origin + b + c) / 3.0 * area
+	return {"area": area_sum, "weighted_center": weighted_center}
+
+static func _build_span_strips(faces: PackedVector3Array, mesh_transform: Transform3D, side_sign: float, span_min: float, span_max: float, strip_count: int) -> Array[Dictionary]:
+	var strips: Array[Dictionary] = []
+	if strip_count <= 0 or span_max - span_min <= 0.001:
+		return strips
+	for strip_index in range(strip_count):
+		var strip_min := lerpf(span_min, span_max, float(strip_index) / float(strip_count))
+		var strip_max := lerpf(span_min, span_max, float(strip_index + 1) / float(strip_count))
+		var projected_area_sum := 0.0
+		var weighted_center := Vector3.ZERO
+		for face_index in range(0, faces.size() - 2, 3):
+			var a: Vector3 = mesh_transform * faces[face_index]
+			var b: Vector3 = mesh_transform * faces[face_index + 1]
+			var c: Vector3 = mesh_transform * faces[face_index + 2]
+			var polygon: Array[Vector3] = [a, b, c]
+			polygon = _clip_polygon_span(polygon, strip_min, true, side_sign)
+			if polygon.size() < 3:
+				continue
+			polygon = _clip_polygon_span(polygon, strip_max, false, side_sign)
+			if polygon.size() < 3:
+				continue
+			var contribution := _accumulate_projected_polygon(polygon)
+			var contribution_area := float(contribution["area"])
+			projected_area_sum += contribution_area
+			weighted_center += contribution["weighted_center"]
+		if projected_area_sum <= 0.000001:
+			continue
+		strips.append({
+			"index": strip_index,
+			"span_min": strip_min,
+			"span_max": strip_max,
+			"area_m2": projected_area_sum * 0.5,
+			"center_local": weighted_center / projected_area_sum
+		})
+	return strips
+
 static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
+	const STRIP_COUNT := 6
 	for key in parts.keys():
 		var name := String(key)
 		if not name.begins_with("SM_Wing_Top_") and not name.begins_with("SM_Wing_Bot_"):
@@ -60,40 +133,29 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 		var faces := mi.mesh.get_faces()
 		if faces.size() < 3:
 			continue
-		var projected_area_sum := 0.0
-		var weighted_center := Vector3.ZERO
 		var planform_points: Array[Vector2] = []
 		var min_abs_x := INF
 		var max_abs_x := 0.0
 		for i in range(0, faces.size() - 2, 3):
-			var a: Vector3 = mi.transform * faces[i]
-			var b: Vector3 = mi.transform * faces[i + 1]
-			var c: Vector3 = mi.transform * faces[i + 2]
-			for p in [a, b, c]:
+			for vertex_index in range(3):
+				var p: Vector3 = mi.transform * faces[i + vertex_index]
 				planform_points.append(Vector2(absf(p.x), p.z))
 				min_abs_x = minf(min_abs_x, absf(p.x))
 				max_abs_x = maxf(max_abs_x, absf(p.x))
-			var projected_triangle_area := absf((b - a).cross(c - a).y) * 0.5
-			if projected_triangle_area <= 0.000001:
-				continue
-			projected_area_sum += projected_triangle_area
-			weighted_center += (a + b + c) / 3.0 * projected_triangle_area
-		# Closed wing meshes contain both pressure and suction sides.
-		var planform_area := projected_area_sum * 0.5
-		if planform_area <= 0.01 or projected_area_sum <= 0.000001:
-			continue
-		var center_local := weighted_center / projected_area_sum
 		var side_sign := -1.0 if name.ends_with("_L") else 1.0
 		var le_slope := _estimate_le_slope(planform_points, min_abs_x, max_abs_x)
-		# Aerodynamic section axes follow the actual wing geometry:
-		# local X is the span direction, local -Z is the chord direction,
-		# and local +Y is the surface normal. Leading-edge sweep is a separate
-		# planform property; it must not rotate the span axis or chord axis.
-		# Sweep is retained as geometry metadata until a validated swept-wing
-		# correction is applied to the aerodynamic coefficients.
-		var span_axis := Vector3.RIGHT
-		var chord_axis := Vector3(0.0, 0.0, -1.0)
-		var normal_axis := Vector3.UP
+		var strips := _build_span_strips(faces, mi.transform, side_sign, min_abs_x, max_abs_x, STRIP_COUNT)
+		var planform_area := 0.0
+		var weighted_center := Vector3.ZERO
+		for strip in strips:
+			var strip_area := float(strip["area_m2"])
+			planform_area += strip_area
+			weighted_center += strip["center_local"] * strip_area
+		if planform_area <= 0.01 or strips.is_empty():
+			continue
+		var center_local := weighted_center / planform_area
+		# Classical finite-wing aspect ratio is retained at the parent-surface
+		# level. The six strips are integration elements, not six independent wings.
 		var span := maxf(max_abs_x - min_abs_x, 0.1)
 		var aspect_ratio := maxf(span * span / planform_area, 0.1)
 		result.append({
@@ -101,11 +163,12 @@ static func build_surfaces(parts: Dictionary) -> Array[Dictionary]:
 			"node": mi,
 			"area_m2": planform_area,
 			"center_local": center_local,
+			"strips": strips,
 			"side_sign": side_sign,
 			"aspect_ratio": aspect_ratio,
-			"span_axis_local": span_axis,
-			"chord_axis_local": chord_axis,
-			"normal_axis_local": normal_axis,
+			"span_axis_local": Vector3.RIGHT,
+			"chord_axis_local": Vector3(0.0, 0.0, -1.0),
+			"normal_axis_local": Vector3.UP,
 			"leading_edge_sweep_rad": atan(absf(le_slope)),
 			"span_m": span
 		})
@@ -146,118 +209,121 @@ static func apply_forces(body: RigidBody3D, surfaces: Array[Dictionary], parts: 
 	var active_count := 0
 	var surface_diagnostics: Array[Dictionary] = []
 	for surface in surfaces:
-		var name := String(surface["name"])
-		if not parts.has(name):
-			continue
-		var node := surface["node"] as MeshInstance3D
-		if node == null or not is_instance_valid(node) or node.get_parent() != body:
-			continue
-		var center_local: Vector3 = surface["center_local"]
-		var center_world := body.to_global(center_local)
-		var radius_world := center_world - body.global_position
-		var point_velocity_world := body.linear_velocity + body.angular_velocity.cross(radius_world)
-		var local_velocity := inverse_basis * point_velocity_world
-		var total_speed := local_velocity.length()
-		# Resolve flow in the plane normal to the measured leading edge.
-		# Spanwise flow is removed; the remaining velocity contains vertical
-		# incidence and the chord-normal component affected by sweep.
-		var span_axis: Vector3 = surface.get("span_axis_local", Vector3.RIGHT)
-		var chord_axis: Vector3 = surface.get("chord_axis_local", Vector3(0.0, 0.0, -1.0))
-		var normal_axis: Vector3 = surface.get("normal_axis_local", Vector3.UP)
-		var spanwise_velocity := local_velocity.dot(span_axis)
-		var section_velocity_local := local_velocity - span_axis * spanwise_velocity
-		var section_speed := section_velocity_local.length()
-		if section_speed < min_speed:
-			continue
-		var mach := section_speed / speed_of_sound_mps
-		var forward_speed := section_velocity_local.dot(chord_axis)
-		var normal_speed := section_velocity_local.dot(normal_axis)
-		# Signed incidence supports both forward and reverse flow (-pi..pi).
-		var alpha := atan2(-normal_speed, forward_speed)
-		var alpha_abs := absf(alpha)
-		var slope := _lift_slope(mach, float(surface["aspect_ratio"]), efficiency)
-		var cl_attached := cl_max * tanh(slope * alpha / cl_max)
-		var cd_induced_attached := cl_attached * cl_attached / (PI * efficiency * maxf(float(surface["aspect_ratio"]), 0.1))
-		var cd_attached := profile_cd + cd_induced_attached
-		var q := 0.5 * density_kg_m3 * section_speed * section_speed
-		var area := float(surface["area_m2"])
-		var velocity_dir_local := section_velocity_local / section_speed
-		var lift_dir_local := normal_axis - velocity_dir_local * normal_axis.dot(velocity_dir_local)
-		if lift_dir_local.length_squared() > 0.000001:
-			lift_dir_local = lift_dir_local.normalized()
-		else:
-			lift_dir_local = Vector3.ZERO
-		var aft_axis := -chord_axis
-		var high_aoa_blend := 1.0
-		var normal_coefficient := 0.0
-		var axial_coefficient := 0.0
-		var cn_90 := _normal_force_coefficient_90(mach)
-		if forward_speed > 0.001 and alpha_abs < PI * 0.5:
-			# Preserve the established attached-flow polar at low incidence.
-			var old_normal := cl_attached * cos(alpha) + cd_attached * sin(alpha)
-			var old_axial := -cl_attached * sin(alpha) + cd_attached * cos(alpha)
-			var blend_t := clampf((alpha_abs - deg_to_rad(45.0)) / deg_to_rad(30.0), 0.0, 1.0)
-			high_aoa_blend = blend_t * blend_t * (3.0 - 2.0 * blend_t)
-			# Blend the attached-flow polar into a modified-Newtonian broadside
-			# normal-force model. This is still a strip-theory approximation for
-			# this finite swept planform, not a craft-specific validated polar.
-			var plate_normal := -signf(normal_speed) * cn_90 * sin(alpha_abs) * sin(alpha_abs)
-			var plate_axial := profile_cd * cos(alpha_abs)
-			normal_coefficient = lerpf(old_normal, plate_normal, high_aoa_blend)
-			axial_coefficient = lerpf(old_axial, plate_axial, high_aoa_blend)
-		else:
-			# Reverse flow and near-broadside incidence use a symmetric plate
-			# approximation; force opposes each in-plane velocity component.
-			normal_coefficient = -signf(normal_speed) * cn_90 * sin(alpha_abs) * sin(alpha_abs)
-			axial_coefficient = signf(forward_speed) * profile_cd * absf(cos(alpha))
-		# Convert body-axis coefficients into wind-axis telemetry.
-		var cl := normal_coefficient * cos(alpha) - axial_coefficient * sin(alpha)
-		var cd := normal_coefficient * sin(alpha) + axial_coefficient * cos(alpha)
-		var lift_magnitude := q * area * cl
-		var force_local := normal_axis * (q * area * normal_coefficient) + aft_axis * (q * area * axial_coefficient)
-		body.apply_force(basis * force_local, radius_world)
-		var surface_moment_local := (center_local - body.center_of_mass).cross(force_local)
-		# Diagnostic snapshot only: does not participate in force or moment calculation.
-		surface_diagnostics.append({
-			"name": name,
-			"area_m2": area,
-			"span_m": float(surface.get("span_m", 0.0)),
-			"center_local_m": [center_local.x, center_local.y, center_local.z],
-			"local_velocity_mps": [local_velocity.x, local_velocity.y, local_velocity.z],
-			"total_speed_mps": total_speed,
-			"spanwise_velocity_mps": spanwise_velocity,
-			"leading_edge_sweep_deg": rad_to_deg(float(surface.get("leading_edge_sweep_rad", 0.0))),
-			"forward_speed_mps": forward_speed,
-			"normal_speed_mps": normal_speed,
-			"section_speed_mps": section_speed,
-			"speed_mps": section_speed,
-			"mach": mach,
-			"normal_mach": mach,
-			"alpha_rad": alpha,
-			"dynamic_pressure_pa": q,
-			"cl": cl,
-			"cd": cd,
-			"normal_coefficient": normal_coefficient,
-			"axial_coefficient": axial_coefficient,
-			"high_aoa_blend": high_aoa_blend,
-			"lift_n": lift_magnitude,
-			"drag_n": q * area * cd,
-			"lift_direction_local": [lift_dir_local.x, lift_dir_local.y, lift_dir_local.z],
-			"span_axis_local": [span_axis.x, span_axis.y, span_axis.z],
-			"chord_axis_local": [chord_axis.x, chord_axis.y, chord_axis.z],
-			"normal_axis_local": [normal_axis.x, normal_axis.y, normal_axis.z],
-			"force_local_n": [force_local.x, force_local.y, force_local.z],
-			"moment_local_nm": [surface_moment_local.x, surface_moment_local.y, surface_moment_local.z]
-		})
-		total_moment_local += surface_moment_local
-		if name.begins_with("SM_Wing_Top_"):
-			top_moment_local += surface_moment_local
-		else:
-			bottom_moment_local += surface_moment_local
-		total_force_local += force_local
-		total_lift += absf(lift_magnitude)
-		total_drag += q * area * cd
-		active_count += 1
+		var strips: Array = surface.get("strips", [])
+		for strip in strips:
+			var name := String(surface["name"])
+			if not parts.has(name):
+				continue
+			var node := surface["node"] as MeshInstance3D
+			if node == null or not is_instance_valid(node) or node.get_parent() != body:
+				continue
+			var center_local: Vector3 = strip["center_local"]
+			var center_world := body.to_global(center_local)
+			var radius_world := center_world - body.global_position
+			var point_velocity_world := body.linear_velocity + body.angular_velocity.cross(radius_world)
+			var local_velocity := inverse_basis * point_velocity_world
+			var total_speed := local_velocity.length()
+			# Resolve flow in the plane normal to the measured leading edge.
+			# Spanwise flow is removed; the remaining velocity contains vertical
+			# incidence and the chord-normal component affected by sweep.
+			var span_axis: Vector3 = surface.get("span_axis_local", Vector3.RIGHT)
+			var chord_axis: Vector3 = surface.get("chord_axis_local", Vector3(0.0, 0.0, -1.0))
+			var normal_axis: Vector3 = surface.get("normal_axis_local", Vector3.UP)
+			var spanwise_velocity := local_velocity.dot(span_axis)
+			var section_velocity_local := local_velocity - span_axis * spanwise_velocity
+			var section_speed := section_velocity_local.length()
+			if section_speed < min_speed:
+				continue
+			var mach := section_speed / speed_of_sound_mps
+			var forward_speed := section_velocity_local.dot(chord_axis)
+			var normal_speed := section_velocity_local.dot(normal_axis)
+			# Signed incidence supports both forward and reverse flow (-pi..pi).
+			var alpha := atan2(-normal_speed, forward_speed)
+			var alpha_abs := absf(alpha)
+			var slope := _lift_slope(mach, float(surface["aspect_ratio"]), efficiency)
+			var cl_attached := cl_max * tanh(slope * alpha / cl_max)
+			var cd_induced_attached := cl_attached * cl_attached / (PI * efficiency * maxf(float(surface["aspect_ratio"]), 0.1))
+			var cd_attached := profile_cd + cd_induced_attached
+			var q := 0.5 * density_kg_m3 * section_speed * section_speed
+			var area := float(strip["area_m2"])
+			var velocity_dir_local := section_velocity_local / section_speed
+			var lift_dir_local := normal_axis - velocity_dir_local * normal_axis.dot(velocity_dir_local)
+			if lift_dir_local.length_squared() > 0.000001:
+				lift_dir_local = lift_dir_local.normalized()
+			else:
+				lift_dir_local = Vector3.ZERO
+			var aft_axis := -chord_axis
+			var high_aoa_blend := 1.0
+			var normal_coefficient := 0.0
+			var axial_coefficient := 0.0
+			var cn_90 := _normal_force_coefficient_90(mach)
+			if forward_speed > 0.001 and alpha_abs < PI * 0.5:
+				# Preserve the established attached-flow polar at low incidence.
+				var old_normal := cl_attached * cos(alpha) + cd_attached * sin(alpha)
+				var old_axial := -cl_attached * sin(alpha) + cd_attached * cos(alpha)
+				var blend_t := clampf((alpha_abs - deg_to_rad(45.0)) / deg_to_rad(30.0), 0.0, 1.0)
+				high_aoa_blend = blend_t * blend_t * (3.0 - 2.0 * blend_t)
+				# Blend the attached-flow polar into a modified-Newtonian broadside
+				# normal-force model. This is still a strip-theory approximation for
+				# this finite swept planform, not a craft-specific validated polar.
+				var plate_normal := -signf(normal_speed) * cn_90 * sin(alpha_abs) * sin(alpha_abs)
+				var plate_axial := profile_cd * cos(alpha_abs)
+				normal_coefficient = lerpf(old_normal, plate_normal, high_aoa_blend)
+				axial_coefficient = lerpf(old_axial, plate_axial, high_aoa_blend)
+			else:
+				# Reverse flow and near-broadside incidence use a symmetric plate
+				# approximation; force opposes each in-plane velocity component.
+				normal_coefficient = -signf(normal_speed) * cn_90 * sin(alpha_abs) * sin(alpha_abs)
+				axial_coefficient = signf(forward_speed) * profile_cd * absf(cos(alpha))
+			# Convert body-axis coefficients into wind-axis telemetry.
+			var cl := normal_coefficient * cos(alpha) - axial_coefficient * sin(alpha)
+			var cd := normal_coefficient * sin(alpha) + axial_coefficient * cos(alpha)
+			var lift_magnitude := q * area * cl
+			var force_local := normal_axis * (q * area * normal_coefficient) + aft_axis * (q * area * axial_coefficient)
+			body.apply_force(basis * force_local, radius_world)
+			var surface_moment_local := (center_local - body.center_of_mass).cross(force_local)
+			# Diagnostic snapshot only: does not participate in force or moment calculation.
+			surface_diagnostics.append({
+				"name": "%s_strip_%d" % [name, int(strip["index"]) + 1],
+				"area_m2": area,
+				"span_m": float(surface.get("span_m", 0.0)) / float(maxi(strips.size(), 1)),
+				"strip_index": int(strip["index"]),
+				"center_local_m": [center_local.x, center_local.y, center_local.z],
+				"local_velocity_mps": [local_velocity.x, local_velocity.y, local_velocity.z],
+				"total_speed_mps": total_speed,
+				"spanwise_velocity_mps": spanwise_velocity,
+				"leading_edge_sweep_deg": rad_to_deg(float(surface.get("leading_edge_sweep_rad", 0.0))),
+				"forward_speed_mps": forward_speed,
+				"normal_speed_mps": normal_speed,
+				"section_speed_mps": section_speed,
+				"speed_mps": section_speed,
+				"mach": mach,
+				"normal_mach": mach,
+				"alpha_rad": alpha,
+				"dynamic_pressure_pa": q,
+				"cl": cl,
+				"cd": cd,
+				"normal_coefficient": normal_coefficient,
+				"axial_coefficient": axial_coefficient,
+				"high_aoa_blend": high_aoa_blend,
+				"lift_n": lift_magnitude,
+				"drag_n": q * area * cd,
+				"lift_direction_local": [lift_dir_local.x, lift_dir_local.y, lift_dir_local.z],
+				"span_axis_local": [span_axis.x, span_axis.y, span_axis.z],
+				"chord_axis_local": [chord_axis.x, chord_axis.y, chord_axis.z],
+				"normal_axis_local": [normal_axis.x, normal_axis.y, normal_axis.z],
+				"force_local_n": [force_local.x, force_local.y, force_local.z],
+				"moment_local_nm": [surface_moment_local.x, surface_moment_local.y, surface_moment_local.z]
+			})
+			total_moment_local += surface_moment_local
+			if name.begins_with("SM_Wing_Top_"):
+				top_moment_local += surface_moment_local
+			else:
+				bottom_moment_local += surface_moment_local
+			total_force_local += force_local
+			total_lift += absf(lift_magnitude)
+			total_drag += q * area * cd
+			active_count += 1
 	return {
 		"lift_n": total_lift,
 		"drag_n": total_drag,
