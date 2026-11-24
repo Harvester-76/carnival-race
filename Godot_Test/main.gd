@@ -3119,62 +3119,62 @@ func _run_wing_com_sweep_test() -> void:
 					-speed_mps * sin(incidence),
 					-speed_mps * cos(incidence)
 				)
-			var aero_result := CARNIVAL_WING_AERODYNAMICS.apply_forces(
-				ship,
-				wing_aero_surfaces,
-				parts,
-				float(test_air["density_kg_m3"]),
-				float(test_air["speed_of_sound_mps"]),
-				AERO_PROFILE
-			)
-			force_evaluation_count += 1
-			active_wings_count = int(aero_result.get("active_wings", 0))
-			active_strips_count = int(aero_result.get("active_strips", 0))
-			var strip_samples: Array = aero_result.get("surface_diagnostics", [])
-			var com_results: Array[Dictionary] = []
-
-			for com_y_value in com_y_cases:
-				for com_z_value in com_z_cases:
-					var com_position := Vector3(current_com.x, float(com_y_value), float(com_z_value))
-					var total_force := Vector3.ZERO
-					var total_normal_force := Vector3.ZERO
-					var total_axial_force := Vector3.ZERO
-					var total_moment := Vector3.ZERO
-					var normal_moment := Vector3.ZERO
-					var axial_moment := Vector3.ZERO
-
-					for sample in strip_samples:
-						var center_values: Array = sample.get("center_local_m", [0.0, 0.0, 0.0])
-						var force_values: Array = sample.get("force_local_n", [0.0, 0.0, 0.0])
-						var normal_axis_values: Array = sample.get("normal_axis_local", [0.0, 1.0, 0.0])
-						var chord_axis_values: Array = sample.get("chord_axis_local", [0.0, 0.0, -1.0])
-						var center := Vector3(float(center_values[0]), float(center_values[1]), float(center_values[2]))
-						var force := Vector3(float(force_values[0]), float(force_values[1]), float(force_values[2]))
-						var normal_axis := Vector3(float(normal_axis_values[0]), float(normal_axis_values[1]), float(normal_axis_values[2]))
-						var chord_axis := Vector3(float(chord_axis_values[0]), float(chord_axis_values[1]), float(chord_axis_values[2]))
-						var q := float(sample.get("dynamic_pressure_pa", 0.0))
-						var area := float(sample.get("area_m2", 0.0))
-						var normal_force := normal_axis * (q * area * float(sample.get("normal_coefficient", 0.0)))
-						var axial_force := -chord_axis * (q * area * float(sample.get("axial_coefficient", 0.0)))
-						var lever := center - com_position
-						total_force += force
-						total_normal_force += normal_force
-						total_axial_force += axial_force
-						total_moment += lever.cross(force)
-						normal_moment += lever.cross(normal_force)
-						axial_moment += lever.cross(axial_force)
-
-					com_results.append({
-						"com_y_m": float(com_y_value),
-						"com_z_m": float(com_z_value),
-						"resultant_force_local_n": [total_force.x, total_force.y, total_force.z],
-						"normal_force_local_n": [total_normal_force.x, total_normal_force.y, total_normal_force.z],
-						"axial_force_local_n": [total_axial_force.x, total_axial_force.y, total_axial_force.z],
-						"moment_local_nm": [total_moment.x, total_moment.y, total_moment.z],
-						"normal_moment_local_nm": [normal_moment.x, normal_moment.y, normal_moment.z],
-						"axial_moment_local_nm": [axial_moment.x, axial_moment.y, axial_moment.z]
-					})
-
+				var aero_result := CARNIVAL_WING_AERODYNAMICS.apply_forces(
+					ship,
+					wing_aero_surfaces,
+					parts,
+					float(test_air["density_kg_m3"]),
+					float(test_air["speed_of_sound_mps"]),
+					AERO_PROFILE
+				)
+				force_evaluation_count += 1
+				active_wings_count = int(aero_result.get("active_wings", 0))
+				active_strips_count = int(aero_result.get("active_strips", 0))
+				var strip_samples: Array = aero_result.get("surface_diagnostics", [])
+				var com_results: Array[Dictionary] = []
+	
+				for com_y_value in com_y_cases:
+					for com_z_value in com_z_cases:
+						var com_position := Vector3(current_com.x, float(com_y_value), float(com_z_value))
+						var total_force := Vector3.ZERO
+						var total_normal_force := Vector3.ZERO
+						var total_axial_force := Vector3.ZERO
+						var total_moment := Vector3.ZERO
+						var normal_moment := Vector3.ZERO
+						var axial_moment := Vector3.ZERO
+	
+						for sample in strip_samples:
+							var center_values: Array = sample.get("center_local_m", [0.0, 0.0, 0.0])
+							var force_values: Array = sample.get("force_local_n", [0.0, 0.0, 0.0])
+							var normal_axis_values: Array = sample.get("normal_axis_local", [0.0, 1.0, 0.0])
+							var chord_axis_values: Array = sample.get("chord_axis_local", [0.0, 0.0, -1.0])
+							var center := Vector3(float(center_values[0]), float(center_values[1]), float(center_values[2]))
+							var force := Vector3(float(force_values[0]), float(force_values[1]), float(force_values[2]))
+							var normal_axis := Vector3(float(normal_axis_values[0]), float(normal_axis_values[1]), float(normal_axis_values[2]))
+							var chord_axis := Vector3(float(chord_axis_values[0]), float(chord_axis_values[1]), float(chord_axis_values[2]))
+							var q := float(sample.get("dynamic_pressure_pa", 0.0))
+							var area := float(sample.get("area_m2", 0.0))
+							var normal_force := normal_axis * (q * area * float(sample.get("normal_coefficient", 0.0)))
+							var axial_force := -chord_axis * (q * area * float(sample.get("axial_coefficient", 0.0)))
+							var lever := center - com_position
+							total_force += force
+							total_normal_force += normal_force
+							total_axial_force += axial_force
+							total_moment += lever.cross(force)
+							normal_moment += lever.cross(normal_force)
+							axial_moment += lever.cross(axial_force)
+	
+						com_results.append({
+							"com_y_m": float(com_y_value),
+							"com_z_m": float(com_z_value),
+							"resultant_force_local_n": [total_force.x, total_force.y, total_force.z],
+							"normal_force_local_n": [total_normal_force.x, total_normal_force.y, total_normal_force.z],
+							"axial_force_local_n": [total_axial_force.x, total_axial_force.y, total_axial_force.z],
+							"moment_local_nm": [total_moment.x, total_moment.y, total_moment.z],
+							"normal_moment_local_nm": [normal_moment.x, normal_moment.y, normal_moment.z],
+							"axial_moment_local_nm": [axial_moment.x, axial_moment.y, axial_moment.z]
+						})
+	
 				result_cases.append({
 					"altitude_m": altitude_m,
 					"speed_mps": speed_mps,
