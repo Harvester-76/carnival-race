@@ -3095,6 +3095,8 @@ func _run_wing_com_sweep_test() -> void:
 	var alpha_cases := [-5.0, 0.0, 5.0]
 	var test_air := CARNIVAL_ATMOSPHERE.sample(wing_aero_test_altitude_m)
 	var result_cases: Array[Dictionary] = []
+	var active_wings_count := 0
+	var active_strips_count := 0
 
 	for alpha_deg in alpha_cases:
 		var incidence := deg_to_rad(float(alpha_deg))
@@ -3111,6 +3113,8 @@ func _run_wing_com_sweep_test() -> void:
 			float(test_air["speed_of_sound_mps"]),
 			AERO_PROFILE
 		)
+		active_wings_count = int(aero_result.get("active_wings", 0))
+		active_strips_count = int(aero_result.get("active_strips", 0))
 		var strip_samples: Array = aero_result.get("surface_diagnostics", [])
 		var alpha_com_results: Array[Dictionary] = []
 
@@ -3159,12 +3163,12 @@ func _run_wing_com_sweep_test() -> void:
 					"axial_moment_local_nm": Vector3.ZERO,
 					"strip_count": 0
 				})
-				wing_data["force_local_n"] += force
-				wing_data["normal_force_local_n"] += normal_force
-				wing_data["axial_force_local_n"] += axial_force
-				wing_data["moment_local_nm"] += strip_moment
-				wing_data["normal_moment_local_nm"] += strip_normal_moment
-				wing_data["axial_moment_local_nm"] += strip_axial_moment
+				wing_data["force_local_n"] = (wing_data["force_local_n"] as Vector3) + force
+				wing_data["normal_force_local_n"] = (wing_data["normal_force_local_n"] as Vector3) + normal_force
+				wing_data["axial_force_local_n"] = (wing_data["axial_force_local_n"] as Vector3) + axial_force
+				wing_data["moment_local_nm"] = (wing_data["moment_local_nm"] as Vector3) + strip_moment
+				wing_data["normal_moment_local_nm"] = (wing_data["normal_moment_local_nm"] as Vector3) + strip_normal_moment
+				wing_data["axial_moment_local_nm"] = (wing_data["axial_moment_local_nm"] as Vector3) + strip_axial_moment
 				wing_data["strip_count"] = int(wing_data["strip_count"]) + 1
 				per_wing[wing_name] = wing_data
 
@@ -3221,8 +3225,8 @@ func _run_wing_com_sweep_test() -> void:
 			{"id": "z30", "label": "COM Z = 30 m", "position_local_m": [current_com.x, current_com.y, 30.0]}
 		],
 		"alpha_cases_deg": alpha_cases,
-		"active_wings": aero_result.get("active_wings", 0),
-		"active_strips": aero_result.get("active_strips", 0),
+		"active_wings": active_wings_count,
+		"active_strips": active_strips_count,
 		"results": result_cases
 	}
 	var output_path := ProjectSettings.globalize_path("res://wing_com_sweep.json")
