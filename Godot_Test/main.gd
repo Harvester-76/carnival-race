@@ -3072,8 +3072,9 @@ func _read_controls(dt: float) -> Dictionary:
 	return c
 
 func _run_wing_com_sweep_test() -> void:
-	# One aerodynamic evaluation per incidence; all COM variants are post-processed
-	# from the same strip forces, so changing COM cannot affect the force solution.
+	# Multi-condition COM screening. Aerodynamic forces are evaluated once per
+	# altitude/speed/incidence; moments are then recomputed for each virtual COM.
+	# The body's physical center of mass and inertia are never modified.
 	ship.freeze = false
 	ship.gravity_scale = 0.0
 	ship.axis_lock_angular_x = true
@@ -3081,165 +3082,127 @@ func _run_wing_com_sweep_test() -> void:
 	ship.axis_lock_angular_z = true
 	ship.collision_layer = 0
 	ship.collision_mask = 0
-	ship.global_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, wing_aero_test_altitude_m, 0.0))
+	ship.global_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 1000.0, 0.0))
 	ship.angular_velocity = Vector3.ZERO
 
 	var current_com: Vector3 = ship.center_of_mass
-	var com_y_cases := [0.66, 2.5, 4.5, 6.0]
-	var com_z_cases := [26.0, 30.0, 34.0]
-	var com_cases: Array[Dictionary] = []
+	var com_y_cases := [4.0, 4.5, 5.0]
+	var com_z_cases := [29.0, 30.0, 31.0]
+	var alpha_cases := [-10.0, -5.0, 0.0, 5.0, 10.0]
+	var speed_cases := [250.0, 500.0, 750.0, 1000.0]
+	var altitude_cases := [1000.0, 3000.0]
 	var com_cases_json: Array[Dictionary] = []
+	var result_cases: Array[Dictionary] = []
+
 	for com_y in com_y_cases:
 		for com_z in com_z_cases:
 			var case_id := "y%s_z%s" % [str(com_y).replace(".", "_"), str(com_z).replace(".", "_")]
-			var case_label := "COM Y = %.2f m, Z = %.1f m" % [com_y, com_z]
-			var case_position := Vector3(current_com.x, float(com_y), float(com_z))
-			com_cases.append({"id": case_id, "label": case_label, "position": case_position})
 			com_cases_json.append({
 				"id": case_id,
-				"label": case_label,
-				"position_local_m": [case_position.x, case_position.y, case_position.z]
+				"position_local_m": [current_com.x, float(com_y), float(com_z)]
 			})
-	var alpha_cases := [-5.0, 0.0, 5.0]
-	var test_air := CARNIVAL_ATMOSPHERE.sample(wing_aero_test_altitude_m)
-	var result_cases: Array[Dictionary] = []
+
 	var active_wings_count := 0
 	var active_strips_count := 0
+	var force_evaluation_count := 0
 
-	for alpha_deg in alpha_cases:
-		var incidence := deg_to_rad(float(alpha_deg))
-		ship.linear_velocity = Vector3(
-			0.0,
-			-wing_aero_test_speed_mps * sin(incidence),
-			-wing_aero_test_speed_mps * cos(incidence)
-		)
-		var aero_result := CARNIVAL_WING_AERODYNAMICS.apply_forces(
-			ship,
-			wing_aero_surfaces,
-			parts,
-			float(test_air["density_kg_m3"]),
-			float(test_air["speed_of_sound_mps"]),
-			AERO_PROFILE
-		)
-		active_wings_count = int(aero_result.get("active_wings", 0))
-		active_strips_count = int(aero_result.get("active_strips", 0))
-		var strip_samples: Array = aero_result.get("surface_diagnostics", [])
-		var alpha_com_results: Array[Dictionary] = []
+	for altitude_value in altitude_cases:
+		var altitude_m := float(altitude_value)
+		var test_air := CARNIVAL_ATMOSPHERE.sample(altitude_m)
+		for speed_value in speed_cases:
+			var speed_mps := float(speed_value)
+			for alpha_value in alpha_cases:
+				var alpha_deg := float(alpha_value)
+				var incidence := deg_to_rad(alpha_deg)
+				ship.linear_velocity = Vector3(
+					0.0,
+					-speed_mps * sin(incidence),
+					-speed_mps * cos(incidence)
+				)
+			var aero_result := CARNIVAL_WING_AERODYNAMICS.apply_forces(
+				ship,
+				wing_aero_surfaces,
+				parts,
+				float(test_air["density_kg_m3"]),
+				float(test_air["speed_of_sound_mps"]),
+				AERO_PROFILE
+			)
+			force_evaluation_count += 1
+			active_wings_count = int(aero_result.get("active_wings", 0))
+			active_strips_count = int(aero_result.get("active_strips", 0))
+			var strip_samples: Array = aero_result.get("surface_diagnostics", [])
+			var com_results: Array[Dictionary] = []
 
-		for com_case in com_cases:
-			var com_position: Vector3 = com_case["position"]
-			var total_force := Vector3.ZERO
-			var total_normal_force := Vector3.ZERO
-			var total_axial_force := Vector3.ZERO
-			var total_moment := Vector3.ZERO
-			var normal_moment := Vector3.ZERO
-			var axial_moment := Vector3.ZERO
-			var per_wing: Dictionary = {}
-			var strip_results: Array[Dictionary] = []
+			for com_y_value in com_y_cases:
+				for com_z_value in com_z_cases:
+					var com_position := Vector3(current_com.x, float(com_y_value), float(com_z_value))
+					var total_force := Vector3.ZERO
+					var total_normal_force := Vector3.ZERO
+					var total_axial_force := Vector3.ZERO
+					var total_moment := Vector3.ZERO
+					var normal_moment := Vector3.ZERO
+					var axial_moment := Vector3.ZERO
 
-			for sample in strip_samples:
-				var center_values: Array = sample.get("center_local_m", [0.0, 0.0, 0.0])
-				var force_values: Array = sample.get("force_local_n", [0.0, 0.0, 0.0])
-				var normal_axis_values: Array = sample.get("normal_axis_local", [0.0, 1.0, 0.0])
-				var chord_axis_values: Array = sample.get("chord_axis_local", [0.0, 0.0, -1.0])
-				var center := Vector3(float(center_values[0]), float(center_values[1]), float(center_values[2]))
-				var force := Vector3(float(force_values[0]), float(force_values[1]), float(force_values[2]))
-				var normal_axis := Vector3(float(normal_axis_values[0]), float(normal_axis_values[1]), float(normal_axis_values[2]))
-				var chord_axis := Vector3(float(chord_axis_values[0]), float(chord_axis_values[1]), float(chord_axis_values[2]))
-				var q := float(sample.get("dynamic_pressure_pa", 0.0))
-				var area := float(sample.get("area_m2", 0.0))
-				var normal_force := normal_axis * (q * area * float(sample.get("normal_coefficient", 0.0)))
-				var axial_force := -chord_axis * (q * area * float(sample.get("axial_coefficient", 0.0)))
-				var lever := center - com_position
-				var strip_moment := lever.cross(force)
-				var strip_normal_moment := lever.cross(normal_force)
-				var strip_axial_moment := lever.cross(axial_force)
-				total_force += force
-				total_normal_force += normal_force
-				total_axial_force += axial_force
-				total_moment += strip_moment
-				normal_moment += strip_normal_moment
-				axial_moment += strip_axial_moment
+					for sample in strip_samples:
+						var center_values: Array = sample.get("center_local_m", [0.0, 0.0, 0.0])
+						var force_values: Array = sample.get("force_local_n", [0.0, 0.0, 0.0])
+						var normal_axis_values: Array = sample.get("normal_axis_local", [0.0, 1.0, 0.0])
+						var chord_axis_values: Array = sample.get("chord_axis_local", [0.0, 0.0, -1.0])
+						var center := Vector3(float(center_values[0]), float(center_values[1]), float(center_values[2]))
+						var force := Vector3(float(force_values[0]), float(force_values[1]), float(force_values[2]))
+						var normal_axis := Vector3(float(normal_axis_values[0]), float(normal_axis_values[1]), float(normal_axis_values[2]))
+						var chord_axis := Vector3(float(chord_axis_values[0]), float(chord_axis_values[1]), float(chord_axis_values[2]))
+						var q := float(sample.get("dynamic_pressure_pa", 0.0))
+						var area := float(sample.get("area_m2", 0.0))
+						var normal_force := normal_axis * (q * area * float(sample.get("normal_coefficient", 0.0)))
+						var axial_force := -chord_axis * (q * area * float(sample.get("axial_coefficient", 0.0)))
+						var lever := center - com_position
+						total_force += force
+						total_normal_force += normal_force
+						total_axial_force += axial_force
+						total_moment += lever.cross(force)
+						normal_moment += lever.cross(normal_force)
+						axial_moment += lever.cross(axial_force)
 
-				var wing_name := String(sample.get("name", "unknown")).get_slice("_strip_", 0)
-				var wing_data: Dictionary = per_wing.get(wing_name, {
-					"force_local_n": Vector3.ZERO,
-					"normal_force_local_n": Vector3.ZERO,
-					"axial_force_local_n": Vector3.ZERO,
-					"moment_local_nm": Vector3.ZERO,
-					"normal_moment_local_nm": Vector3.ZERO,
-					"axial_moment_local_nm": Vector3.ZERO,
-					"strip_count": 0
+					com_results.append({
+						"com_y_m": float(com_y_value),
+						"com_z_m": float(com_z_value),
+						"resultant_force_local_n": [total_force.x, total_force.y, total_force.z],
+						"normal_force_local_n": [total_normal_force.x, total_normal_force.y, total_normal_force.z],
+						"axial_force_local_n": [total_axial_force.x, total_axial_force.y, total_axial_force.z],
+						"moment_local_nm": [total_moment.x, total_moment.y, total_moment.z],
+						"normal_moment_local_nm": [normal_moment.x, normal_moment.y, normal_moment.z],
+						"axial_moment_local_nm": [axial_moment.x, axial_moment.y, axial_moment.z]
+					})
+
+				result_cases.append({
+					"altitude_m": altitude_m,
+					"speed_mps": speed_mps,
+					"alpha_deg": alpha_deg,
+					"density_kg_m3": float(test_air["density_kg_m3"]),
+					"speed_of_sound_mps": float(test_air["speed_of_sound_mps"]),
+					"mach": speed_mps / float(test_air["speed_of_sound_mps"]),
+					"com_results": com_results
 				})
-				var wing_force: Vector3 = wing_data["force_local_n"]
-				var wing_normal_force: Vector3 = wing_data["normal_force_local_n"]
-				var wing_axial_force: Vector3 = wing_data["axial_force_local_n"]
-				var wing_moment: Vector3 = wing_data["moment_local_nm"]
-				var wing_normal_moment: Vector3 = wing_data["normal_moment_local_nm"]
-				var wing_axial_moment: Vector3 = wing_data["axial_moment_local_nm"]
-				wing_data["force_local_n"] = wing_force + force
-				wing_data["normal_force_local_n"] = wing_normal_force + normal_force
-				wing_data["axial_force_local_n"] = wing_axial_force + axial_force
-				wing_data["moment_local_nm"] = wing_moment + strip_moment
-				wing_data["normal_moment_local_nm"] = wing_normal_moment + strip_normal_moment
-				wing_data["axial_moment_local_nm"] = wing_axial_moment + strip_axial_moment
-				wing_data["strip_count"] = int(wing_data["strip_count"]) + 1
-				per_wing[wing_name] = wing_data
-
-				var strip_report: Dictionary = sample.duplicate(true)
-				strip_report["normal_force_local_n"] = [normal_force.x, normal_force.y, normal_force.z]
-				strip_report["axial_force_local_n"] = [axial_force.x, axial_force.y, axial_force.z]
-				strip_report["moment_about_com_nm"] = [strip_moment.x, strip_moment.y, strip_moment.z]
-				strip_report["normal_moment_about_com_nm"] = [strip_normal_moment.x, strip_normal_moment.y, strip_normal_moment.z]
-				strip_report["axial_moment_about_com_nm"] = [strip_axial_moment.x, strip_axial_moment.y, strip_axial_moment.z]
-				strip_results.append(strip_report)
-
-			var per_wing_json: Dictionary = {}
-			for wing_name in per_wing:
-				var wing_data: Dictionary = per_wing[wing_name]
-				for vector_key in ["force_local_n", "normal_force_local_n", "axial_force_local_n", "moment_local_nm", "normal_moment_local_nm", "axial_moment_local_nm"]:
-					var value: Vector3 = wing_data[vector_key]
-					wing_data[vector_key] = [value.x, value.y, value.z]
-				per_wing_json[wing_name] = wing_data
-
-			alpha_com_results.append({
-				"com_id": String(com_case["id"]),
-				"com_label": String(com_case["label"]),
-				"com_local_m": [com_position.x, com_position.y, com_position.z],
-				"resultant_force_local_n": [total_force.x, total_force.y, total_force.z],
-				"normal_force_local_n": [total_normal_force.x, total_normal_force.y, total_normal_force.z],
-				"axial_force_local_n": [total_axial_force.x, total_axial_force.y, total_axial_force.z],
-				"moment_local_nm": [total_moment.x, total_moment.y, total_moment.z],
-				"normal_moment_local_nm": [normal_moment.x, normal_moment.y, normal_moment.z],
-				"axial_moment_local_nm": [axial_moment.x, axial_moment.y, axial_moment.z],
-				"per_wing": per_wing_json,
-				"strips": strip_results
-			})
-
-		result_cases.append({
-			"alpha_deg": float(alpha_deg),
-			"mach": wing_aero_test_speed_mps / float(test_air["speed_of_sound_mps"]),
-			"com_results": alpha_com_results
-		})
 
 	var report := {
-		"test": "wing_center_of_mass_2d_sweep",
+		"test": "wing_center_of_mass_multicondition_sweep",
 		"coordinate_system": "ship local: +X right, +Y up, -Z forward",
-		"force_model": "One unchanged aerodynamic force evaluation per alpha; moments are recomputed about virtual COM positions",
-		"requested_speed_mps": wing_aero_test_speed_mps,
-		"requested_altitude_m": wing_aero_test_altitude_m,
-		"density_kg_m3": float(test_air["density_kg_m3"]),
-		"speed_of_sound_mps": float(test_air["speed_of_sound_mps"]),
+		"force_model": "One unchanged aerodynamic force evaluation per altitude/speed/incidence; moments are recomputed for each virtual COM. Physical COM and inertia are unchanged.",
 		"current_body_center_of_mass_local_m": [current_com.x, current_com.y, current_com.z],
 		"com_y_grid_m": com_y_cases,
 		"com_z_grid_m": com_z_cases,
 		"com_cases": com_cases_json,
 		"alpha_cases_deg": alpha_cases,
+		"speed_cases_mps": speed_cases,
+		"altitude_cases_m": altitude_cases,
+		"force_evaluation_count": force_evaluation_count,
+		"moment_combinations_count": result_cases.size() * com_y_cases.size() * com_z_cases.size(),
 		"active_wings": active_wings_count,
 		"active_strips": active_strips_count,
 		"results": result_cases
 	}
-	var output_path := ProjectSettings.globalize_path("res://wing_com_2d_sweep.json")
+	var output_path := ProjectSettings.globalize_path("res://wing_com_multicondition_sweep.json")
 	var output_file := FileAccess.open(output_path, FileAccess.WRITE)
 	if output_file == null:
 		push_error("[WING_COM_SWEEP] Cannot write %s: %s" % [output_path, error_string(FileAccess.get_open_error())])
@@ -3251,7 +3214,6 @@ func _run_wing_com_sweep_test() -> void:
 	output_file.close()
 	print("[WING_COM_SWEEP] Results saved: ", output_path)
 	get_tree().quit()
-
 
 func _physics_process(dt: float) -> void:
 	if wing_com_sweep_test_enabled:
