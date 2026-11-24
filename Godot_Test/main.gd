@@ -3086,8 +3086,8 @@ func _run_wing_com_sweep_test() -> void:
 	ship.angular_velocity = Vector3.ZERO
 
 	var current_com: Vector3 = ship.center_of_mass
-	var com_y_cases := [3.8, 4.0, 4.2, 4.4, 4.6, 4.8]
-	var com_z_cases := [29.6, 29.7, 29.8, 29.9, 30.0, 30.1, 30.2, 30.3, 30.4]
+	var com_y_cases := [4.25, 4.30, 4.35, 4.40, 4.45, 4.50, 4.55]
+	var com_z_cases := [30.05, 30.06, 30.07, 30.08, 30.09, 30.10, 30.11, 30.12, 30.13, 30.14, 30.15]
 	var alpha_cases := [-10.0, -7.5, -5.0, -2.5, 0.0, 2.5, 5.0, 7.5, 10.0]
 	var speed_cases := [250.0, 500.0, 750.0, 1000.0]
 	var altitude_cases := [1000.0, 3000.0]
