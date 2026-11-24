@@ -3085,13 +3085,21 @@ func _run_wing_com_sweep_test() -> void:
 	ship.angular_velocity = Vector3.ZERO
 
 	var current_com: Vector3 = ship.center_of_mass
-	var com_cases: Array[Dictionary] = [
-		{"id": "current", "label": "Current estimated COM", "position": current_com},
-		{"id": "z18", "label": "COM Z = 18 m", "position": Vector3(current_com.x, current_com.y, 18.0)},
-		{"id": "z22", "label": "COM Z = 22 m", "position": Vector3(current_com.x, current_com.y, 22.0)},
-		{"id": "z26", "label": "COM Z = 26 m", "position": Vector3(current_com.x, current_com.y, 26.0)},
-		{"id": "z30", "label": "COM Z = 30 m", "position": Vector3(current_com.x, current_com.y, 30.0)}
-	]
+	var com_y_cases := [0.66, 2.5, 4.5, 6.0]
+	var com_z_cases := [26.0, 30.0, 34.0]
+	var com_cases: Array[Dictionary] = []
+	var com_cases_json: Array[Dictionary] = []
+	for com_y in com_y_cases:
+		for com_z in com_z_cases:
+			var case_id := "y%s_z%s" % [str(com_y).replace(".", "_"), str(com_z).replace(".", "_")]
+			var case_label := "COM Y = %.2f m, Z = %.1f m" % [com_y, com_z]
+			var case_position := Vector3(current_com.x, float(com_y), float(com_z))
+			com_cases.append({"id": case_id, "label": case_label, "position": case_position})
+			com_cases_json.append({
+				"id": case_id,
+				"label": case_label,
+				"position_local_m": [case_position.x, case_position.y, case_position.z]
+			})
 	var alpha_cases := [-5.0, 0.0, 5.0]
 	var test_air := CARNIVAL_ATMOSPHERE.sample(wing_aero_test_altitude_m)
 	var result_cases: Array[Dictionary] = []
@@ -3215,7 +3223,7 @@ func _run_wing_com_sweep_test() -> void:
 		})
 
 	var report := {
-		"test": "wing_center_of_mass_sweep",
+		"test": "wing_center_of_mass_2d_sweep",
 		"coordinate_system": "ship local: +X right, +Y up, -Z forward",
 		"force_model": "One unchanged aerodynamic force evaluation per alpha; moments are recomputed about virtual COM positions",
 		"requested_speed_mps": wing_aero_test_speed_mps,
@@ -3223,19 +3231,15 @@ func _run_wing_com_sweep_test() -> void:
 		"density_kg_m3": float(test_air["density_kg_m3"]),
 		"speed_of_sound_mps": float(test_air["speed_of_sound_mps"]),
 		"current_body_center_of_mass_local_m": [current_com.x, current_com.y, current_com.z],
-		"com_cases": [
-			{"id": "current", "label": "Current estimated COM", "position_local_m": [current_com.x, current_com.y, current_com.z]},
-			{"id": "z18", "label": "COM Z = 18 m", "position_local_m": [current_com.x, current_com.y, 18.0]},
-			{"id": "z22", "label": "COM Z = 22 m", "position_local_m": [current_com.x, current_com.y, 22.0]},
-			{"id": "z26", "label": "COM Z = 26 m", "position_local_m": [current_com.x, current_com.y, 26.0]},
-			{"id": "z30", "label": "COM Z = 30 m", "position_local_m": [current_com.x, current_com.y, 30.0]}
-		],
+		"com_y_grid_m": com_y_cases,
+		"com_z_grid_m": com_z_cases,
+		"com_cases": com_cases_json,
 		"alpha_cases_deg": alpha_cases,
 		"active_wings": active_wings_count,
 		"active_strips": active_strips_count,
 		"results": result_cases
 	}
-	var output_path := ProjectSettings.globalize_path("res://wing_com_sweep.json")
+	var output_path := ProjectSettings.globalize_path("res://wing_com_2d_sweep.json")
 	var output_file := FileAccess.open(output_path, FileAccess.WRITE)
 	if output_file == null:
 		push_error("[WING_COM_SWEEP] Cannot write %s: %s" % [output_path, error_string(FileAccess.get_open_error())])
