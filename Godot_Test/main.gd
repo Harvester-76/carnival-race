@@ -3178,7 +3178,7 @@ func _run_wing_com_sweep_test() -> void:
 				result_cases.append({
 					"altitude_m": altitude_m,
 					"speed_mps": speed_mps,
-					"alpha_deg": alpha_deg,
+					"alpha_deg": alpha_value,
 					"density_kg_m3": float(test_air["density_kg_m3"]),
 					"speed_of_sound_mps": float(test_air["speed_of_sound_mps"]),
 					"mach": speed_mps / float(test_air["speed_of_sound_mps"]),
