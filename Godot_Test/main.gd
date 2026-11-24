@@ -3163,12 +3163,18 @@ func _run_wing_com_sweep_test() -> void:
 					"axial_moment_local_nm": Vector3.ZERO,
 					"strip_count": 0
 				})
-				wing_data["force_local_n"] = (wing_data["force_local_n"] as Vector3) + force
-				wing_data["normal_force_local_n"] = (wing_data["normal_force_local_n"] as Vector3) + normal_force
-				wing_data["axial_force_local_n"] = (wing_data["axial_force_local_n"] as Vector3) + axial_force
-				wing_data["moment_local_nm"] = (wing_data["moment_local_nm"] as Vector3) + strip_moment
-				wing_data["normal_moment_local_nm"] = (wing_data["normal_moment_local_nm"] as Vector3) + strip_normal_moment
-				wing_data["axial_moment_local_nm"] = (wing_data["axial_moment_local_nm"] as Vector3) + strip_axial_moment
+				var wing_force: Vector3 = wing_data["force_local_n"]
+				var wing_normal_force: Vector3 = wing_data["normal_force_local_n"]
+				var wing_axial_force: Vector3 = wing_data["axial_force_local_n"]
+				var wing_moment: Vector3 = wing_data["moment_local_nm"]
+				var wing_normal_moment: Vector3 = wing_data["normal_moment_local_nm"]
+				var wing_axial_moment: Vector3 = wing_data["axial_moment_local_nm"]
+				wing_data["force_local_n"] = wing_force + force
+				wing_data["normal_force_local_n"] = wing_normal_force + normal_force
+				wing_data["axial_force_local_n"] = wing_axial_force + axial_force
+				wing_data["moment_local_nm"] = wing_moment + strip_moment
+				wing_data["normal_moment_local_nm"] = wing_normal_moment + strip_normal_moment
+				wing_data["axial_moment_local_nm"] = wing_axial_moment + strip_axial_moment
 				wing_data["strip_count"] = int(wing_data["strip_count"]) + 1
 				per_wing[wing_name] = wing_data
 
