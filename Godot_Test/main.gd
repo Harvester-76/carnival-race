@@ -2341,6 +2341,97 @@ func _estimate_ship_center_of_mass(root: Node3D) -> Dictionary:
 		"valid": true
 	}
 
+func _estimate_ship_mass_properties(root: Node3D, total_mass_kg: float) -> Dictionary:
+	# Thin-shell approximation: each mesh triangle receives mass in proportion
+	# to its area within its component group. This is a screening estimate,
+	# not a substitute for volumetric material density or measured component masses.
+	const MASS_FRACTIONS := {"hull": 0.70, "wings": 0.12, "engines": 0.15, "other": 0.03}
+	var area_by_group := {"hull": 0.0, "wings": 0.0, "engines": 0.0, "other": 0.0}
+	var triangles_by_group := {"hull": [], "wings": [], "engines": [], "other": []}
+	for child in root.get_children():
+		if not child is MeshInstance3D:
+			continue
+		var mi := child as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var nm := String(mi.name)
+		if nm.begins_with("SM_Hull_Body_LOD1") or nm.begins_with("SM_Hull_Solid") or nm.begins_with("UCX_"):
+			continue
+		var group := "other"
+		if nm.begins_with("SM_Hull_Body"):
+			group = "hull"
+		elif nm.begins_with("SM_Wing_"):
+			group = "wings"
+		elif nm.begins_with("SM_Engine_"):
+			group = "engines"
+		elif not nm.begins_with("SM_"):
+			continue
+		var faces := mi.mesh.get_faces()
+		for i in range(0, faces.size() - 2, 3):
+			var a: Vector3 = mi.transform * faces[i]
+			var b: Vector3 = mi.transform * faces[i + 1]
+			var c: Vector3 = mi.transform * faces[i + 2]
+			var triangle_area := (b - a).cross(c - a).length() * 0.5
+			if triangle_area <= 0.000001:
+				continue
+			area_by_group[group] += triangle_area
+			(triangles_by_group[group] as Array).append([a, b, c, triangle_area])
+	var included_fraction := 0.0
+	for group in MASS_FRACTIONS:
+		if float(area_by_group[group]) > 0.000001:
+			included_fraction += float(MASS_FRACTIONS[group])
+	if included_fraction <= 0.0:
+		return {"valid": false}
+	var first_moment := Vector3.ZERO
+	var second_xx := 0.0
+	var second_yy := 0.0
+	var second_zz := 0.0
+	var second_xy := 0.0
+	var second_xz := 0.0
+	var second_yz := 0.0
+	for group in MASS_FRACTIONS:
+		var group_area := float(area_by_group[group])
+		if group_area <= 0.000001:
+			continue
+		var group_mass := total_mass_kg * float(MASS_FRACTIONS[group]) / included_fraction
+		for tri in triangles_by_group[group]:
+			var a: Vector3 = tri[0]
+			var b: Vector3 = tri[1]
+			var c: Vector3 = tri[2]
+			var tri_mass := group_mass * float(tri[3]) / group_area
+			var sum_v := a + b + c
+			first_moment += sum_v * (tri_mass / 3.0)
+			# Integral of r_i*r_j over a uniform triangular lamina.
+			var factor := tri_mass / 12.0
+			second_xx += factor * (sum_v.x * sum_v.x + a.x*a.x + b.x*b.x + c.x*c.x)
+			second_yy += factor * (sum_v.y * sum_v.y + a.y*a.y + b.y*b.y + c.y*c.y)
+			second_zz += factor * (sum_v.z * sum_v.z + a.z*a.z + b.z*b.z + c.z*c.z)
+			second_xy += factor * (sum_v.x * sum_v.y + a.x*a.y + b.x*b.y + c.x*c.y)
+			second_xz += factor * (sum_v.x * sum_v.z + a.x*a.z + b.x*b.z + c.x*c.z)
+			second_yz += factor * (sum_v.y * sum_v.z + a.y*a.z + b.y*b.z + c.y*c.z)
+	var center := first_moment / total_mass_kg
+	# Shift the second-moment matrix from the origin to the estimated COM.
+	second_xx -= total_mass_kg * center.x * center.x
+	second_yy -= total_mass_kg * center.y * center.y
+	second_zz -= total_mass_kg * center.z * center.z
+	second_xy -= total_mass_kg * center.x * center.y
+	second_xz -= total_mass_kg * center.x * center.z
+	second_yz -= total_mass_kg * center.y * center.z
+	var inertia := [
+		[second_yy + second_zz, -second_xy, -second_xz],
+		[-second_xy, second_xx + second_zz, -second_yz],
+		[-second_xz, -second_yz, second_xx + second_yy]
+	]
+	return {
+		"valid": true,
+		"center": center,
+		"inertia_kg_m2": inertia,
+		"mass_kg": total_mass_kg,
+		"areas_m2": area_by_group,
+		"mass_fractions": MASS_FRACTIONS,
+		"model": "area-weighted thin-shell triangles per mass group"
+	}
+
 func _build_ship() -> void:
 	var ps: PackedScene = load(String(active_ship_profile.get("model", "res://ships/base/model/ship.glb")))
 	ship_scene = ps
@@ -2412,6 +2503,11 @@ func _build_ship() -> void:
 	if bool(com_estimate.get("valid", false)):
 		ship.center_of_mass = com_estimate["center"]
 		print("[SHIP_COM] estimated=", ship.center_of_mass, " mass_kg=", ship_mass_kg, " fractions=", com_estimate["mass_fractions"], " group_centers=", com_estimate["groups"])
+		var mass_properties := _estimate_ship_mass_properties(ship, ship_mass_kg)
+		if bool(mass_properties.get("valid", false)):
+			print("[SHIP_INERTIA_ESTIMATE] model=", mass_properties["model"], " mass_kg=", mass_properties["mass_kg"], " center_local=", mass_properties["center"], " tensor_kg_m2=", mass_properties["inertia_kg_m2"], " areas_m2=", mass_properties["areas_m2"])
+		else:
+			push_warning("[SHIP_INERTIA_ESTIMATE] Geometry-based inertia estimate failed.")
 	else:
 		push_warning("[SHIP_COM] Geometry-based estimate failed; falling back to hull AABB center.")
 		var aabb := (ship.get_node("SM_Hull_Body") as MeshInstance3D).get_aabb()
