@@ -486,7 +486,15 @@ func _page_items() -> Array:
 				var has: bool = got.has(a["id"])
 				it.append({"id": a["id"], "title": a["title"], "cond": a["cond"], "st": "got" if has else ("hidden" if a.get("hidden", false) else "lock"), "when": String(got.get(a["id"], "")), "prog": "" if has else _ach_prog(String(a["id"]))})
 		"settings":
-			it = [{"t": "Управление", "kind": "action", "a": func(): goto_page("controls")}, {"t": "Звук", "kind": "action", "a": func(): goto_page("sound")}, {"t": "Камера", "kind": "action", "a": func(): goto_page("camera")}, {"t": "Интерфейс", "kind": "action", "d": "Режим HUD, прозрачность панелей, отступ от края экрана и что показывать.", "a": func(): goto_page("interface")}, back]
+			it = [{"t": "Управление", "kind": "action", "a": func(): goto_page("controls")}, {"t": "Звук", "kind": "action", "a": func(): goto_page("sound")}, {"t": "Камера", "kind": "action", "a": func(): goto_page("camera")}, {"t": "Интерфейс", "kind": "action", "d": "Режим HUD, прозрачность панелей, отступ от края экрана и что показывать.", "a": func(): goto_page("interface")}, {"t": "Производительность", "kind": "action", "d": "Кэширование и другие параметры производительности.", "a": func(): goto_page("perf")}, back]
+		"perf":
+			it = [{"t": "Память", "kind": "action", "d": "Кэширование трассы и текстур: быстрее перезагрузка сцены ценой оперативной памяти.", "a": func(): goto_page("perfmem")}, back]
+		"perfmem":
+			var cache_hint := "Будет использоваться больше оперативной памяти, но карта будет быстрее загружаться при перезапуске."
+			var tc := _bool_item("Кэширование трассы", "track_cache", cache_hint); tc["sub"] = cache_hint
+			var tex_hint := "Текстуры кораблей и ливреек останутся в памяти: перезапуск заезда заметно быстрее (около 0,6 ГБ памяти)."
+			var xc := _bool_item("Кэширование текстур", "tex_cache", tex_hint); xc["sub"] = tex_hint
+			it = [tc, xc, back]
 		"controls":
 			it = [{"t": "Схема геймпада:  ◀ %d ▶" % (main.scheme + 1), "l": "Схема геймпада", "kind": "choice", "val": "%d" % (main.scheme + 1), "cw": 80.0, "cfs": 28, "d": "Схема 1: левый стик — тангаж (вверх-вниз) и крен (влево-вправо), бамперы LB/RB — рыскание, правый стик — маневровые (всё переназначается). Схема 2: каждый стик управляет своим бортом маневровых.", "s": func(_d): _flip_scheme(), "a": func(): _flip_scheme()},
 				_bool_item("Левый стик, влево-вправо: инверсия", "inv_lx"), _bool_item("Левый стик, вверх-вниз: инверсия", "inv_ly"),
@@ -652,7 +660,7 @@ func goto_page(p: String) -> void:
 
 func back_page() -> void:
 	capturing = ""; pm_sel = ""; sfx.play("back"); check_custom()
-	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "camera_dolly": "camera", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
+	var parent := {"settings": "main", "controls": "settings", "sound": "settings", "camera": "settings", "camera_dolly": "camera", "interface": "settings", "keys": "controls", "pad": "controls", "advanced": "controls", "perf": "settings", "perfmem": "perf", "ach": "main", "about": "main", "project": "about", "link": "about", "exit": "main"}
 	if page.begins_with("organ:"): page = "advanced"
 	elif page == "main": return
 	else: page = parent.get(page, "main")
@@ -671,6 +679,8 @@ func _page_title() -> String:
 		"camera": return "НАСТРОЙКИ › КАМЕРА"
 		"camera_dolly": return "КАМЕРА › DOLLY ZOOM"
 		"interface": return "НАСТРОЙКИ › ИНТЕРФЕЙС"
+		"perf": return "НАСТРОЙКИ › ПРОИЗВОДИТЕЛЬНОСТЬ"
+		"perfmem": return "ПРОИЗВОДИТЕЛЬНОСТЬ › ПАМЯТЬ"
 		"ach": return "ДОСТИЖЕНИЯ"
 		"about": return "ОБ ИГРЕ"
 		"project": return "ОБ ИГРЕ › О ПРОЕКТЕ"
@@ -700,9 +710,12 @@ func _refresh_items() -> void:
 	for c in vbox.get_children(): vbox.remove_child(c); c.queue_free()
 	var cur: Label = null
 	for i in items.size():
-		var l := _lbl(("▶ " if i == sel else "    ") + String(items[i].get("t", "")), 34 if not sub else 28, ORANGE if i == sel else CREAM, vbox)
+		var l := _lbl(("▶ " if i == sel else "   ") + String(items[i].get("t", "")), 34 if not sub else 28, ORANGE if i == sel else CREAM, vbox)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; l.custom_minimum_size = Vector2(620, 0)
 		if i == sel: cur = l
+		if items[i].has("sub"):                                                    # подсказка мелким шрифтом прямо под пунктом
+			var sl := _lbl(String(items[i]["sub"]), 18, Color(1, 1, 1, 0.55), vbox)
+			sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; sl.custom_minimum_size = Vector2(620, 0)
 	if cur != null: _show_sel.call_deferred(cur)
 	desc_lbl.text = String(items[sel].get("d", "")) if items.size() > 0 else ""
 
@@ -1036,6 +1049,8 @@ func _show_static_error(message: String) -> void:
 	_show_static_dialog("error", "Не удалось распаковать Static-трассу", message, "Закрыть", Callable())
 
 func _start_race() -> void:
+	var behind_race: bool = Engine.has_meta("menu_over_race")                   # флаг ставит _to_menu: за меню осталась прошлая гонка, сцену пересобираем при старте заезда
+	if behind_race: Engine.remove_meta("menu_over_race")
 	var want_static := String(main.cfg.get("track_mode", "STATIC")) == "STATIC"
 	if want_static:
 		if not main.static_track_verified:
@@ -1056,6 +1071,9 @@ func _start_race() -> void:
 		main.reload_title = "Загрузка статической трассы" if want_static else "Загрузка Generated-трассы"
 		Engine.time_scale = 1.0; main._reload_game(); return
 	if int(main.cfg.get("ship", 0)) != main.ship_id: _reload_for_ship(); return
+	if behind_race:
+		main.reload_title = "Загрузка заезда"; Engine.time_scale = 1.0; Engine.set_meta("skip_menu", true)
+		main._reload_game(); return
 	state = "hud"; _show_state("hud"); main.cam_mode = clampi(int(main.cfg["cam_view"]), 0, main.CAM_NAMES.size() - 1); main.begin_intro(); main._sync_time_scale()
 
 func _change_track_source(d: int) -> void:
@@ -1070,9 +1088,12 @@ func _restart() -> void:
 	main.reload_title = "Перезапуск заезда"; Engine.time_scale = 1.0; Engine.set_meta("skip_menu", true); main._reset()
 
 func _to_menu() -> void:
-	main.reload_title = "Возврат в главное меню"; Engine.time_scale = 1.0
+	# меню открывается поверх живого кадра: сцену не пересобираем, мир замрёт через _sync_time_scale (ui.blocking)
+	# флаг нужна _start_race: при старте заезженной гонки сцену придётся один раз пересобрать
+	Engine.time_scale = 1.0
+	Engine.set_meta("menu_over_race", true)
 	if Engine.has_meta("skip_menu"): Engine.remove_meta("skip_menu")
-	main._reset()
+	open_menu()
 
 func _activate() -> void:
 	if state == "results":

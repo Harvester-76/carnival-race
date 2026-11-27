@@ -47,7 +47,7 @@
 	"lift_side": 5.0,
 	"main_acc": 1500.0,
 	"main_spool": 5.0,
-	"max_speed": 3200.0,
+	"max_speed": 5000.0,
 	"max_spin": 2.0,
 	"pitch.fn": 1.0,
 	"pitch.k": 3.0,

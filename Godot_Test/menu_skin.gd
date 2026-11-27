@@ -210,6 +210,10 @@ func _row(r: Rect2, it: Dictionary, on: bool, fs: int) -> void:
 		for i in lines.size(): _txt(wgt, Vector2(lx, y0 + lh * (i + 0.5)), lines[i], fs, fg)
 	else:
 		_txt(wgt, Vector2(lx, r.position.y + r.size.y * 0.5), lab, fs, fg)
+	if it.has("sub"):                                                          # подсказка мелким шрифтом под пунктом
+		var sub_lines := _wrap(f_t4, String(it["sub"]), 17, maxf(right - lx - 10.0, 60.0))
+		var sy2 := r.end.y - float(sub_lines.size()) * 20.0 - 4.0
+		for ln in sub_lines: _txt(f_t4, Vector2(lx, sy2), ln, 17, ASH); sy2 += 20.0
 
 func _lab_w(r_w: float, it: Dictionary, fs: int) -> float:                  # ширина под подпись пункта (за вычетом элементов справа); та же арифметика, что в _row
 	var dis := bool(it.get("dis", false)); var kind := String(it.get("kind", ""))
@@ -229,11 +233,13 @@ func _lab_w(r_w: float, it: Dictionary, fs: int) -> float:                  # ш
 	return maxf(right - lx - 10.0, 60.0)
 
 func _row_h(it: Dictionary, on: bool, fs: int, r_w: float, h: float) -> float:   # выбранный пункт растёт под многострочную подпись
-	if not on: return h
+	var sub_h := 0.0
+	if it.has("sub"): sub_h = float(_wrap(f_t4, String(it["sub"]), 17, _lab_w(r_w, it, fs)).size()) * 20.0 + 28.0    # место под подсказку нужно любой строке
+	if not on: return h + sub_h
 	var lab := String(it.get("l", it.get("t", "")))
 	var w := _lab_w(r_w, it, fs)
-	if f_t6.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= w: return h
-	return maxf(h, _wrap(f_t8, lab, fs, w).size() * fs * 1.15 + 22.0)
+	if f_t6.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= w: return h + sub_h
+	return maxf(h, _wrap(f_t8, lab, fs, w).size() * fs * 1.15 + 22.0) + sub_h
 
 func _rows(x: float, y: float, w: float, h: float, fs: int, gap: float, y_max := 900.0) -> void:
 	var hs := PackedFloat64Array(); var offs := PackedFloat64Array(); var total := 0.0

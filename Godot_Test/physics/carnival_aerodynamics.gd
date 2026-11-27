@@ -2,10 +2,14 @@ extends RefCounted
 ## Anisotropic aerodynamic drag. SI units throughout.
 ## Effective area and Cd scale are independently configurable for each exposed face.
 
+# Сопротивление после звукового барьера не спадает, а растёт: атмосфера Карнавала сама тормозит корабль.
+# Эталон: равновесие ~3000 м/с при полном газе на высоте 2000 м (базовый корпус, cd_scale носа 2).
+# Чем выше — тем меньше плотность (carnival_atmosphere.gd) и тем выше равновесная скорость.
 const DEFAULT_CD_MACH := [
 	Vector2(0.0, 0.24), Vector2(0.8, 0.25), Vector2(1.0, 0.34),
-	Vector2(1.2, 0.38), Vector2(2.0, 0.32), Vector2(3.0, 0.29),
-	Vector2(5.0, 0.27), Vector2(8.0, 0.26)
+	Vector2(1.2, 0.38), Vector2(2.0, 0.34), Vector2(4.0, 0.355),
+	Vector2(6.0, 0.38), Vector2(8.0, 0.39), Vector2(10.5, 0.40),
+	Vector2(14.0, 0.415), Vector2(20.0, 0.43)
 ]
 const DEFAULT_PROFILE := {
 	"nose": {"area_m2": 18.0, "cd_scale": 1.0},

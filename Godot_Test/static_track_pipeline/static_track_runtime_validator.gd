@@ -4,6 +4,12 @@ class_name StaticTrackRuntimeValidator
 const CHUNK_NAME := "^x([+-]\\d+)_z([+-]\\d+)\\.ply$"
 
 static func validate_directory(root: String, verify_hashes := false, require_production := true) -> Dictionary:
+	# Проверка пакета открывает заголовки тысяч PLY-чанков (секунды на каждый вызов), а вызывается она
+	# при каждой пересборке сцены. Успешный результат кэшируется на время запуска игры;
+	# ключ включает mtime манифеста, поэтому после переустановки трассы проверка выполняется заново.
+	var mtime := FileAccess.get_modified_time(ProjectSettings.globalize_path(root.path_join("track.json")))
+	var ck := "stval_%s_%s_%d" % [root.md5_text(), str(verify_hashes) + str(require_production), mtime]
+	if Engine.has_meta(ck): return Engine.get_meta(ck)
 	var root_abs := ProjectSettings.globalize_path(root)
 	var manifest_path := ""
 	for candidate in ["track.json", "fixture.json"]:
@@ -38,7 +44,9 @@ static func validate_directory(root: String, verify_hashes := false, require_pro
 	if verify_hashes:
 		var hash_result := _validate_hashes(root)
 		if not bool(hash_result.get("ok", false)): return hash_result
-	return {"ok": true, "checked_files": checked_files, "manifest": manifest_path}
+	var ok_result := {"ok": true, "checked_files": checked_files, "manifest": manifest_path}
+	Engine.set_meta(ck, ok_result)
+	return ok_result
 
 static func _validate_hashes(root: String) -> Dictionary:
 	var path := root.path_join("artifact-hashes.json")

@@ -158,6 +158,11 @@ var soak_sw := 0.0
 var soak_slow := 0
 var soak_hitch := 0
 var soak_sec := 0
+var speedtest_active := false                                              # автотест: полный газ, замер равновесной скорости по высотам
+var speedtest_alts: Array = [2000.0, 4000.0, 6000.0, 8000.0, 11000.0]
+var speedtest_i := -1
+var speedtest_t := 0.0
+var speedtest_v: Array = []
 var soak_shot_n := 0
 var soak_fps_min := 999.0
 var test_mode := false
@@ -399,7 +404,7 @@ const LEVEL_ROLL := [2.5, 1.5, 0.0, 0.0, 0.0]            # самовыравн�
 var prev_lvl := -1
 func _lvl() -> int: return clampi(int(cfg["level"]), 0, 4)
 const DEADZONES := [0.05, 0.08, 0.12, 0.18, 0.25]
-var cfg := {"version": APP_VERSION, "hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "track_mode": "STATIC", "track_id": "", "track_source": "Static", "stats": {}, "ship": 0, "ach": {}, "rec": {}}
+var cfg := {"version": APP_VERSION, "hud_mode": 0, "hud_alpha": 0.72, "hud_margin": 0.0, "hud_level": true, "hud_chip": true, "inv_lx": false, "inv_ly": false, "inv_rx": false, "inv_ry": false, "swap_roll": false, "inv_kb_pitch": false, "deadzone": 0.12, "level": 3, "vol": 1.0, "music": 0.8, "menu_music": 0.5, "sfx": 1.0, "rumble": true, "ship_sfx": 0.8, "cam_view": 0, "track_mode": "STATIC", "track_id": "", "track_source": "Static", "stats": {}, "ship": 0, "ach": {}, "rec": {}, "track_cache": true, "tex_cache": true}
 var static_mode := false
 var static_unavailable := false
 var static_track_verified := false
@@ -522,12 +527,23 @@ func _build_track() -> void:
 	track_open = false
 	var gen_cuts: Array = []
 	if track_seed > 0:
+		var use_tc: bool = bool(cfg.get("track_cache", true))                # настройка «Кэширование трассы»: быстрее перезагрузка ценой оперативной памяти
 		if gen_len_km > 0.0:
-			var gen: Dictionary = preload("res://trackgen.gd").generate_open(track_seed, gen_len_km)
-			km = gen["pts"]; gen_cuts = gen["cuts"]; track_open = true
+			var ck := "tg_%d_%d" % [track_seed, roundi(gen_len_km * 10.0)]
+			var gen: Dictionary
+			if use_tc and Engine.has_meta(ck): gen = Engine.get_meta(ck)
+			else:
+				gen = preload("res://trackgen.gd").generate_open(track_seed, gen_len_km)
+				if use_tc: Engine.set_meta(ck, gen)                                 # маршруты чистые по seed: при перезагрузке сцены не считаем их заново
+			km = (gen["pts"] as Array).duplicate(); gen_cuts = (gen["cuts"] as Array).duplicate(); track_open = true
 			var kl: Vector2 = km[km.size() - 1]; var kd: Vector2 = (kl - km[km.size() - 2]).normalized()
 			for ti in FIN_TAIL_PTS: km.append(kl + kd * 3.44 * float(ti + 1))      # прямой хвост: последняя срезка заканчивается до финиша, и за ним остаётся участок торможения
-		else: km = preload("res://trackgen.gd").generate(track_seed)
+		else:
+			var ks := "tg_%d_closed" % track_seed
+			if use_tc and Engine.has_meta(ks): km = (Engine.get_meta(ks) as Array).duplicate()
+			else:
+				km = preload("res://trackgen.gd").generate(track_seed)
+				if use_tc: Engine.set_meta(ks, km)
 	var n := km.size()
 	var nseg := n - 1 if track_open else n
 	var sub := 4 if track_open else 16
@@ -546,47 +562,57 @@ func _build_track() -> void:
 		if track_open and i == m - 1: break
 		acc += trk_pts[i].distance_to(trk_pts[(i + 1) % m])
 	trk_len = acc
-	if track_seed > 0:
-		var nr := RandomNumberGenerator.new(); nr.seed = track_seed * 31 + 5
-		narrow_s = []
-		var n_narrow := clampi(int(trk_len / 40000.0), 3, 24)
-		for tries in 400:
-			var cs := nr.randf_range(30000.0, trk_len - 10000.0); var okn := true
-			for o in narrow_s: if absf(float(o) - cs) < 15000.0: okn = false
-			if okn and narrow_s.size() < n_narrow: narrow_s.append(cs)
-		wv = [nr.randf_range(0.15, 0.4), nr.randf_range(0.00006, 0.00018), nr.randf_range(0.0, TAU), nr.randf_range(0.08, 0.25), nr.randf_range(0.0003, 0.0009), nr.randf_range(0.0, TAU)]   # ширина каньона плавает по участкам
-	race_len = trk_len - (24000.0 if track_open else 6000.0)                 # у открытой трассы финиш за 24 км до конца: там прямая для торможения
-	if track_open: _make_cuts(gen_cuts, sub); _make_spurs()
-	else: _make_branches(track_seed if track_seed > 0 else 7)
-	for i in (m - 1 if track_open else m):
-		seg_a.append(trk_pts[i]); seg_b.append(trk_pts[(i + 1) % m]); seg_sa.append(trk_s[i]); seg_sb.append(trk_s[i + 1] if i + 1 < m else trk_len); seg_path.append(0)
-	for bi in branches.size():
-		var br: Dictionary = branches[bi]; var bp: PackedVector2Array = br["pts"]; var bs: PackedFloat32Array = br["s"]
-		for j in range(bp.size() - 1):
-			seg_a.append(bp[j]); seg_b.append(bp[j + 1]); seg_sa.append(bs[j]); seg_sb.append(bs[j + 1]); seg_path.append(bi + 1)
-	var n_main_segs := seg_a.size()
-	for si in spurs.size():
-		var sp: Dictionary = spurs[si]; var spp: PackedVector2Array = sp["pts"]; var spc: PackedFloat32Array = sp["cum"]
-		for j in range(spp.size() - 1):
-			seg_a.append(spp[j]); seg_b.append(spp[j + 1]); seg_sa.append(spc[j]); seg_sb.append(spc[j + 1]); seg_path.append(SPUR_BASE + si)
-	for i in seg_a.size():
-		var a := seg_a[i]; var b := seg_b[i]
-		var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - Vector2(INFL, INFL); var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + Vector2(INFL, INFL)
-		for cx in range(int(floor(lo.x / GCELL)), int(floor(hi.x / GCELL)) + 1):
-			for cz in range(int(floor(lo.y / GCELL)), int(floor(hi.y / GCELL)) + 1):
-				var key := Vector2i(cx, cz)
-				var gr: Dictionary = seg_grid if i < n_main_segs else spur_grid
-				var lst: PackedInt32Array = gr.get(key, PackedInt32Array())
-				lst.append(i); gr[key] = lst
-				if i < n_main_segs:
-					var path_ids: PackedInt32Array = seg_grid_paths.get(key, PackedInt32Array())
-					if not path_ids.has(seg_path[i]): path_ids.append(seg_path[i])
-					seg_grid_paths[key] = path_ids
-		var tx0 := int(floor((a.x - INFL - 3500.0) / TILE)); var tx1 := int(floor((a.x + INFL + 3500.0) / TILE))
-		var tz0 := int(floor((a.y - INFL - 3500.0) / TILE)); var tz1 := int(floor((a.y + INFL + 3500.0) / TILE))
-		if i % 4 == 0:
-			for tx in range(tx0, tx1 + 1):
-				for tz in range(tz0, tz1 + 1): track_tiles[Vector2i(tx, tz)] = true
+	var tb_key := "tk_%d_%s" % [track_seed, str(roundi(gen_len_km * 10.0)) if track_open else "closed"]
+	if track_seed > 0 and bool(cfg.get("track_cache", true)) and Engine.has_meta(tb_key):    # весь детерминированный хвост сборки трассы (сетки сегментов — самая долгая часть) не считаем заново при перезагрузке сцены
+		var tb: Dictionary = Engine.get_meta(tb_key)
+		narrow_s = tb["narrow"]; wv = tb["wv"]; race_len = tb["race_len"]
+		branches = tb["b"]; forks = tb["f"]; spurs = tb["s"]
+		seg_a = tb["sa"]; seg_b = tb["sb"]; seg_sa = tb["ssa"]; seg_sb = tb["ssb"]; seg_path = tb["spath"]
+		seg_grid = tb["sg"]; spur_grid = tb["sug"]; seg_grid_paths = tb["sgp"]; track_tiles = tb["tt"]
+	else:
+		if track_seed > 0:
+			var nr := RandomNumberGenerator.new(); nr.seed = track_seed * 31 + 5
+			narrow_s = []
+			var n_narrow := clampi(int(trk_len / 40000.0), 3, 24)
+			for tries in 400:
+				var cs := nr.randf_range(30000.0, trk_len - 10000.0); var okn := true
+				for o in narrow_s: if absf(float(o) - cs) < 15000.0: okn = false
+				if okn and narrow_s.size() < n_narrow: narrow_s.append(cs)
+			wv = [nr.randf_range(0.15, 0.4), nr.randf_range(0.00006, 0.00018), nr.randf_range(0.0, TAU), nr.randf_range(0.08, 0.25), nr.randf_range(0.0003, 0.0009), nr.randf_range(0.0, TAU)]   # ширина каньона плавает по участкам
+		race_len = trk_len - (24000.0 if track_open else 6000.0)                 # у открытой трассы финиш за 24 км до конца: там прямая для торможения
+		if track_open: _make_cuts(gen_cuts, sub); _make_spurs()
+		else: _make_branches(track_seed if track_seed > 0 else 7)
+		for i in (m - 1 if track_open else m):
+			seg_a.append(trk_pts[i]); seg_b.append(trk_pts[(i + 1) % m]); seg_sa.append(trk_s[i]); seg_sb.append(trk_s[i + 1] if i + 1 < m else trk_len); seg_path.append(0)
+		for bi in branches.size():
+			var br: Dictionary = branches[bi]; var bp: PackedVector2Array = br["pts"]; var bs: PackedFloat32Array = br["s"]
+			for j in range(bp.size() - 1):
+				seg_a.append(bp[j]); seg_b.append(bp[j + 1]); seg_sa.append(bs[j]); seg_sb.append(bs[j + 1]); seg_path.append(bi + 1)
+		var n_main_segs := seg_a.size()
+		for si in spurs.size():
+			var sp: Dictionary = spurs[si]; var spp: PackedVector2Array = sp["pts"]; var spc: PackedFloat32Array = sp["cum"]
+			for j in range(spp.size() - 1):
+				seg_a.append(spp[j]); seg_b.append(spp[j + 1]); seg_sa.append(spc[j]); seg_sb.append(spc[j + 1]); seg_path.append(SPUR_BASE + si)
+		for i in seg_a.size():
+			var a := seg_a[i]; var b := seg_b[i]
+			var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - Vector2(INFL, INFL); var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + Vector2(INFL, INFL)
+			for cx in range(int(floor(lo.x / GCELL)), int(floor(hi.x / GCELL)) + 1):
+				for cz in range(int(floor(lo.y / GCELL)), int(floor(hi.y / GCELL)) + 1):
+					var key := Vector2i(cx, cz)
+					var gr: Dictionary = seg_grid if i < n_main_segs else spur_grid
+					var lst: PackedInt32Array = gr.get(key, PackedInt32Array())
+					lst.append(i); gr[key] = lst
+					if i < n_main_segs:
+						var path_ids: PackedInt32Array = seg_grid_paths.get(key, PackedInt32Array())
+						if not path_ids.has(seg_path[i]): path_ids.append(seg_path[i])
+						seg_grid_paths[key] = path_ids
+			var tx0 := int(floor((a.x - INFL - 3500.0) / TILE)); var tx1 := int(floor((a.x + INFL + 3500.0) / TILE))
+			var tz0 := int(floor((a.y - INFL - 3500.0) / TILE)); var tz1 := int(floor((a.y + INFL + 3500.0) / TILE))
+			if i % 4 == 0:
+				for tx in range(tx0, tx1 + 1):
+					for tz in range(tz0, tz1 + 1): track_tiles[Vector2i(tx, tz)] = true
+		if track_seed > 0 and bool(cfg.get("track_cache", true)):
+			Engine.set_meta(tb_key, {"narrow": narrow_s, "wv": wv, "race_len": race_len, "b": branches, "f": forks, "s": spurs, "sa": seg_a, "sb": seg_b, "ssa": seg_sa, "ssb": seg_sb, "spath": seg_path, "sg": seg_grid, "sug": spur_grid, "sgp": seg_grid_paths, "tt": track_tiles})
 
 # Развилки: рукав-объезд уходит вбок от главного пути и сливается обратно; между ними остаётся скальный остров. Бывают одиночные (один объезд)
 # и двойные (объезды с двух сторон — три канала). Размещаются по всей трассе, после длинного разгона.
@@ -928,9 +954,12 @@ func _ready() -> void:
 		call_deferred("_run_static_install_worker", startup_args)
 		return
 	var startup_usec := Time.get_ticks_usec()
+	var ready_t := Time.get_ticks_usec()
 	track_storage = TRACK_STORAGE_SCRIPT.new()
 	track_storage.ensure_root()
+	print("[LOAD_STAGE]   storage ms=%.0f" % (float(Time.get_ticks_usec() - ready_t) / 1000.0)); ready_t = Time.get_ticks_usec()
 	_load_cfg()
+	print("[LOAD_STAGE]   cfg ms=%.0f" % (float(Time.get_ticks_usec() - ready_t) / 1000.0)); ready_t = Time.get_ticks_usec()
 	var ua := OS.get_cmdline_user_args()
 	shot_mode = "shot" in ua
 	test_mode = "test" in ua
@@ -980,7 +1009,9 @@ func _ready() -> void:
 		static_mode = false
 		static_track_error = "Подготовленная Static-трасса отсутствует или повреждена. Её можно распаковать перед запуском гонки."
 		push_warning(static_track_error)
+	print("[LOAD_STAGE]   static ms=%.0f" % (float(Time.get_ticks_usec() - ready_t) / 1000.0)); ready_t = Time.get_ticks_usec()
 	ship_profiles = SHIP_CATALOG_SCRIPT.load_ships()
+	print("[LOAD_STAGE]   каталог ms=%.0f" % (float(Time.get_ticks_usec() - ready_t) / 1000.0)); ready_t = Time.get_ticks_usec()
 	ship_names.clear()
 	for profile in ship_profiles: ship_names.append(String(profile["name"]))
 	if ship_profiles.is_empty():
@@ -1011,19 +1042,27 @@ func _ready() -> void:
 	if not explicit_track and not evo_mode:                                    # по умолчанию: длинная открытая трасса с развилками (около 650 км)
 		track_seed = 11; gen_len_km = 650.0
 	await _lt(0.02, "Шейдеры")
+	var stage_t := startup_usec
+	var sub_t := Time.get_ticks_usec()
 	_make_shaders()
+	print("[LOAD_STAGE]   шейдеры ms=%.0f" % (float(Time.get_ticks_usec() - sub_t) / 1000.0)); sub_t = Time.get_ticks_usec()
 	_setup_input()
+	print("[LOAD_STAGE]   ввод ms=%.0f" % (float(Time.get_ticks_usec() - sub_t) / 1000.0)); sub_t = Time.get_ticks_usec()
 	performance_diag = PERFORMANCE_DIAGNOSTICS.new()
 	performance_diag.name = "PerformanceDiagnostics"
 	add_child(performance_diag)
 	performance_diag.configure(self)
+	print("[LOAD_STAGE]   диагностика ms=%.0f" % (float(Time.get_ticks_usec() - sub_t) / 1000.0))
+	print("[LOAD_STAGE] подготовка ms=%.0f" % (float(Time.get_ticks_usec() - stage_t) / 1000.0)); stage_t = Time.get_ticks_usec()
 	await _lt(0.04, "Трасса")
 	var track_started := Time.get_ticks_usec()
 	_build_track()
 	print("[RACE_GEOMETRY] seed=%d open=%s centerline_m=%.1f race_route_m=%.1f finish_tail_m=%.1f cuts=%d" % [track_seed, str(track_open), trk_len, race_len, trk_len - race_len, branches.size()])
 	track_generation_ms = float(Time.get_ticks_usec() - track_started) / 1000.0
+	print("[LOAD_STAGE] трасса ms=%.0f" % (float(Time.get_ticks_usec() - stage_t) / 1000.0)); stage_t = Time.get_ticks_usec()
 	await _lt(0.08, "Мир")
 	_build_world()
+	print("[LOAD_STAGE] мир ms=%.0f" % (float(Time.get_ticks_usec() - stage_t) / 1000.0)); stage_t = Time.get_ticks_usec()
 	if static_mode:
 		static_runtime = STATIC_TRACK_RUNTIME.new()
 		static_runtime.name = "StaticTrackRuntime"
@@ -1037,14 +1076,18 @@ func _ready() -> void:
 			static_mode = false
 			static_runtime.queue_free(); static_runtime = null
 	await _lt(0.10, "Ваш корабль")
+	var ship_started := Time.get_ticks_usec()
 	_build_ship()
+	print("[LOAD_STAGE] корабль ms=%.0f" % (float(Time.get_ticks_usec() - ship_started) / 1000.0))
 	await _lt(0.30, "Рельеф")
 	if evo_mode: _preload_evo()
 	else:
 		var terrain_load_started := Time.get_ticks_usec()
 		_preload_chunks()
 		if not static_mode: generated_preload_ms = float(Time.get_ticks_usec() - terrain_load_started) / 1000.0
+	print("[LOAD_STAGE] рельеф ms=%.0f" % (float(Time.get_ticks_usec() - stage_t) / 1000.0)); stage_t = Time.get_ticks_usec()
 	await _spawn_bots()
+	print("[LOAD_STAGE] соперники ms=%.0f" % (float(Time.get_ticks_usec() - stage_t) / 1000.0)); stage_t = Time.get_ticks_usec()
 	if static_mode and static_runtime != null:
 		static_runtime.configure(ship, terr_mat)
 	initial_track_load_ms = float(Time.get_ticks_usec() - startup_usec) / 1000.0
@@ -1053,6 +1096,7 @@ func _ready() -> void:
 	_build_arches()
 	_build_cut_props()
 	_build_hud()
+	print("[LOAD_STAGE] интерфейс ms=%.0f  всего ms=%.0f" % [float(Time.get_ticks_usec() - stage_t) / 1000.0, float(Time.get_ticks_usec() - startup_usec) / 1000.0])
 	log_disabled = "no_flight_log" in ua
 	cam = Camera3D.new(); cam.far = 90000.0; cam.fov = 70.0; add_child(cam)
 	_reset()
@@ -1061,6 +1105,7 @@ func _ready() -> void:
 		if ua2.begins_with("uishot="): ui_shot = ua2.substr(7)
 		if ua2.begins_with("tourc="): tour_c = int(ua2.substr(6))
 	if soak: _soak_begin()
+	elif "speedtest" in ua: _speedtest_begin()
 	elif not (evo_mode or test_mode or shot_mode or ui_shot != "" or (Engine.has_meta("skip_menu") and not static_unavailable)):
 		ui.open_menu()
 		if Engine.has_meta("menu_sel"): ui.sel = int(Engine.get_meta("menu_sel")); Engine.remove_meta("menu_sel"); ui._refresh_items()
@@ -1746,7 +1791,7 @@ func _spawn_bots() -> void:                                                  # �
 	hull_aabb = lod.mesh.get_aabb()
 	hull_aabb = AABB(hull_aabb.position * ship_sc, hull_aabb.size * ship_sc)
 	hull_inst.queue_free()
-	bot_tex = {"alb": load("res://ships/base/textures/hull_albedo_4096.png"), "rgh": load("res://ships/base/textures/hull_roughness_4096.png"), "mtl": load("res://ships/base/textures/hull_metallic_4096.png"), "dec": load("res://ships/base/textures/decal_third_chance.png")}
+	bot_tex = {"alb": _race_tex("res://ships/base/textures/hull_albedo_4096.png"), "rgh": _race_tex("res://ships/base/textures/hull_roughness_4096.png"), "mtl": _race_tex("res://ships/base/textures/hull_metallic_4096.png"), "dec": _race_tex("res://ships/base/textures/decal_third_chance.png")}
 	var glow := ShaderMaterial.new(); glow.shader = glow_shader; glow.set_shader_parameter("power", 0.6)
 	var core := ShaderMaterial.new(); core.shader = core_shader; core.set_shader_parameter("power", 0.6)
 	var blade := ShaderMaterial.new(); blade.shader = blade_shader; blade.set_shader_parameter("power", 0.6)
@@ -1761,7 +1806,7 @@ func _spawn_bots() -> void:                                                  # �
 		var btex := bot_tex.duplicate()                                     # своя ливрея: краска, полосы, номер, имя и эмблема (tools/make_liveries.py)
 		var swapped: bool = int(active_ship_profile.get("livery_bot_index", -1)) == i                    # игрок выбрал корабль этого бота: на его месте летит «Третий шанс», чтобы не было двойников
 		if not evo_mode and not swapped and ResourceLoader.exists("res://ships/base/textures/livery_%d_albedo.png" % i):
-			btex["alb"] = load("res://ships/base/textures/livery_%d_albedo.png" % i); btex["dec"] = load("res://ships/base/textures/livery_%d_decal.png" % i); btex["two_sided"] = true
+			btex["alb"] = _race_tex("res://ships/base/textures/livery_%d_albedo.png" % i); btex["dec"] = _race_tex("res://ships/base/textures/livery_%d_decal.png" % i); btex["two_sided"] = true
 		await _lt(0.30 + 0.62 * float(i) / float(N_BOTS), "Соперники: %d из %d" % [i + 1, N_BOTS])
 		var vspec: Dictionary = BOT_VARIANTS.get(i, {}) if not (evo_mode or swapped or "novariants" in OS.get_cmdline_user_args()) else {}
 		var vres := _fill_variant(rb, "ship0" if swapped else "bot%d" % i, vspec)
@@ -2226,6 +2271,13 @@ func _mesh_children(n: Node) -> Array:
 		if c is MeshInstance3D: r.append(c)
 	return r
 
+func _race_tex(path: String) -> Texture2D:                                  # тяжёлые PNG держим в Engine: перезагрузка сцены не декодирует их заново
+	var ck := "rtex_" + path.md5_text()
+	if bool(cfg.get("tex_cache", true)) and Engine.has_meta(ck): return Engine.get_meta(ck)
+	var t: Texture2D = load(path)
+	if bool(cfg.get("tex_cache", true)): Engine.set_meta(ck, t)
+	return t
+
 func _build_ship() -> void:
 	var ps: PackedScene = load(String(active_ship_profile.get("model", "res://ships/base/model/ship.glb")))
 	ship_scene = ps
@@ -2243,10 +2295,10 @@ func _build_ship() -> void:
 	hull_pos0 = (ship.get_node("SM_Hull_Body") as Node3D).position / ship_sc
 	var texture_profile: Dictionary = active_ship_profile.get("textures", {})
 	var hull_tex := {
-		"alb": load(String(texture_profile.get("albedo", "res://ships/base/textures/hull_albedo_4096.png"))),
-		"rgh": load(String(texture_profile.get("roughness", "res://ships/base/textures/hull_roughness_4096.png"))),
-		"mtl": load(String(texture_profile.get("metallic", "res://ships/base/textures/hull_metallic_4096.png"))),
-		"dec": load(String(texture_profile.get("decal", "res://ships/base/textures/decal_third_chance.png"))),
+		"alb": _race_tex(String(texture_profile.get("albedo", "res://ships/base/textures/hull_albedo_4096.png"))),
+		"rgh": _race_tex(String(texture_profile.get("roughness", "res://ships/base/textures/hull_roughness_4096.png"))),
+		"mtl": _race_tex(String(texture_profile.get("metallic", "res://ships/base/textures/hull_metallic_4096.png"))),
+		"dec": _race_tex(String(texture_profile.get("decal", "res://ships/base/textures/decal_third_chance.png"))),
 		"two_sided": bool(texture_profile.get("two_sided", false))
 	}
 	if texture_profile.has("bite"):
@@ -2900,6 +2952,7 @@ func _remaining(kind: String) -> float:
 
 func _read_controls(dt: float) -> Dictionary:
 	var c := {"thr": 0.0, "lift": 0.0, "gyro": Vector3.ZERO, "tr": Vector3.ZERO, "shl": Vector3.ZERO, "shr": Vector3.ZERO, "boost": 0.0}
+	if speedtest_active: c["thr"] = 1.0; return c                            # автотест скорости: полный газ без управления
 	var pad := Input.get_connected_joypads().size() > 0
 	# --- клавиатура ---
 	var held := func(organ: String, on: bool) -> float:      # кнопка: усилие по времени удержания
@@ -2950,6 +3003,7 @@ func _read_controls(dt: float) -> Dictionary:
 
 func _physics_process(dt: float) -> void:
 	frame += 1
+	if speedtest_active: _speedtest_frame(dt)
 	var log_basis := ship.global_transform.basis
 	var log_local_velocity_now := log_basis.inverse() * ship.linear_velocity
 	log_local_delta_velocity_tick = log_local_velocity_now - log_prev_local_velocity if log_prev_local_velocity_valid else Vector3.ZERO
@@ -3005,7 +3059,7 @@ func _physics_process(dt: float) -> void:
 	elif start_frozen:
 		start_frozen = false; ship.freeze = false; ship.linear_velocity = Vector3.ZERO; ship.angular_velocity = Vector3.ZERO; hold_alt = ship.global_position.y
 	if _reset_now: _reset_now = false; _reset()
-	if test_mode: ctrl = _test_controls()
+	if test_mode and not speedtest_active: ctrl = _test_controls()
 	last_ctrl = ctrl
 	_track_stats(dt)
 	var bs := ship.global_transform.basis
@@ -3134,7 +3188,7 @@ func _physics_process(dt: float) -> void:
 	if "reset" in OS.get_cmdline_user_args() and frame == 120: _reset_now = true
 	if test_mode:
 		if frame % 60 == 0: print("t=", frame / 60, " v=", int(ship.linear_velocity.length()), " y=", int(y), " parts=", parts.size(), " thr=", snappedf(thr, 0.01), " lift=", snappedf(lift_ratio, 0.01), " cp=", next_cp, " bots v=", int(bots[0]["rb"].linear_velocity.length()), "/", int(bots[5]["rb"].linear_velocity.length()), " s=", int(bots[0]["last_s"]), " y=", int(bots[0]["rb"].global_position.y), " rank=", rank)
-		if frame > (14400 if "long" in OS.get_cmdline_user_args() else 3600):
+		if not speedtest_active and frame > (14400 if "long" in OS.get_cmdline_user_args() else 3600):
 			for b in bots: print("END ", b["name"], " s=", int(b["last_s"]), " lap=", b["lap"], " v=", int((b["rb"] as RigidBody3D).linear_velocity.length()), " y=", int((b["rb"] as RigidBody3D).global_position.y), " parts=", b["parts"].size())
 			get_tree().quit()
 
@@ -3391,7 +3445,25 @@ func _process(dt: float) -> void:
 	if Engine.get_process_frames() == 400 and "reloadtest" in OS.get_cmdline_user_args() and not Engine.has_meta("rt_done"):          # проверка перезапуска с экраном загрузки
 		Engine.set_meta("rt_done", true); reload_title = "Возврат в главное меню"; _reset()
 	if "reloadtest" in OS.get_cmdline_user_args() and Engine.has_meta("rt_done") and Engine.get_process_frames() == 1500:
-		get_viewport().get_texture().get_image().save_png("/private/tmp/after_reload.png"); print("AFTER visible=", loading.visible, " state=", ui.state); get_tree().quit()
+		get_viewport().get_texture().get_image().save_png("/private/tmp/after_reload.png"); print("AFTER visible=", loading.visible if loading != null else null, " state=", ui.state); get_tree().quit()
+	if "menutest" in OS.get_cmdline_user_args():                               # проверка мгновенного возврата в меню и повторного старта через пересборку
+		var ms := int(Engine.get_meta("mt_stage", 0))
+		var mt := Time.get_ticks_msec()
+		if ms == 0 and Engine.get_process_frames() == 80 and ui.state == "menu":
+			Engine.set_meta("mt_stage", 1); Engine.set_meta("mt_t0", mt); ui._start_race()
+		elif ms == 1 and ui.state == "hud" and mt - int(Engine.get_meta("mt_t0", 0)) > 2000:
+			Engine.set_meta("mt_stage", 2); Engine.set_meta("mt_t1", mt); ui._to_menu(); print("MENUTEST to_menu call t=", mt)
+		elif ms == 2 and Engine.get_process_frames() % 3 == 0:
+			Engine.set_meta("mt_stage", 3)
+			print("MENUTEST menu_open state=", ui.state, " dt_ms=", mt - int(Engine.get_meta("mt_t1", 0)), " time_scale=", Engine.time_scale)
+			Engine.set_meta("mt_t1", mt)
+		elif ms == 3 and mt - int(Engine.get_meta("mt_t1", 0)) > 1000:
+			Engine.set_meta("mt_stage", 4); Engine.set_meta("mt_t2", mt); print("MENUTEST start_again call t=", mt); ui._start_race()
+		elif ms == 4 and ui.state == "hud":
+			Engine.set_meta("mt_stage", 5)
+			print("MENUTEST restarted state=", ui.state, " racing=", racing, " reload_ms=", mt - int(Engine.get_meta("mt_t2", 0)))
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png("/private/tmp/after_menutest.png"); get_tree().quit()
 	if soak: _soak_frame(dt)
 	if ui_shot != "":                                                          # снимки экранов интерфейса: -- uishot=menu|pause|hud|results
 		var pf := Engine.get_process_frames()
@@ -3563,7 +3635,7 @@ func _process(dt: float) -> void:
 			if intro_on: intro_on = false; music.race_started()
 	if racing: race_t += dt
 	# запретная зона по высоте: границы не видно и не бьёт, но надо выйти за RIM_GRACE секунд
-	if ship.global_position.y > RIM_Y and not soak and not p_dsq and dsq_t <= 0.0:       # после дисквалификации (и пока идёт её отсчёт) время выше потолка больше не копится
+	if ship.global_position.y > RIM_Y and not soak and not speedtest_active and not p_dsq and dsq_t <= 0.0:       # после дисквалификации (и пока идёт её отсчёт) время выше потолка больше не копится
 		rim_t += dt
 		if racing: p_rim_ever = true
 	else: rim_t = maxf(0.0, rim_t - dt * 2.0)
@@ -3828,7 +3900,9 @@ func _camera(dt: float) -> void:
 	var off := pos - t.origin                                   # не ближе 70 м к кораблю, иначе при ударе камера оказывается внутри него
 	var min_camera_distance := maxf(10.0, 70.0 - dolly_offset)
 	if off.length() < min_camera_distance: pos = t.origin + (off.normalized() if off.length() > 0.5 else Vector3.UP) * min_camera_distance
-	pos.y = maxf(pos.y, height(pos.x, pos.z) + 10.0)
+	# пол камеры по формуле высоты: за стенкой Generated-каньона height() даёт уровень плато, а на Static там ещё настоящее ущелье —
+	# поэтому «пол» не поднимает камеру выше корабля, от скачка вверх («корабль резко отдаляется») на границе расчётной зоны
+	pos.y = maxf(pos.y, minf(height(pos.x, pos.z) + 10.0, t.origin.y + 12.0))
 	var dir := look - pos
 	if dir.length() < 1.0: dir = -t.basis.z
 	var want := Transform3D(Basis.IDENTITY, pos).looking_at(pos + dir, cam_up if absf(dir.normalized().dot(cam_up)) < 0.98 else Vector3.UP)
@@ -3926,6 +4000,48 @@ func _fly_txt() -> String:
 	var dbg_s := "hold=%d cos=%.2f vy=%d thr=%.2f " % [int(b["hold"]), ship.global_transform.basis.y.y, int(ship.linear_velocity.y), float(b["thr"])]
 	dbg_s += String(b.get("dbg", "")) + " | "
 	return dbg_s + "hits=%d вылетов=%d под_рельефом_кадров=%d (макс %.0f м) кадров_с_контактом=%d depen=%d деталей=%d" % [int(b["hits"]), int(b["resp"]), soak_under, soak_under_max, soak_contact, soak_depen, parts.size()]
+
+# --- автотест «speedtest»: полный газ на заданных высотах, замер равновесной скорости: -- test speedtest ---
+func _speedtest_begin() -> void:
+	speedtest_active = true
+	ui._show_state("hud"); start_t = 0.0; racing = true
+	log_disabled = true
+	assist = false
+	ship.gravity_scale = 0.0; ship.lock_rotation = true                      # прямолинейный полёт: без гравитации и вращения
+	ship.collision_layer = 0; ship.collision_mask = 0                        # чистый замер аэродинамики, рельеф не мешает
+	for b in bots: (b["rb"] as RigidBody3D).freeze = true; b["dnf"] = true   # боты стоят на старте
+	_speedtest_next()
+
+func _speedtest_next() -> void:
+	speedtest_i += 1
+	if speedtest_i >= speedtest_alts.size():
+		print("SPEEDTEST done"); get_tree().quit(); return
+	var alt: float = speedtest_alts[speedtest_i]
+	ship.global_position = Vector3(0.0, alt, 0.0)
+	ship.global_transform.basis = Basis.IDENTITY
+	ship.linear_velocity = Vector3(0.0, 0.0, -300.0)                         # разгонный инициал вперёд (-Z)
+	ship.angular_velocity = Vector3.ZERO
+	speedtest_t = 0.0; speedtest_v.clear()
+	print("SPEEDTEST alt=%d begin" % int(alt))
+
+func _speedtest_frame(dt: float) -> void:
+	ship.angular_velocity = Vector3.ZERO
+	ship.global_transform.basis = Basis.IDENTITY
+	speedtest_t += dt
+	var sp := ship.linear_velocity.length()
+	speedtest_v.append(sp)
+	if speedtest_t < 3.0 or int(speedtest_t * 10.0) % 20 == 0: return
+	var n_tail := maxi(speedtest_v.size() - int(2.0 / maxf(dt, 0.001)), 1)   # последние 2 с: сошлось, если разброс < 2 м/с
+	var vmin: float = speedtest_v[n_tail]; var vmax: float = vmin
+	for j in range(n_tail, speedtest_v.size()):
+		vmin = minf(vmin, speedtest_v[j]); vmax = maxf(vmax, speedtest_v[j])
+	if speedtest_t < 16.0 and vmax - vmin >= 2.0: return
+	var mean := 0.0
+	for j in range(n_tail, speedtest_v.size()): mean += speedtest_v[j]
+	mean /= float(speedtest_v.size() - n_tail)
+	var air := CARNIVAL_ATMOSPHERE.sample(ship.global_position.y)
+	print("SPEEDTEST alt=%d v_eq=%.0f м/с (%.0f км/ч) mach=%.2f rho=%.4f a0=%.1f t=%.1f" % [int(ship.global_position.y), mean, mean * 3.6, sp / float(air["speed_of_sound_mps"]), float(air["density_kg_m3"]), float(air["speed_of_sound_mps"]), speedtest_t])
+	_speedtest_next()
 
 func _fly_setup() -> void:                                                  # настоящий корабль становится «ботом» с генами бота 0
 	var b: Dictionary = bots[0].duplicate()
